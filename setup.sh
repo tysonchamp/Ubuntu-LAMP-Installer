@@ -27,8 +27,13 @@ echo " "
 echo "================================================================"
 apt-get install openssl -y && apt-get install apache2 -y
 echo "================================================================"
-apt-get install php5 php5-gd php5-common php5-curl php5-gmp -y && apt-get install mysql-server -y
+apt-get install php5 php5-gd php5-common php5-curl php5-gmp -y && apt-get install mariadb-server -y
 echo "================================================================"
+debconf-set-selections <<< "phpmyadmin phpmyadmin/dbconfig-install boolean true"
+debconf-set-selections <<< "phpmyadmin phpmyadmin/app-password-confirm password"
+debconf-set-selections <<< "phpmyadmin phpmyadmin/mysql/admin-pass password"
+debconf-set-selections <<< "phpmyadmin phpmyadmin/mysql/app-pass password"
+debconf-set-selections <<< "phpmyadmin phpmyadmin/reconfigure-webserver multiselect apache2"
 apt-get install phpmyadmin -y
 #echo "Include /etc/phpmyadmin/apache.conf" | cat >> /etc/apache2/apache2.conf
 a2enmod ssl && service apache2 restart
