@@ -18,8 +18,7 @@ cat > /etc/apache2/sites-available/$domain.conf <<EOF
     <Directory /var/www/$domain>
         Options Indexes FollowSymLinks MultiViews
         AllowOverride All
-        Order allow,deny
-        allow from all
+        Require all granted
     </Directory>
     ErrorLog \${APACHE_LOG_DIR}/error.log
     CustomLog \${APACHE_LOG_DIR}/access.log combined
@@ -38,8 +37,7 @@ cat > /etc/apache2/sites-available/$domain-ssl.conf <<EOF
         <Directory /var/www/$domain>
             Options Indexes FollowSymLinks MultiViews
             AllowOverride All
-            Order allow,deny
-            allow from all
+            Require all granted
         </Directory>
         ErrorLog \${APACHE_LOG_DIR}/error.log
         CustomLog \${APACHE_LOG_DIR}/access.log combined
