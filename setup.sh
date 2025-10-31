@@ -32,21 +32,10 @@ echo "================================================================"
 apt-get install phpmyadmin -y
 #echo "Include /etc/phpmyadmin/apache.conf" | cat >> /etc/apache2/apache2.conf
 a2enmod ssl && service apache2 restart
-echo " "
-echo "Self-Sign SSL Installation Process Starts"
-echo " "
-echo "================================================================"
-mkdir -p /etc/apache2/ssl
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/apache2/ssl/$1.key -out /etc/apache2/ssl/$1.crt
-a2enmod rewrite
-echo "Setting up Virtual Host Configaration Files"
-echo " "
-echo "================================================================"
-sh vhostconf.sh $1
-mkdir /var/www/$1
+a2enmod rewrite && service apache2 restart
+mkdir /var/www/
 chown -R www-data:www-data /var/www/*
 chmod -R 755 /var/www/*
-echo "Installing Webmin Control Panel and It's Dependencis"
+mkdir -p /etc/apache2/ssl
 echo " "
-echo "================================================================"
-sh webmin.sh
+echo "Initial setup complete. Run create_vhost.sh to create a new virtual host."
