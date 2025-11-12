@@ -42,16 +42,16 @@ echo "LAMP Stack with OpenSSL and phpMyAdmin"
 echo "Installation Process Starts:"
 echo " "
 echo "================================================================"
-#apt-get install openssl -y && apt-get install apache2 -y
+apt-get install openssl -y && apt-get install apache2 -y
 echo "================================================================"
-#sudo apt-get install php php-gd php-common php-curl php-gmp libapache2-mod-php -y && sudo apt-get install mariadb-server -y
+sudo apt-get install php php-gd php-common php-curl php-gmp libapache2-mod-php -y && sudo apt-get install mariadb-server -y
 echo "================================================================"
-#apt-get install sendmail -y
+apt-get install sendmail -y
 echo "================================================================"
 #apt-get install phpmyadmin -y
 #echo "Include /etc/phpmyadmin/apache.conf" | cat >> /etc/apache2/apache2.conf
 echo "================================================================"
-#a2enmod rewrite
+a2enmod rewrite
 echo "Setting up Virtual Host Configaration Files"
 echo " "
 echo "================================================================"
@@ -62,76 +62,48 @@ chmod -R 755 /var/www/*
 echo "================================================================"
 service apache2 restart
 echo "================================================================"
-#echo "Installing Mongodb"
-#echo " "
-#wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-#sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-#wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
-#echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
-#sudo apt update
-#sudo apt install -y mongodb-org
-#sudo systemctl enable mongod
-#sudo apt install php-pear -y
-#sudo apt -y install php-mongodb
-#sudo service mongod start
-#echo "================================================================"
-echo "Installing LetsEncrypt  SSL Certificate"
-#sudo apt install certbot python3-certbot-apache -y
-sudo certbot --apache
+echo "Installing Mongodb"
+echo " "
+sudo apt-get install gnupg curl -y
+curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
+   sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg \
+   --dearmor
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.2.list
+sudo apt update
+sudo apt install -y mongodb-org
+sudo systemctl enable mongod
+sudo apt install php-pear -y
+sudo apt -y install php-mongodb
+sudo service mongod start
 echo "================================================================"
-# Installing SSL
-#echo "Want to install the Self-Sign SSL cirtificate?(yes/no):"
-#read bol
-#bol="$(echo ${bol} | tr 'A-Z' 'a-z')"
-
-#while [ -z $bol ]
-#do
-#	echo "Want to install the Self-Sign SSL cirtificate?(yes/no):"
-#	read bol
-#	bol="$(echo ${bol} | tr 'A-Z' 'a-z')"
-#done
-
-#if [ $bol = 'yes' ] || [ $bol = 'y' ]
-#    then
-#        echo " "
-#		echo "Self-Sign SSL Installation Process Starts"
-#		echo " "
-#		echo "================================================================"
-#		a2enmod ssl && service apache2 restart
-#		echo "================================================================"
-#		mkdir -p /etc/apache2/ssl
-#		openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/apache2/ssl/$1.key -out /etc/apache2/ssl/$1.crt
-#		echo "================================================================"
-#		sh httpsconf.sh $1
-#    else if [ -n "$bol" ] || [ -z "$bol" ]
-#    	then
-#    	echo "You skiped the SSL Installation...!!"
-#    fi
-#fi
+echo "Installing LetsEncrypt  SSL Certificate"
+sudo apt install certbot python3-certbot-apache -y
+# sudo certbot --apache
 # Installing Webmin
 echo "================================================================"
 echo "Want to install the Webmin Control Panel?(yes/no):"
-#read bol
-#bol="$(echo ${bol} | tr 'A-Z' 'a-z')"
+read bol
+bol="$(echo ${bol} | tr 'A-Z' 'a-z')"
 
-#while [ -z $bol ]
-#do
-#	echo "Want to install the Webmin Control Panel?(yes/no):"
-#	read bol
-#	bol="$(echo ${bol} | tr 'A-Z' 'a-z')"
-#done
+while [ -z $bol ]
+do
+	echo "Want to install the Webmin Control Panel?(yes/no):"
+	read bol
+	bol="$(echo ${bol} | tr 'A-Z' 'a-z')"
+done
 
-#if [ $bol = 'yes' ] || [ $bol = 'y' ]
-#    then
-#        echo "Installing Webmin Control Panel and It's Dependencis"
-#		echo " "
-#		echo "================================================================"
-#		sh webmin.sh
-#    else if [ -n "$bol" ] || [ -z "$bol" ]
-#    	then
-#    	echo "You skiped the Webmin Control Panel Installation...!!"
-#    fi
-#fi
+if [ $bol = 'yes' ] || [ $bol = 'y' ]
+   then
+       echo "Installing Webmin Control Panel and It's Dependencis"
+		echo " "
+		echo "================================================================"
+		sh webmin.sh
+   else if [ -n "$bol" ] || [ -z "$bol" ]
+   	then
+   	echo "You skiped the Webmin Control Panel Installation...!!"
+   fi
+fi
+echo "================================================================"
 echo "Installation Complete! If you had any error contact www.tysonchamp.com or"
 echo "Open a issue request on https://github.com/tysonchamp/Ubuntu-LAMP-Installer"
 #
