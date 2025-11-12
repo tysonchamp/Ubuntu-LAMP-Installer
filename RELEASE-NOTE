@@ -15,3 +15,4 @@
 3. Improved error handling and logging for better troubleshooting.
 4. Auto Installation of MariaDB & phpMyAdmin.
 5. updated readme and documentation for better clarity.
+6. Added multiple stack options including NGINX and hybrid configurations.
