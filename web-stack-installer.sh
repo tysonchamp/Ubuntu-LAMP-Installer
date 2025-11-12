@@ -25,6 +25,10 @@ get_webserver_type() {
     [ -f "$CONFIG_FILE" ] && grep "WEBSERVER_TYPE" "$CONFIG_FILE" | cut -d'=' -f2 || echo "none"
 }
 
+get_php_version() {
+    php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null || echo "8.1"
+}
+
 install_database() {
     MYSQL_ROOT_PASSWORD=$(generate_password)
     PHPMYADMIN_PASSWORD=$(generate_password)
@@ -95,8 +99,9 @@ install_nginx_stack() {
     apt-get install phpmyadmin -y
     ln -sf /usr/share/phpmyadmin /var/www/html/phpmyadmin
     
-    systemctl enable nginx php8.1-fpm
-    systemctl start nginx php8.1-fpm
+    PHP_VERSION=$(get_php_version)
+    systemctl enable nginx php${PHP_VERSION}-fpm
+    systemctl start nginx php${PHP_VERSION}-fpm
     
     echo "WEBSERVER_TYPE=nginx" > "$CONFIG_FILE"
     echo "STACK_INSTALLED=true" >> "$CONFIG_FILE"
@@ -143,8 +148,9 @@ EOF
     
     apt-get install phpmyadmin -y
     
-    systemctl enable nginx apache2 php8.1-fpm
-    systemctl restart apache2 nginx php8.1-fpm
+    PHP_VERSION=$(get_php_version)
+    systemctl enable nginx apache2 php${PHP_VERSION}-fpm
+    systemctl restart apache2 nginx php${PHP_VERSION}-fpm
     
     echo "WEBSERVER_TYPE=hybrid" > "$CONFIG_FILE"
     echo "STACK_INSTALLED=true" >> "$CONFIG_FILE"
@@ -220,7 +226,7 @@ server {
     index index.php index.html;
     
     location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php$(get_php_version)-fpm.sock;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
