@@ -100,5 +100,5 @@ sudo ./vhost-manager.sh list
 
 ## Contact
 - Email: tyson.granger181@gmail.com
-- Website: www.tysonchamp.com
+- Website: www.gbyteinfotech.com
 - GitHub: https://github.com/tysonchamp/Ubuntu-LAMP-Installer
