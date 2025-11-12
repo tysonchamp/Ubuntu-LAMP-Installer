@@ -65,7 +65,7 @@ sudo ./vhost-manager.sh list
 ## File Structure
 - `lamp-installer.sh` - Main installer script
 - `vhost-manager.sh` - Virtual host management
-- `setup.sh` - Legacy script (still functional)
+- `webmin.sh` - Webmin installation helper
 - `.passwords` - Generated passwords (created after installation)
 - `.lamp_config` - Installation status
 
