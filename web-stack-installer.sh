@@ -29,6 +29,28 @@ get_php_version() {
     php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null || echo "8.1"
 }
 
+configure_nginx_phpmyadmin() {
+    # Add phpMyAdmin configuration to NGINX default site
+    cat >> /etc/nginx/sites-available/default <<EOF
+
+    location /phpmyadmin {
+        root /usr/share/;
+        index index.php index.html index.htm;
+        location ~ ^/phpmyadmin/(.+\.php)$ {
+            try_files \$uri =404;
+            root /usr/share/;
+            fastcgi_pass unix:/var/run/php/php$(get_php_version)-fpm.sock;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+            include fastcgi_params;
+        }
+        location ~* ^/phpmyadmin/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
+            root /usr/share/;
+        }
+    }
+EOF
+}
+
 install_database() {
     MYSQL_ROOT_PASSWORD=$(generate_password)
     PHPMYADMIN_PASSWORD=$(generate_password)
@@ -96,8 +118,16 @@ install_nginx_stack() {
     
     install_database
     
+    # Configure phpMyAdmin for NGINX
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/dbconfig-install boolean true"
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/app-password-confirm password $(grep 'phpMyAdmin Password:' "$PASSWORDS_FILE" | cut -d' ' -f3)"
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/mysql/admin-pass password $(grep 'MySQL Root Password:' "$PASSWORDS_FILE" | cut -d' ' -f4)"
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/mysql/app-pass password $(grep 'phpMyAdmin Password:' "$PASSWORDS_FILE" | cut -d' ' -f3)"
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/reconfigure-webserver multiselect "
     apt-get install phpmyadmin -y
-    ln -sf /usr/share/phpmyadmin /var/www/html/phpmyadmin
+    
+    # Configure NGINX for phpMyAdmin
+    configure_nginx_phpmyadmin
     
     PHP_VERSION=$(get_php_version)
     systemctl enable nginx php${PHP_VERSION}-fpm
@@ -126,6 +156,13 @@ server {
     listen 80 default_server;
     server_name _;
     
+    location /phpmyadmin {
+        proxy_pass http://127.0.0.1:8080/phpmyadmin;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+    
     location ~ \.php$ {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$host;
@@ -146,6 +183,12 @@ server {
 }
 EOF
     
+    # Configure phpMyAdmin for Apache (backend)
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/dbconfig-install boolean true"
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/app-password-confirm password $(grep 'phpMyAdmin Password:' "$PASSWORDS_FILE" | cut -d' ' -f3)"
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/mysql/admin-pass password $(grep 'MySQL Root Password:' "$PASSWORDS_FILE" | cut -d' ' -f4)"
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/mysql/app-pass password $(grep 'phpMyAdmin Password:' "$PASSWORDS_FILE" | cut -d' ' -f3)"
+    debconf-set-selections <<< "phpmyadmin phpmyadmin/reconfigure-webserver multiselect apache2"
     apt-get install phpmyadmin -y
     
     PHP_VERSION=$(get_php_version)
