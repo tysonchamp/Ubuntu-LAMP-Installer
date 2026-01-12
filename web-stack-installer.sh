@@ -199,6 +199,7 @@ EOF
     PHP_VERSION=$(get_php_version)
     # 2. Enable proxy_fcgi and setenvif so Apache can pass requests to FPM
     a2enmod proxy_fcgi setenvif
+    a2enmod rewrite
     # 3. Enable the specific FPM configuration for Apache
     # This sets the SetHandler "proxy:unix:..." directive
     a2enconf php${PHP_VERSION}-fpm
