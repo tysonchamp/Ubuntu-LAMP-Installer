@@ -61,6 +61,11 @@ install_database() {
     apt-get install mariadb-server -y
     
     mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<EOF
+ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('$MYSQL_ROOT_PASSWORD');
+
+CREATE USER IF NOT EXISTS 'admin'@'localhost' IDENTIFIED BY '$PHPMYADMIN_PASSWORD';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost' WITH GRANT OPTION;
+
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
