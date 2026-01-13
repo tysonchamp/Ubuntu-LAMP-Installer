@@ -379,6 +379,59 @@ install_webmin() {
     bash "$SCRIPT_DIR/webmin.sh"
 }
 
+manage_cron_jobs() {
+    while true; do
+        echo -e "\n${GREEN}=== Cron Job Management ===${NC}"
+        echo "1. List Cron Jobs"
+        echo "2. Add Cron Job"
+        echo "3. Backup Cron Jobs"
+        echo "4. Edit Cron Jobs (Manual)"
+        echo "5. Back to Main Menu"
+        echo -n "Choose option: "
+        read cron_choice
+        
+        case $cron_choice in
+            1)
+                echo -e "\n${GREEN}Current Cron Jobs:${NC}"
+                crontab -l 2>/dev/null || echo "No cron jobs found."
+                ;;
+            2)
+                echo -e "\n${GREEN}Add New Cron Job${NC}"
+                echo "Enter schedule (e.g., '* * * * *'):"
+                read schedule
+                echo "Enter command to run:"
+                read command
+                
+                if [ -n "$schedule" ] && [ -n "$command" ]; then
+                    (crontab -l 2>/dev/null; echo "$schedule $command") | crontab -
+                    echo -e "${GREEN}Cron job added!${NC}"
+                else
+                    echo -e "${RED}Invalid input. Operation cancelled.${NC}"
+                fi
+                ;;
+            3)
+                BACKUP_DIR="$SCRIPT_DIR/backups"
+                mkdir -p "$BACKUP_DIR"
+                BACKUP_FILE="$BACKUP_DIR/crontab_backup_$(date +%Y%m%d_%H%M%S).txt"
+                if crontab -l > "$BACKUP_FILE" 2>/dev/null; then
+                    echo -e "${GREEN}Backup saved to: $BACKUP_FILE${NC}"
+                else
+                    echo -e "${RED}Failed to backup (no cron jobs?)${NC}"
+                fi
+                ;;
+            4)
+                crontab -e
+                ;;
+            5)
+                return
+                ;;
+            *)
+                echo -e "${RED}Invalid option${NC}"
+                ;;
+        esac
+    done
+}
+
 show_menu() {
     echo -e "\n${GREEN}=== Web Stack Installer v2.0 ===${NC}"
     if ! is_stack_installed; then
@@ -392,7 +445,8 @@ show_menu() {
         echo "3. Install Webmin"
         echo "4. Setup SSL Certificate"
         echo "5. Show Passwords"
-        echo "6. Exit"
+        echo "6. Manage Cron Jobs"
+        echo "7. Exit"
     fi
     echo -n "Choose option: "
 }
@@ -445,7 +499,8 @@ main() {
                 3) install_webmin ;;
                 4) setup_ssl ;;
                 5) show_passwords ;;
-                6) echo -e "${GREEN}Goodbye!${NC}"; exit 0 ;;
+                6) manage_cron_jobs ;;
+                7) echo -e "${GREEN}Goodbye!${NC}"; exit 0 ;;
                 *) echo -e "${RED}Invalid option${NC}" ;;
             esac
         fi
