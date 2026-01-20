@@ -304,6 +304,7 @@ create_hybrid_vhost() {
     cat > "/etc/apache2/sites-available/${domain}.conf" <<EOF
 <VirtualHost *:8080>
     ServerName $domain
+    ServerAlias www.$domain
     DocumentRoot $doc_root
     <Directory $doc_root>
         AllowOverride All
