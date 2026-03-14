@@ -1,0 +1,78 @@
+{% extends 'dashboard.html' %}
+
+{% block header_title %}Databases{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Create New Database</h5>
+                <a href="{{ url_for('phpmyadmin_login') }}" target="_blank" class="btn btn-sm btn-info text-white"><i class="fas fa-external-link-alt me-2"></i> phpMyAdmin Auto-login</a>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('databases') }}" class="row g-3">
+                    <input type="hidden" name="action" value="create">
+                    <div class="col-md-4">
+                        <label class="form-label">Database Name</label>
+                        <input type="text" class="form-control" name="db_name" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Database User</label>
+                        <input type="text" class="form-control" name="db_user" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">User Password</label>
+                        <input type="password" class="form-control" name="db_pass" required>
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-2"></i> Create Database & User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0">Existing Databases</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Database Name</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for db in databases %}
+                            <tr>
+                                <td class="align-middle fw-bold">{{ db }}</td>
+                                <td class="align-middle">
+                                    <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('databases') }}" class="d-inline" onsubmit="return confirm('Are you sure you want to drop this database? This action cannot be undone.');">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="db_name" value="{{ db }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Drop</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center py-4 text-muted">No databases found or database server offline.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
