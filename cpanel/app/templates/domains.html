@@ -10,8 +10,8 @@
                 <h5 class="mb-0">Add New Domain</h5>
             </div>
             <div class="card-body">
-                <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('domains') }}" class="d-flex align-items-center gap-3">
+                <form method="POST" action="{{ url_for('domains') }}" class="d-flex align-items-center gap-3">
+
                     <input type="hidden" name="action" value="add">
                     <input type="text" class="form-control" name="domain" placeholder="example.com" required>
                     <button type="submit" class="btn btn-primary text-nowrap"><i class="fas fa-plus me-2"></i> Create Virtual Host</button>
@@ -52,8 +52,8 @@
                                     {% endif %}
                                 </td>
                                 <td class="align-middle">
-                                    <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('domains') }}" class="d-inline">
+                                    <form method="POST" action="{{ url_for('domains') }}" class="d-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="action" value="toggle">
                                         <input type="hidden" name="domain" value="{{ vhost.domain }}">
                                         <input type="hidden" name="server" value="{{ vhost.server }}">

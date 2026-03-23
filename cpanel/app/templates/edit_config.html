@@ -11,8 +11,8 @@
                 <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i> Back to Settings</a>
             </div>
             <div class="card-body">
-                <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('settings') }}">
+                <form method="POST" action="{{ url_for('settings') }}">
+
                     <input type="hidden" name="action" value="save_config">
                     <input type="hidden" name="filepath" value="{{ filepath }}">
 
