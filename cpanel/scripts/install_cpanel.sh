@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ensure root
-if [ "$EUID" -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
   echo "Please run as root"
   exit 1
 fi
@@ -16,8 +16,9 @@ apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config
 
 # Get absolute path of the directory
 # This handles the case where the script is executed with `sh` or `dash` instead of `bash`
-SCRIPT_DIR="$( cd "$( dirname "$0" )" &> /dev/null && pwd )"
-CPANEL_DIR="$(dirname "$SCRIPT_DIR")"
+SCRIPT_PATH=$(readlink -f "$0")
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+CPANEL_DIR=$(dirname "$SCRIPT_DIR")
 
 echo "cPanel Directory: $CPANEL_DIR"
 
