@@ -15,7 +15,8 @@ apt-get update
 apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config
 
 # Get absolute path of the directory
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+# This handles the case where the script is executed with `sh` or `dash` instead of `bash`
+SCRIPT_DIR="$( cd "$( dirname "$0" )" &> /dev/null && pwd )"
 CPANEL_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "cPanel Directory: $CPANEL_DIR"
@@ -23,15 +24,15 @@ echo "cPanel Directory: $CPANEL_DIR"
 # Setup Python Virtual Environment
 echo "Setting up Python virtual environment..."
 python3 -m venv $CPANEL_DIR/venv
-source $CPANEL_DIR/venv/bin/activate
 
-# Install requirements
+# Use the virtual environment's pip directly, which avoids the externally-managed-environment error
+# and works without needing the `source` command which can fail in `sh`.
 echo "Installing Python dependencies..."
-pip install -r $CPANEL_DIR/requirements.txt
+$CPANEL_DIR/venv/bin/pip install -r $CPANEL_DIR/requirements.txt
 
 # Generate a permanent secret key for Flask sessions
 echo "Generating secure Flask secret key..."
-SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+SECRET_KEY=$($CPANEL_DIR/venv/bin/python3 -c "import secrets; print(secrets.token_hex(32))")
 cat << EOF > $CPANEL_DIR/app/.env
 FLASK_SECRET_KEY=$SECRET_KEY
 EOF
