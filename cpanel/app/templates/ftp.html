@@ -17,6 +17,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('ftp') }}" class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <input type="hidden" name="action" value="create">
                     <div class="col-md-4">
@@ -68,6 +69,7 @@
                                     <button class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#passwordModal{{ loop.index }}"><i class="fas fa-key"></i> Change Password</button>
                                     <form method="POST" action="{{ url_for('ftp') }}" class="d-inline" onsubmit="return confirm('Delete this FTP user?');">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="username" value="{{ user.username }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Delete</button>
@@ -79,6 +81,7 @@
                                         <div class="modal-content">
                                           <form method="POST" action="{{ url_for('ftp') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                                             <input type="hidden" name="action" value="password">
                                             <input type="hidden" name="username" value="{{ user.username }}">
                                             <div class="modal-header">

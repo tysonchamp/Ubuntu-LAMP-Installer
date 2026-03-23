@@ -10,9 +10,51 @@ echo "======================================"
 echo "    Installing Python cPanel Stack    "
 echo "======================================"
 
-# Install system dependencies
+# Install system dependencies & panel prerequisites
 apt-get update
-apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config
+apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config \
+    pure-ftpd libwww-perl sendmail iptables wget tar
+
+# Ensure Pure-FTPd is setup for virtual users
+echo "Configuring Pure-FTPd..."
+groupadd -g 2001 ftpgroup || true
+useradd -u 2001 -s /bin/false -d /bin/null -c "pureftpd user" -g ftpgroup ftpuser || true
+echo "yes" > /etc/pure-ftpd/conf/ChrootEveryone
+echo "yes" > /etc/pure-ftpd/conf/CreateHomeDir
+echo "puredb" > /etc/pure-ftpd/auth/50pure
+ln -sf /etc/pure-ftpd/conf/PureDB /etc/pure-ftpd/auth/50pure 2>/dev/null
+systemctl restart pure-ftpd
+
+# Install CSF Firewall
+echo "Installing CSF Firewall..."
+if [ ! -d "/etc/csf" ]; then
+    cd /usr/src
+    rm -fv csf.tgz
+    wget https://download.configserver.com/csf.tgz
+    tar -xzf csf.tgz
+    cd csf
+    sh install.sh
+    # Disable testing mode initially to make it functional (Admin should review later)
+    sed -i 's/TESTING = "1"/TESTING = "0"/' /etc/csf/csf.conf
+    csf -r
+    cd -
+fi
+
+# Install ModSecurity depending on web server installed
+echo "Installing ModSecurity..."
+if [ -x "$(command -v apache2)" ]; then
+    apt-get install -y libapache2-mod-security2
+    a2enmod security2 || true
+    systemctl restart apache2 || true
+fi
+if [ -x "$(command -v nginx)" ]; then
+    apt-get install -y libnginx-mod-http-modsecurity
+    systemctl restart nginx || true
+fi
+# Copy recommended modsecurity config if it doesn't exist
+if [ ! -f /etc/modsecurity/modsecurity.conf ] && [ -f /etc/modsecurity/modsecurity.conf-recommended ]; then
+    cp /etc/modsecurity/modsecurity.conf-recommended /etc/modsecurity/modsecurity.conf
+fi
 
 # Get absolute path of the directory
 # This handles the case where the script is executed with `sh` or `dash` instead of `bash`

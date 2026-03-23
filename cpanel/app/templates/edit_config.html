@@ -12,6 +12,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('settings') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <input type="hidden" name="action" value="save_config">
                     <input type="hidden" name="filepath" value="{{ filepath }}">
