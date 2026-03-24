@@ -19,25 +19,29 @@ apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config \
 echo "Configuring Pure-FTPd..."
 groupadd -g 2001 ftpgroup || true
 useradd -u 2001 -s /bin/false -d /bin/null -c "pureftpd user" -g ftpgroup ftpuser || true
+mkdir -p /etc/pure-ftpd/conf /etc/pure-ftpd/auth
 echo "yes" > /etc/pure-ftpd/conf/ChrootEveryone
 echo "yes" > /etc/pure-ftpd/conf/CreateHomeDir
 echo "puredb" > /etc/pure-ftpd/auth/50pure
 ln -sf /etc/pure-ftpd/conf/PureDB /etc/pure-ftpd/auth/50pure 2>/dev/null
-systemctl restart pure-ftpd
+systemctl restart pure-ftpd || true
 
 # Install CSF Firewall
 echo "Installing CSF Firewall..."
 if [ ! -d "/etc/csf" ]; then
+    ORIGINAL_DIR=$(pwd)
     cd /usr/src
     rm -fv csf.tgz
-    wget https://download.configserver.com/csf.tgz
+    wget https://download.configserver.dev/csf.tgz
     tar -xzf csf.tgz
     cd csf
     sh install.sh
     # Disable testing mode initially to make it functional (Admin should review later)
-    sed -i 's/TESTING = "1"/TESTING = "0"/' /etc/csf/csf.conf
-    csf -r
-    cd -
+    if [ -f /etc/csf/csf.conf ]; then
+        sed -i 's/TESTING = "1"/TESTING = "0"/' /etc/csf/csf.conf
+        csf -r || true
+    fi
+    cd $ORIGINAL_DIR
 fi
 
 # Install ModSecurity depending on web server installed
