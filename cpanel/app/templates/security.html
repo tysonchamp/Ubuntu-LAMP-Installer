@@ -20,8 +20,9 @@
 
                 <div class="mb-4">
                     <h6>Service Control</h6>
-                    <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('security') }}" class="btn-group w-100">
+                    <form method="POST" action="{{ url_for('security') }}" class="btn-group w-100">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <button type="submit" name="action" value="start" class="btn btn-outline-success">Start</button>
                         <button type="submit" name="action" value="stop" class="btn btn-outline-danger">Stop</button>
                         <button type="submit" name="action" value="restart" class="btn btn-outline-primary">Restart</button>
@@ -30,14 +31,16 @@
 
                 <div class="mb-4">
                     <h6>Quick Allow/Deny IP</h6>
-                    <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('security') }}" class="input-group mb-2">
+                    <form method="POST" action="{{ url_for('security') }}" class="input-group mb-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <input type="text" class="form-control" name="ip" placeholder="IP Address" required>
                         <button type="submit" name="action" value="allow_ip" class="btn btn-success">Allow</button>
                         <button type="submit" name="action" value="deny_ip" class="btn btn-danger">Deny</button>
                     </form>
-                    <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('security') }}" class="input-group">
+                    <form method="POST" action="{{ url_for('security') }}" class="input-group">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <input type="text" class="form-control" name="ip" placeholder="IP Address to Remove" required>
                         <button type="submit" name="action" value="unallow_ip" class="btn btn-outline-success">Un-Allow</button>
                         <button type="submit" name="action" value="undeny_ip" class="btn btn-outline-danger">Un-Deny</button>
@@ -52,8 +55,9 @@
                 </ul>
                 <div class="tab-content" id="csfTabsContent">
                     <div class="tab-pane fade show active" id="csf-allow">
-                        <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('security') }}">
+                        <form method="POST" action="{{ url_for('security') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                             <input type="hidden" name="action" value="save_csf_file">
                             <input type="hidden" name="file_type" value="allow">
                             <textarea name="content" class="form-control font-monospace mb-2" rows="6">{{ csf_allow_file }}</textarea>
@@ -61,8 +65,9 @@
                         </form>
                     </div>
                     <div class="tab-pane fade" id="csf-deny">
-                        <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('security') }}">
+                        <form method="POST" action="{{ url_for('security') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                             <input type="hidden" name="action" value="save_csf_file">
                             <input type="hidden" name="file_type" value="deny">
                             <textarea name="content" class="form-control font-monospace mb-2" rows="6">{{ csf_deny_file }}</textarea>
@@ -92,8 +97,9 @@
 
                 <div class="mb-4">
                     <h6>Rule Engine Status</h6>
-                    <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> action="{{ url_for('security') }}" class="d-flex gap-2">
+                    <form method="POST" action="{{ url_for('security') }}" class="d-flex gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <input type="hidden" name="action" value="set_modsec_status">
                         <select name="status" class="form-select w-auto">
                             <option value="On" {% if modsec_status == 'On' %}selected{% endif %}>On (Blocking)</option>
