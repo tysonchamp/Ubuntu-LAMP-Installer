@@ -30,7 +30,7 @@ echo "Installing CSF Firewall..."
 if [ ! -d "/etc/csf" ]; then
     cd /usr/src
     rm -fv csf.tgz
-    wget https://download.configserver.com/csf.tgz
+    wget https://download.configserver.dev/csf.tgz
     tar -xzf csf.tgz
     cd csf
     sh install.sh
