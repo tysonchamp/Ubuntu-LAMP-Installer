@@ -63,19 +63,6 @@ def get_editable_configs():
         if os.path.exists(path):
             configs.append({'path': path, 'name': name})
 
-    # Add Apache Vhosts
-    if os.path.exists('/etc/apache2/sites-available'):
-        for vhost_file in os.listdir('/etc/apache2/sites-available'):
-            if vhost_file.endswith('.conf'):
-                configs.append({'path': f'/etc/apache2/sites-available/{vhost_file}', 'name': f'Vhost: Apache {vhost_file}'})
-
-    # Add Nginx Vhosts
-    if os.path.exists('/etc/nginx/sites-available'):
-        for vhost_file in os.listdir('/etc/nginx/sites-available'):
-            # Nginx vhosts don't strictly have an extension, ignore defaults
-            if os.path.isfile(f'/etc/nginx/sites-available/{vhost_file}'):
-                configs.append({'path': f'/etc/nginx/sites-available/{vhost_file}', 'name': f'Vhost: Nginx {vhost_file}'})
-
     return configs
 
 def read_config_file(filepath):
