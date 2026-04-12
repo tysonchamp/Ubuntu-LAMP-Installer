@@ -188,7 +188,7 @@
                                 <div>
                                     ${s.status !== 'not_installed' ? 
                                       `<button class="btn btn-sm btn-outline-primary" onclick="restartService('${s.id}', '${s.name}', this)" title="Restart ${s.name}"><i class="fas fa-redo"></i></button>` : 
-                                      ''}
+                                      (s.id === 'modsec' ? `<a href="{{ url_for('modsecurity') }}" class="btn btn-sm btn-primary"><i class="fas fa-download me-1"></i> Install</a>` : '')}
                                 </div>
                             </li>`;
                         }
