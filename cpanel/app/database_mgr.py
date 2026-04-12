@@ -182,12 +182,48 @@ def delete_database(db_name):
     conn = get_mysql_connection()
     if not conn: return False, "Could not connect to database server."
 
+    dropped_users = []
     try:
         with conn.cursor() as cursor:
-            db_name = db_name.replace('`', '``')
-            cursor.execute(f"DROP DATABASE IF EXISTS `{db_name}`")
+            # Find all users that have privileges on this specific database
+            cursor.execute(
+                "SELECT User, Host FROM mysql.db WHERE Db = %s",
+                (db_name,)
+            )
+            affected_users = cursor.fetchall()  # [{User: ..., Host: ...}, ...]
+
+            for u in affected_users:
+                user_esc = u['User'].replace("'", "''")
+                host_esc = u['Host'].replace("'", "''")
+
+                # Check if this user has grants on ANY other database
+                cursor.execute(
+                    "SELECT COUNT(*) as cnt FROM mysql.db WHERE User = %s AND Host = %s AND Db != %s",
+                    (u['User'], u['Host'], db_name)
+                )
+                row = cursor.fetchone()
+                other_db_count = row['cnt'] if row else 0
+
+                if other_db_count == 0:
+                    # User is exclusive to this DB — safe to fully drop them
+                    cursor.execute(f"DROP USER IF EXISTS '{user_esc}'@'{host_esc}'")
+                    dropped_users.append(f"{u['User']}@{u['Host']}")
+                else:
+                    # User has other databases — only revoke privileges on this DB
+                    db_esc = db_name.replace('`', '``')
+                    cursor.execute(
+                        f"REVOKE ALL PRIVILEGES ON `{db_esc}`.* FROM '{user_esc}'@'{host_esc}'"
+                    )
+
+            db_esc = db_name.replace('`', '``')
+            cursor.execute(f"DROP DATABASE IF EXISTS `{db_esc}`")
+            cursor.execute("FLUSH PRIVILEGES")
         conn.commit()
-        return True, "Database deleted successfully."
+
+        msg = "Database deleted successfully."
+        if dropped_users:
+            msg += f" Removed users: {', '.join(dropped_users)}."
+        return True, msg
     except pymysql.MySQLError as e:
         return False, f"Database error: {str(e)}"
     finally:
