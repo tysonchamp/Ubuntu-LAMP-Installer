@@ -21,6 +21,36 @@ if not app.secret_key:
     logging.warning("No FLASK_SECRET_KEY set in environment. Using a random key. Sessions will invalidate on restart.")
     app.secret_key = os.urandom(24)
 
+# --- Auto-Updater ---
+import threading
+import time
+from updater_mgr import get_settings, get_version_info, perform_update, restart_service, save_settings
+
+def auto_updater_worker():
+    """Background thread to check for and apply updates."""
+    # Wait for the app to fully start
+    time.sleep(30)
+    while True:
+        try:
+            settings = get_settings()
+            if settings.get("auto_update"):
+                info = get_version_info()
+                if info.get("update_available"):
+                    success, msg = perform_update()
+                    if success:
+                        restart_service()
+        except Exception as e:
+            print(f"Updater error: {e}")
+        
+        # Check every 1 hour
+        time.sleep(3600)
+
+# Start background thread
+updater_thread = threading.Thread(target=auto_updater_worker, daemon=True)
+updater_thread.start()
+# --------------------
+
+
 @app.route('/')
 def index():
     if not session.get('logged_in'):
@@ -617,11 +647,43 @@ def settings():
             content = request.form.get('content')
             success, message = save_config_file(filepath, content)
             flash(message, 'success' if success else 'danger')
-            return redirect(url_for('settings'))
+
+        elif action == 'update_settings':
+            auto_up = request.form.get('auto_update') == 'on'
+            s = get_settings()
+            s['auto_update'] = auto_up
+            save_settings(s)
+            flash("Updater settings saved.", "success")
+
+        elif action == 'check_update':
+            info = get_version_info()
+            if info.get('update_available'):
+                flash(f"Update available: {info['remote']}. Click 'Update Now' to apply.", "info")
+            else:
+                flash("System is up to date.", "success")
+
+        elif action == 'apply_update':
+            success, msg = perform_update()
+            if success:
+                flash("Update applied! Restarting Lite cPanel...", "success")
+                restart_service()
+            else:
+                flash(msg, "danger")
+
+        return redirect(url_for('settings'))
 
     logs = get_system_logs()
     configs = get_editable_configs()
-    return render_template('settings.html', logs=logs, configs=configs)
+    
+    # Version info
+    ver_info = get_version_info()
+    updater_settings = get_settings()
+
+    return render_template('settings.html', 
+                           logs=logs, 
+                           configs=configs, 
+                           ver_info=ver_info, 
+                           updater_settings=updater_settings)
 
 @app.route('/settings/edit-config')
 @login_required
