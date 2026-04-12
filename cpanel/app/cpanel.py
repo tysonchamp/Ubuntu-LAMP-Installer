@@ -1,5 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import os
+
+# Ensure standard bin directories are available in the PATH for all subprocess calls
+os.environ["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" + os.environ.get("PATH", "")
+
 import psutil
 from auth import check_system_password, login_required
 from dotenv import load_dotenv
