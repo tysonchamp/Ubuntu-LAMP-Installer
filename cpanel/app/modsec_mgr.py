@@ -9,7 +9,17 @@ MODSEC_DISABLED_RULES = '/etc/modsecurity/rules/disabled_rules.conf'
 MODSEC_AUDIT_LOG = '/var/log/modsec_audit.log'
 
 def check_modsec_installed():
-    return os.path.exists(MODSEC_CONF_PATH)
+    """
+    Returns True only if modsecurity.conf exists AND the Apache security2
+    module is enabled (i.e. the symlink exists in mods-enabled).
+    """
+    conf_exists = os.path.exists(MODSEC_CONF_PATH)
+    # Check both possible symlink names that a2enmod creates
+    mod_enabled = (
+        os.path.exists('/etc/apache2/mods-enabled/security2.conf') or
+        os.path.exists('/etc/apache2/mods-enabled/security2.load')
+    )
+    return conf_exists and mod_enabled
 
 def get_modsec_status():
     if not check_modsec_installed():
