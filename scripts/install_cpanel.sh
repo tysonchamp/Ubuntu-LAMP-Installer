@@ -60,7 +60,8 @@ fi
 # This handles the case where the script is executed with `sh` or `dash` instead of `bash`
 SCRIPT_PATH=$(readlink -f "$0")
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
-CPANEL_DIR=$(dirname "$SCRIPT_DIR")
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+CPANEL_DIR="$PROJECT_ROOT/cpanel"
 
 echo "cPanel Directory: $CPANEL_DIR"
 
@@ -103,6 +104,11 @@ SYSTEMD
 systemctl daemon-reload
 systemctl enable cpanel
 systemctl restart cpanel
+
+# Configure phpMyAdmin Signon auto-login
+echo "Configuring phpMyAdmin auto login..."
+cd $CPANEL_DIR/app
+$CPANEL_DIR/venv/bin/python3 -c "import sys; sys.path.append('$CPANEL_DIR/app'); from database_mgr import setup_phpmyadmin_signon; setup_phpmyadmin_signon()"
 
 echo "======================================"
 echo "cPanel installed and running on port 2083"

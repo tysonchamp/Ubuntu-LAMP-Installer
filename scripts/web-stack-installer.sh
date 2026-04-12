@@ -73,7 +73,15 @@ DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 EOF
 
-    install_mongodb
+    if [ -z "$INSTALL_MONGODB" ]; then
+        echo -n "Do you want to install MongoDB? (y/n): "
+        read user_mongo
+        if [ "$user_mongo" = "y" ]; then
+            install_mongodb
+        fi
+    elif [ "$INSTALL_MONGODB" = "y" ]; then
+        install_mongodb
+    fi
     
     cat > "$PASSWORDS_FILE" <<EOF
 MySQL Root Password: $MYSQL_ROOT_PASSWORD

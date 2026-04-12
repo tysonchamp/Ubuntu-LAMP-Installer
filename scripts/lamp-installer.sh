@@ -68,7 +68,15 @@ EOF
     apt-get install openssl sendmail certbot python3-certbot-apache -y
     
     # Install MongoDB
-    install_mongodb
+    if [ -z "$INSTALL_MONGODB" ]; then
+        echo -n "Do you want to install MongoDB? (y/n): "
+        read user_mongo
+        if [ "$user_mongo" = "y" ]; then
+            install_mongodb
+        fi
+    elif [ "$INSTALL_MONGODB" = "y" ]; then
+        install_mongodb
+    fi
     
     # Enable Apache modules
     a2enmod rewrite

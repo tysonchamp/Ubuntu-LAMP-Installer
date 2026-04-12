@@ -91,37 +91,26 @@ def setup_phpmyadmin_signon():
     Modifies phpMyAdmin config to allow signon.
     Returns the auto-login URL.
     """
-    config_path = '/etc/phpmyadmin/config.inc.php'
-    if not os.path.exists(config_path):
-        return False, "phpMyAdmin is not installed or config not found."
+    conf_d_dir = '/etc/phpmyadmin/conf.d'
+    if not os.path.exists('/etc/phpmyadmin'):
+        return False, "phpMyAdmin is not installed."
+
+    if not os.path.exists(conf_d_dir):
+        try:
+            os.makedirs(conf_d_dir)
+        except Exception:
+            pass
 
     try:
-        with open(config_path, 'r') as f:
-            lines = f.readlines()
-
-        # Check if signon is already configured
-        already_configured = False
-        for line in lines:
-            if 'PMA_Signon' in line:
-                already_configured = True
-                break
-
-        if not already_configured:
-            modified = False
-            with open(config_path, 'w') as f:
-                for line in lines:
-                    if 'auth_type' in line and 'cookie' in line:
-                        f.write(line.replace('cookie', 'signon').lstrip('//').lstrip('#'))
-                        modified = True
-                    else:
-                        f.write(line)
-
-                if not modified:
-                    f.write("\n$cfg['Servers'][$i]['auth_type'] = 'signon';\n")
-
-                f.write("\n$cfg['Servers'][$i]['SignonSession'] = 'PMA_Signon';\n")
-                f.write("$cfg['Servers'][$i]['SignonURL'] = '/phpmyadmin/phpmyadmin_login.php';\n")
-                f.write("$cfg['Servers'][$i]['LogoutURL'] = '/';\n")
+        signon_conf = "<?php\n"
+        signon_conf += "$cfg['Servers'][1]['auth_type'] = 'signon';\n"
+        signon_conf += "$cfg['Servers'][1]['SignonSession'] = 'PMA_Signon';\n"
+        signon_conf += "$cfg['Servers'][1]['SignonURL'] = '/phpmyadmin/phpmyadmin_login.php';\n"
+        signon_conf += "$cfg['Servers'][1]['LogoutURL'] = '/';\n"
+        signon_conf += "?>\n"
+        
+        with open(os.path.join(conf_d_dir, 'cpanel_signon.php'), 'w') as f:
+            f.write(signon_conf)
 
         pma_login_script = """<?php
 session_name('PMA_Signon');
