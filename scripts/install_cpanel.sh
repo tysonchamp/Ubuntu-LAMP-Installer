@@ -35,7 +35,7 @@ if [ ! -d "/etc/csf" ]; then
     cd csf
     sh install.sh
     # Disable testing mode initially to make it functional (Admin should review later)
-    sed -i 's/TESTING = "1"/TESTING = "0"/' /etc/csf/csf.conf
+    # sed -i 's/TESTING = "1"/TESTING = "0"/' /etc/csf/csf.conf
     csf -r
     cd -
 fi
