@@ -25,7 +25,7 @@ def get_virtual_hosts():
     apache_dir = '/etc/apache2/sites-available'
     if os.path.exists(apache_dir):
         for f in os.listdir(apache_dir):
-            if f != '000-default.conf' and f != 'default-ssl.conf':
+            if f not in ['000-default.conf', 'default-ssl.conf', 'default-modsecurity.conf']:
                 domain = f.replace('.conf', '')
                 enabled = os.path.exists(f'/etc/apache2/sites-enabled/{f}')
                 vhosts.append({
@@ -41,8 +41,8 @@ def add_virtual_host(domain):
     """
     Calls the existing vhost-manager.sh script to create a new virtual host.
     """
-    # Try to find the script in the parent directory
-    script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'vhost-manager.sh')
+    # Try to find the script in the scripts directory
+    script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scripts', 'vhost-manager.sh')
 
     if os.path.exists(script_path):
         try:
