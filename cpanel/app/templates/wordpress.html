@@ -36,6 +36,18 @@
                         </div>
                     </div>
                 </form>
+
+                <!-- Progress Bar UI -->
+                <div id="progressContainer" class="mt-4" style="display: none;">
+                    <h6 id="progressText" class="mb-2">Starting installation...</h6>
+                    <div class="progress" style="height: 20px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">0%</div>
+                    </div>
+                </div>
+                
+                <!-- Feedback UI -->
+                <div id="progressAlert" class="alert mt-3" style="display: none;"></div>
+
                 <small class="text-muted mt-3 d-block">This will download WordPress, set up a secure MySQL database and configure WP automatically. Database credentials will be stored exclusively inside the <code>wp-config.php</code> file.</small>
             </div>
         </div>
@@ -97,6 +109,84 @@
     document.getElementById('domainSelect').addEventListener('change', function() {
         const span = document.querySelector('.input-group-text');
         span.textContent = `/var/www/${this.value}/`;
+    });
+
+    const form = document.querySelector('form');
+    const btn = form.querySelector('button[type="submit"]');
+    const container = document.getElementById('progressContainer');
+    const text = document.getElementById('progressText');
+    const bar = document.getElementById('progressBar');
+    const alertDiv = document.getElementById('progressAlert');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Installing...';
+        
+        container.style.display = 'block';
+        alertDiv.style.display = 'none';
+        bar.style.width = '0%';
+        bar.innerText = '0%';
+        text.innerText = 'Initializing...';
+        bar.classList.remove('bg-danger', 'bg-success');
+        bar.classList.add('progress-bar-animated');
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch("{{ url_for('wordpress') }}", {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, {stream: true});
+                const lines = buffer.split("\n");
+                
+                buffer = lines.pop(); // keep remainder in buffer
+                
+                for (let line of lines) {
+                    if (line.trim()) {
+                        const data = JSON.parse(line);
+                        bar.style.width = data.progress + "%";
+                        bar.innerText = data.progress + "%";
+                        text.innerText = data.message;
+                        
+                        if (data.error) {
+                            bar.classList.add('bg-danger');
+                            alertDiv.className = 'alert alert-danger mt-3';
+                            alertDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> ' + data.message;
+                            alertDiv.style.display = 'block';
+                        } else if (data.success) {
+                            bar.classList.add('bg-success');
+                            alertDiv.className = 'alert alert-success mt-3';
+                            alertDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i> ' + data.message + ' <a href="" class="alert-link">Refresh page</a> view your new site';
+                            alertDiv.style.display = 'block';
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            bar.classList.add('bg-danger');
+            alertDiv.className = 'alert alert-danger mt-3';
+            alertDiv.innerText = "Connection failed: " + err.message;
+            alertDiv.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fab fa-wordpress me-2"></i> Install';
+            bar.classList.remove('progress-bar-animated');
+        }
     });
 </script>
 {% endblock %}

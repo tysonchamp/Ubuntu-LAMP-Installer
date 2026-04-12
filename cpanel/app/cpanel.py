@@ -531,7 +531,7 @@ def edit_config():
         return redirect(url_for('settings'))
     return render_template('edit_config.html', filepath=filepath, content=content)
 
-from wordpress_mgr import get_installed_wordpress, install_wordpress
+from wordpress_mgr import get_installed_wordpress
 
 @app.route('/wordpress', methods=['GET', 'POST'])
 @login_required
@@ -541,9 +541,10 @@ def wordpress():
         if action == 'install_wp':
             domain = request.form.get('domain')
             target_path = request.form.get('target_path', '').strip()
-            success, message = install_wordpress(domain, target_path)
-            flash(message, 'success' if success else 'danger')
-        return redirect(url_for('wordpress'))
+            
+            from wordpress_mgr import install_wordpress_generator
+            from flask import Response, stream_with_context
+            return Response(stream_with_context(install_wordpress_generator(domain, target_path)), mimetype='application/x-ndjson')
 
     from domains_mgr import get_virtual_hosts
     domains = get_virtual_hosts()
