@@ -103,9 +103,13 @@ def change_user_password(db_user, host, new_password):
     if not conn: return False, "Could not connect to database server."
     try:
         with conn.cursor() as cursor:
-            new_password = pymysql.converters.escape_string(new_password)
+            # Use %s parameterized query for the password — pymysql handles all escaping safely.
+            # Manually single-quote-escape user and host (identifiers, not values).
+            user_esc = db_user.replace("'", "''")
+            host_esc = host.replace("'", "''")
             cursor.execute(
-                f"ALTER USER '{db_user}'@'{host}' IDENTIFIED BY '{new_password}'"
+                f"ALTER USER '{user_esc}'@'{host_esc}' IDENTIFIED BY %s",
+                (new_password,)
             )
             cursor.execute("FLUSH PRIVILEGES")
         conn.commit()
@@ -148,14 +152,18 @@ def create_database(db_name, db_user, db_pass):
 
     try:
         with conn.cursor() as cursor:
-            # Escape identifiers by duplicating backticks
-            db_name = db_name.replace('`', '``')
-            db_user = db_user.replace('`', '``')
-            db_pass = pymysql.converters.escape_string(db_pass)
+            # Escape identifiers (db_name, db_user) by quoting backticks.
+            # Use %s parameterized query for the password.
+            db_name_esc = db_name.replace('`', '``')
+            db_user_esc = db_user.replace('`', '``')
+            user_host   = db_user.replace("'", "''")
 
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}`")
-            cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'localhost' IDENTIFIED BY '{db_pass}'")
-            cursor.execute(f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'localhost'")
+            cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name_esc}`")
+            cursor.execute(
+                f"CREATE USER IF NOT EXISTS '{user_host}'@'localhost' IDENTIFIED BY %s",
+                (db_pass,)
+            )
+            cursor.execute(f"GRANT ALL PRIVILEGES ON `{db_name_esc}`.* TO '{user_host}'@'localhost'")
             cursor.execute("FLUSH PRIVILEGES")
         conn.commit()
         return True, "Database and user created successfully."

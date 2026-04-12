@@ -89,25 +89,16 @@
                                                 <i class="fas fa-key"></i>
                                             </button>
 
-                                            <!-- Toggle Host -->
-                                            <form method="POST" action="{{ url_for('databases') }}" class="mb-0 d-inline">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <input type="hidden" name="action" value="update_host">
-                                                <input type="hidden" name="db_name" value="{{ db.name }}">
-                                                <input type="hidden" name="db_user" value="{{ u.User }}">
-                                                <input type="hidden" name="old_host" value="{{ u.Host }}">
-                                                {% if u.Host == 'localhost' %}
-                                                <input type="hidden" name="new_host" value="%">
-                                                <button type="submit" class="btn btn-link btn-sm p-0 text-warning" title="Allow Remote Access">
-                                                    <i class="fas fa-globe"></i>
-                                                </button>
-                                                {% else %}
-                                                <input type="hidden" name="new_host" value="localhost">
-                                                <button type="submit" class="btn btn-link btn-sm p-0 text-secondary" title="Restrict to Local Only">
-                                                    <i class="fas fa-lock"></i>
-                                                </button>
-                                                {% endif %}
-                                            </form>
+                                            <!-- Toggle Host trigger -->
+                                            <button type="button" class="btn btn-link btn-sm p-0"
+                                                    title="Manage Host Access"
+                                                    {% if u.Host == 'localhost' %}
+                                                    style="color: #6c757d;"
+                                                    {% else %}
+                                                    style="color: #f0ad4e;"
+                                                    {% endif %}
+                                                    onclick="openHostModal('{{ db.name }}', '{{ u.User }}', '{{ u.Host }}')">                                                    <i class="fas fa-network-wired"></i>
+                                            </button>
                                         </div>
                                         {% endfor %}
                                     {% else %}
@@ -177,13 +168,119 @@
     </div>
 </div>
 
+<!-- Host Management Modal -->
+<div class="modal fade" id="hostModal" tabindex="-1" aria-labelledby="hostModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('databases') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update_host">
+                <input type="hidden" name="db_name" id="host_db_name">
+                <input type="hidden" name="db_user" id="host_db_user">
+                <input type="hidden" name="old_host" id="host_old_host">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="hostModalLabel"><i class="fas fa-network-wired me-2"></i>Host Access Management</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        Managing access for <strong id="host_user_display"></strong>
+                        (current host: <code id="host_current_display"></code>)
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Allow access from</label>
+                        <div class="d-flex flex-column gap-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="new_host" id="host_local"
+                                       value="localhost" onchange="toggleIpField(false)">
+                                <label class="form-check-label" for="host_local">
+                                    <i class="fas fa-house me-2 text-secondary"></i>
+                                    <strong>Local only</strong> — <span class="text-muted">only this server can connect</span>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="new_host" id="host_ip"
+                                       value="__custom__" onchange="toggleIpField(true)">
+                                <label class="form-check-label" for="host_ip">
+                                    <i class="fas fa-shield-alt me-2 text-info"></i>
+                                    <strong>Specific IP address</strong> — <span class="text-muted">restrict to a single trusted IP</span>
+                                </label>
+                            </div>
+                            <div id="ipInputWrapper" class="ps-4" style="display:none;">
+                                <input type="text" class="form-control form-control-sm" id="custom_ip"
+                                       placeholder="e.g. 203.0.113.42">
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="new_host" id="host_any"
+                                       value="%" onchange="toggleIpField(false)">
+                                <label class="form-check-label" for="host_any">
+                                    <i class="fas fa-globe me-2 text-warning"></i>
+                                    <strong>Any host (%)</strong> — <span class="text-muted text-danger">open to all IPs, use with caution</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" onclick="return applyHostSelection()">Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function openChangePassword(user, host) {
-    document.getElementById('cpw_user').value         = user;
-    document.getElementById('cpw_host').value         = host;
+    document.getElementById('cpw_user').value          = user;
+    document.getElementById('cpw_host').value          = host;
     document.getElementById('cpw_user_display').textContent = user;
     document.getElementById('cpw_host_display').textContent = host;
     new bootstrap.Modal(document.getElementById('changePasswordModal')).show();
+}
+
+function openHostModal(dbName, user, currentHost) {
+    document.getElementById('host_db_name').value          = dbName;
+    document.getElementById('host_db_user').value          = user;
+    document.getElementById('host_old_host').value         = currentHost;
+    document.getElementById('host_user_display').textContent    = user;
+    document.getElementById('host_current_display').textContent = currentHost;
+
+    // Pre-select the radio matching current host
+    document.getElementById('ipInputWrapper').style.display = 'none';
+    document.getElementById('custom_ip').value = '';
+    if (currentHost === 'localhost') {
+        document.getElementById('host_local').checked = true;
+    } else if (currentHost === '%') {
+        document.getElementById('host_any').checked = true;
+    } else {
+        // It's a specific IP — pre-fill it
+        document.getElementById('host_ip').checked = true;
+        document.getElementById('custom_ip').value = currentHost;
+        document.getElementById('ipInputWrapper').style.display = 'block';
+    }
+
+    new bootstrap.Modal(document.getElementById('hostModal')).show();
+}
+
+function toggleIpField(show) {
+    document.getElementById('ipInputWrapper').style.display = show ? 'block' : 'none';
+    if (!show) document.getElementById('custom_ip').value = '';
+}
+
+function applyHostSelection() {
+    const selected = document.querySelector('input[name="new_host"]:checked');
+    if (!selected) { alert('Please select a host option.'); return false; }
+
+    if (selected.value === '__custom__') {
+        const ip = document.getElementById('custom_ip').value.trim();
+        if (!ip) { alert('Please enter a specific IP address.'); return false; }
+        // Swap the radio value to the actual IP before submitting
+        selected.value = ip;
+    }
+    return true;
 }
 </script>
 {% endblock %}
