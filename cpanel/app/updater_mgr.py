@@ -70,10 +70,15 @@ def get_version_info():
     }
 
 def perform_update():
-    """Performs git pull."""
-    success, output = run_git(['pull', 'origin'])
+    """Performs git pull on the current branch."""
+    # First, get the current branch name
+    success_br, branch = run_git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    if not success_br:
+        return False, f"Could not detect current branch: {branch}"
+        
+    success, output = run_git(['pull', 'origin', branch])
     if success:
-        return True, "Update pulled successfully."
+        return True, f"Update pulled successfully for branch '{branch}'."
     return False, f"Pull failed: {output}"
 
 def restart_service():
