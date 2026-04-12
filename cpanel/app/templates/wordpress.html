@@ -10,7 +10,7 @@
                 <h5 class="mb-0">Install New WordPress Site</h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('wordpress') }}">
+                <form id="wpInstallForm" method="POST" action="{{ url_for('wordpress') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="install_wp">
                     
