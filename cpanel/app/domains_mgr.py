@@ -3,10 +3,10 @@ import subprocess
 
 def get_virtual_hosts():
     """
-    Returns a list of dictionaries with virtual host information.
+    Returns a list of dictionaries with virtual host information, grouped by domain.
     Checks both Nginx and Apache directories.
     """
-    vhosts = []
+    grouped_vhosts = {}
 
     # Check Nginx
     nginx_dir = '/etc/nginx/sites-available'
@@ -14,12 +14,18 @@ def get_virtual_hosts():
         for f in os.listdir(nginx_dir):
             if f not in ['default', 'default-modsecurity.conf']:
                 enabled = os.path.exists(f'/etc/nginx/sites-enabled/{f}')
-                vhosts.append({
-                    'server': 'Nginx',
-                    'domain': f,
-                    'enabled': enabled,
-                    'config_path': os.path.join(nginx_dir, f)
-                })
+                domain = f
+                if domain not in grouped_vhosts:
+                    grouped_vhosts[domain] = {
+                        'domain': domain, 
+                        'servers': [], 
+                        'enabled': enabled, 
+                        'config_paths': {}, 
+                        'has_ssl': False
+                    }
+                grouped_vhosts[domain]['servers'].append('Nginx')
+                grouped_vhosts[domain]['config_paths']['Nginx'] = os.path.join(nginx_dir, f)
+                grouped_vhosts[domain]['enabled'] = grouped_vhosts[domain]['enabled'] or enabled
 
     # Check Apache
     apache_dir = '/etc/apache2/sites-available'
@@ -28,14 +34,24 @@ def get_virtual_hosts():
             if f not in ['000-default.conf', 'default-ssl.conf', 'default-modsecurity.conf']:
                 domain = f.replace('.conf', '')
                 enabled = os.path.exists(f'/etc/apache2/sites-enabled/{f}')
-                vhosts.append({
-                    'server': 'Apache',
-                    'domain': domain,
-                    'enabled': enabled,
-                    'config_path': os.path.join(apache_dir, f)
-                })
+                if domain not in grouped_vhosts:
+                    grouped_vhosts[domain] = {
+                        'domain': domain, 
+                        'servers': [], 
+                        'enabled': enabled, 
+                        'config_paths': {}, 
+                        'has_ssl': False
+                    }
+                grouped_vhosts[domain]['servers'].append('Apache')
+                grouped_vhosts[domain]['config_paths']['Apache'] = os.path.join(apache_dir, f)
+                grouped_vhosts[domain]['enabled'] = grouped_vhosts[domain]['enabled'] or enabled
 
-    return vhosts
+    # Check SSL
+    for domain in grouped_vhosts:
+        if os.path.exists(f'/etc/letsencrypt/live/{domain}/fullchain.pem'):
+            grouped_vhosts[domain]['has_ssl'] = True
+
+    return list(grouped_vhosts.values())
 
 def add_virtual_host(domain):
     """
@@ -61,29 +77,41 @@ def add_virtual_host(domain):
         # Fallback if the script isn't found
         return False, "vhost-manager.sh script not found."
 
-def toggle_virtual_host(domain, server, enable):
+def toggle_virtual_host(domain, enable):
     """
-    Enables or disables a virtual host.
+    Enables or disables a virtual host across all installed web servers.
     """
-    try:
-        if server == 'Nginx':
-            config_file = domain
-            enabled_link = f'/etc/nginx/sites-enabled/{config_file}'
-            if enable:
-                os.symlink(f'/etc/nginx/sites-available/{config_file}', enabled_link)
-            else:
+    successes = []
+    errors = []
+
+    # Check Nginx
+    nginx_avail = f'/etc/nginx/sites-available/{domain}'
+    if os.path.exists(nginx_avail):
+        try:
+            enabled_link = f'/etc/nginx/sites-enabled/{domain}'
+            if enable and not os.path.exists(enabled_link):
+                os.symlink(nginx_avail, enabled_link)
+            elif not enable and os.path.exists(enabled_link):
                 os.remove(enabled_link)
             subprocess.run(['systemctl', 'reload', 'nginx'], check=True)
-            return True, f"Domain {domain} {'enabled' if enable else 'disabled'} successfully."
+            successes.append("Nginx")
+        except Exception as e:
+            errors.append(f"Nginx: {str(e)}")
 
-        elif server == 'Apache':
-            config_file = f"{domain}.conf"
-            cmd = ['a2ensite', config_file] if enable else ['a2dissite', config_file]
+    # Check Apache
+    apache_avail = f'/etc/apache2/sites-available/{domain}.conf'
+    if os.path.exists(apache_avail):
+        try:
+            cmd = ['a2ensite', f"{domain}.conf"] if enable else ['a2dissite', f"{domain}.conf"]
             subprocess.run(cmd, check=True, capture_output=True)
             subprocess.run(['systemctl', 'reload', 'apache2'], check=True)
-            return True, f"Domain {domain} {'enabled' if enable else 'disabled'} successfully."
+            successes.append("Apache")
+        except Exception as e:
+            errors.append(f"Apache: {str(e)}")
 
-    except Exception as e:
-        return False, f"Error: {str(e)}"
-
-    return False, "Unknown server type."
+    if errors:
+        return False, f"Errors: {', '.join(errors)}"
+    elif successes:
+        return True, f"Domain {domain} {'enabled' if enable else 'disabled'} successfully on: {', '.join(successes)}."
+    else:
+        return False, "Configuration not found for any web server."

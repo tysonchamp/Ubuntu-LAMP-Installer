@@ -92,20 +92,95 @@ def domains():
 
         elif action == 'toggle':
             domain = request.form.get('domain')
-            server = request.form.get('server')
             enable_str = request.form.get('enable')
             enable = enable_str.lower() == 'true'
 
-            success, message = toggle_virtual_host(domain, server, enable)
+            success, message = toggle_virtual_host(domain, enable)
             if success:
                 flash(message, 'success')
             else:
                 flash(message, 'danger')
 
+        elif action == 'ssl_generate':
+            domain = request.form.get('domain')
+            servers = request.form.get('servers', '')
+            import subprocess
+            try:
+                # Automatically choose plugin based on active servers
+                plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
+                cmd = ['certbot', plugin, '-d', domain, '-d', f'www.{domain}', '--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    flash(f"SSL Certificate generated successfully for {domain}!", 'success')
+                else:
+                    flash(f"SSL Generation failed: {result.stderr}", 'danger')
+            except Exception as e:
+                flash(f"Error during SSL setup: {str(e)}", 'danger')
+
+        elif action == 'ssl_renew':
+            import subprocess
+            try:
+                result = subprocess.run(['certbot', 'renew', '--non-interactive'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    flash("Certificates renewed successfully. " + result.stdout, 'success')
+                else:
+                    flash(f"Renewal issue: {result.stderr}", 'danger')
+            except Exception as e:
+                flash(f"Error during renewal: {str(e)}", 'danger')
+
         return redirect(url_for('domains'))
 
     vhosts = get_virtual_hosts()
     return render_template('domains.html', vhosts=vhosts)
+
+@app.route('/domains/logs/<domain>')
+@login_required
+def domain_logs(domain):
+    logs = {}
+    import subprocess
+    
+    # Check Apache logs
+    apache_error = f'/var/log/apache2/{domain}_error.log'
+    apache_access = f'/var/log/apache2/{domain}_access.log'
+    
+    if os.path.exists(apache_error):
+        try:
+            res = subprocess.run(['tail', '-n', '100', apache_error], capture_output=True, text=True)
+            logs['Apache Error Log'] = res.stdout if res.stdout.strip() else 'Log is empty.'
+        except Exception as e:
+            logs['Apache Error Log'] = str(e)
+            
+    if os.path.exists(apache_access):
+        try:
+            res = subprocess.run(['tail', '-n', '100', apache_access], capture_output=True, text=True)
+            logs['Apache Access Log'] = res.stdout if res.stdout.strip() else 'Log is empty.'
+        except Exception as e:
+            logs['Apache Access Log'] = str(e)
+            
+    # Check Nginx (filtered global log)
+    nginx_error = '/var/log/nginx/error.log'
+    nginx_access = '/var/log/nginx/access.log'
+    
+    if os.path.exists(nginx_error):
+        try:
+            res = subprocess.run(f'grep "{domain}" {nginx_error} | tail -n 100', shell=True, capture_output=True, text=True)
+            if res.stdout:
+                logs['Nginx Error Log (Filtered)'] = res.stdout
+        except Exception:
+            pass
+            
+    if os.path.exists(nginx_access):
+        try:
+            res = subprocess.run(f'grep "{domain}" {nginx_access} | tail -n 100', shell=True, capture_output=True, text=True)
+            if res.stdout:
+                logs['Nginx Access Log (Filtered)'] = res.stdout
+        except Exception:
+            pass
+            
+    if not logs:
+        logs['Info'] = f"No standard log entries found for {domain}."
+        
+    return render_template('domain_logs.html', domain=domain, logs=logs)
 
 from database_mgr import get_databases, create_database, delete_database, setup_phpmyadmin_signon
 

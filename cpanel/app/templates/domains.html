@@ -35,16 +35,22 @@
                         <thead class="bg-light">
                             <tr>
                                 <th>Domain</th>
-                                <th>Web Server</th>
                                 <th>Status</th>
+                                <th>SSL</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for vhost in vhosts %}
                             <tr>
-                                <td class="align-middle fw-bold">{{ vhost.domain }}</td>
-                                <td class="align-middle"><span class="badge bg-secondary">{{ vhost.server }}</span></td>
+                                <td class="align-middle fw-bold">
+                                    {{ vhost.domain }}<br>
+                                    <small class="text-muted">
+                                        {% for srv in vhost.servers %}
+                                            <span class="badge bg-secondary">{{ srv }}</span>
+                                        {% endfor %}
+                                    </small>
+                                </td>
                                 <td class="align-middle">
                                     {% if vhost.enabled %}
                                     <span class="badge bg-success">Enabled</span>
@@ -53,20 +59,57 @@
                                     {% endif %}
                                 </td>
                                 <td class="align-middle">
-                                    <form method="POST" action="{{ url_for('domains') }}" class="d-inline">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    {% if vhost.has_ssl %}
+                                    <span class="badge bg-success"><i class="fas fa-lock"></i> Secured</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark"><i class="fas fa-unlock"></i> Unsecured</span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle">
+                                    <div class="d-flex align-items-center gap-1">
+                                        <!-- Toggle Form -->
+                                        <form method="POST" action="{{ url_for('domains') }}" class="mb-0">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="action" value="toggle">
+                                            <input type="hidden" name="domain" value="{{ vhost.domain }}">
+                                            {% if vhost.enabled %}
+                                            <input type="hidden" name="enable" value="false">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Disable"><i class="fas fa-power-off"></i></button>
+                                            {% else %}
+                                            <input type="hidden" name="enable" value="true">
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Enable"><i class="fas fa-play"></i></button>
+                                            {% endif %}
+                                        </form>
 
-                                        <input type="hidden" name="action" value="toggle">
-                                        <input type="hidden" name="domain" value="{{ vhost.domain }}">
-                                        <input type="hidden" name="server" value="{{ vhost.server }}">
-                                        {% if vhost.enabled %}
-                                        <input type="hidden" name="enable" value="false">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">Disable</button>
-                                        {% else %}
-                                        <input type="hidden" name="enable" value="true">
-                                        <button type="submit" class="btn btn-sm btn-outline-success">Enable</button>
-                                        {% endif %}
-                                    </form>
+                                        <!-- Logs -->
+                                        <a href="{{ url_for('domain_logs', domain=vhost.domain) }}" class="btn btn-sm btn-outline-info" title="Logs"><i class="fas fa-file-alt"></i></a>
+
+                                        <!-- Edit Config -->
+                                        <div class="dropdown">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Edit Config">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <ul class="dropdown-menu shadow">
+                                                {% for server, path in vhost.config_paths.items() %}
+                                                <li><a class="dropdown-item" href="{{ url_for('edit_config', filepath=path) }}">{{ server }} Config</a></li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+
+                                        <!-- SSL Actions -->
+                                        <form method="POST" action="{{ url_for('domains') }}" class="mb-0">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="domain" value="{{ vhost.domain }}">
+                                            <input type="hidden" name="servers" value="{{ vhost.servers|join(',') }}">
+                                            {% if vhost.has_ssl %}
+                                            <input type="hidden" name="action" value="ssl_renew">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Renew SSL"><i class="fas fa-sync"></i></button>
+                                            {% else %}
+                                            <input type="hidden" name="action" value="ssl_generate">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Generate SSL"><i class="fas fa-shield-alt"></i></button>
+                                            {% endif %}
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             {% else %}

@@ -1,0 +1,22 @@
+{% extends 'dashboard.html' %}
+
+{% block header_title %}Logs for {{ domain }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <a href="{{ url_for('domains') }}" class="btn btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-2"></i> Back to Domains</a>
+        
+        {% for log_name, log_content in logs.items() %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0">{{ log_name }}</h5>
+            </div>
+            <div class="card-body bg-dark text-light p-3" style="max-height: 500px; overflow-y: auto;">
+                <pre class="mb-0" style="color: #a9b7c6; font-family: monospace; white-space: pre-wrap;">{{ log_content }}</pre>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
