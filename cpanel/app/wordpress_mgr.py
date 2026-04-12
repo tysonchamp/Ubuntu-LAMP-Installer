@@ -16,19 +16,84 @@ def get_installed_wordpress(vhosts):
         domain = vhost.get('domain')
         if not domain: continue
         doc_root = f'/var/www/{domain}'
-        if os.path.exists(os.path.join(doc_root, 'wp-config.php')):
-            wp_domains.append({'domain': domain, 'path': doc_root})
+        
+        def check_wp(check_path, display_domain):
+            if os.path.exists(os.path.join(check_path, 'wp-settings.php')):
+                is_configured = os.path.exists(os.path.join(check_path, 'wp-config.php'))
+                status = "Installed" if is_configured else "Incomplete"
+                wp_domains.append({'domain': display_domain, 'path': check_path, 'status': status})
+
+        check_wp(doc_root, domain)
         
         # Check subdirectories
         if os.path.exists(doc_root):
             try:
                 for item in os.listdir(doc_root):
                     subpath = os.path.join(doc_root, item)
-                    if os.path.isdir(subpath) and os.path.exists(os.path.join(subpath, 'wp-config.php')):
-                        wp_domains.append({'domain': f'{domain}/{item}', 'path': subpath})
+                    if os.path.isdir(subpath):
+                        check_wp(subpath, f"{domain}/{item}")
             except Exception:
                 pass
     return wp_domains
+
+def delete_wordpress(path):
+    if not os.path.exists(os.path.join(path, 'wp-settings.php')):
+        return False, "WordPress not found at this location."
+
+    db_name = None
+    db_user = None
+    wp_config = os.path.join(path, 'wp-config.php')
+    
+    if os.path.exists(wp_config):
+        import re
+        try:
+            with open(wp_config, 'r') as f:
+                content = f.read()
+                db_name_match = re.search(r"define\(\s*'DB_NAME',\s*'([^']+)'\s*\)", content)
+                db_user_match = re.search(r"define\(\s*'DB_USER',\s*'([^']+)'\s*\)", content)
+                if db_name_match: db_name = db_name_match.group(1)
+                if db_user_match: db_user = db_user_match.group(1)
+        except Exception:
+            pass
+
+    from database_mgr import delete_database, get_mysql_connection
+    if db_name:
+        delete_database(db_name)
+    if db_user:
+        conn = get_mysql_connection()
+        if conn:
+            try:
+                with conn.cursor() as cursor:
+                    user_esc = db_user.replace("'", "''")
+                    cursor.execute(f"DROP USER IF EXISTS '{user_esc}'@'localhost'")
+                conn.commit()
+            except Exception:
+                pass
+            finally:
+                conn.close()
+
+    wp_items = [
+        'wp-admin', 'wp-content', 'wp-includes', 
+        'wp-activate.php', 'wp-blog-header.php', 'wp-comments-post.php', 
+        'wp-config-sample.php', 'wp-config.php', 'wp-cron.php', 
+        'wp-links-opml.php', 'wp-load.php', 'wp-login.php', 
+        'wp-mail.php', 'wp-settings.php', 'wp-signup.php', 
+        'wp-trackback.php', 'xmlrpc.php', 'index.php', 'license.txt', 'readme.html'
+    ]
+    for item in wp_items:
+        item_path = os.path.join(path, item)
+        if os.path.isdir(item_path):
+            import shutil
+            shutil.rmtree(item_path, ignore_errors=True)
+        elif os.path.exists(item_path):
+            try: os.remove(item_path)
+            except OSError: pass
+            
+    if path.count('/') > 3:
+        try: os.rmdir(path)
+        except OSError: pass
+
+    return True, "WordPress successfully removed."
 
 def install_wordpress_generator(domain, target_path=""):
     def emit(progress, message, error=False, success=False):
@@ -95,7 +160,7 @@ def install_wordpress_generator(domain, target_path=""):
                     os.remove(default_index)
 
         yield emit(65, "Downloading WordPress core via WP-CLI...")
-        res = subprocess.run(['su', '-s', '/bin/bash', '-c', f'wp core download --path="{doc_root}"', 'www-data'], capture_output=True, text=True)
+        res = subprocess.run(['su', '-s', '/bin/bash', '-c', f'wp core download --path="{doc_root}" --force', 'www-data'], capture_output=True, text=True)
         if res.returncode != 0:
             yield emit(100, f"WordPress download failed: {res.stderr}", error=True)
             return

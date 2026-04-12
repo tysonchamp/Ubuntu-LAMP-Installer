@@ -545,6 +545,12 @@ def wordpress():
             from wordpress_mgr import install_wordpress_generator
             from flask import Response, stream_with_context
             return Response(stream_with_context(install_wordpress_generator(domain, target_path)), mimetype='application/x-ndjson')
+        elif action == 'delete_wp':
+            path = request.form.get('path')
+            from wordpress_mgr import delete_wordpress
+            success, msg = delete_wordpress(path)
+            flash(msg, 'success' if success else 'danger')
+            return redirect(url_for('wordpress'))
 
     from domains_mgr import get_virtual_hosts
     domains = get_virtual_hosts()
