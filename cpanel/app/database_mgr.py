@@ -61,17 +61,86 @@ def get_mysql_connection():
             return None
 
 def get_databases():
+    """Returns a list of user databases (excluding system DBs)."""
     conn = get_mysql_connection()
     if not conn: return []
-
     try:
         with conn.cursor() as cursor:
             cursor.execute("SHOW DATABASES")
             dbs = cursor.fetchall()
             return [db['Database'] for db in dbs if db['Database'] not in ('information_schema', 'mysql', 'performance_schema', 'sys')]
     finally:
-        if conn:
-            conn.close()
+        conn.close()
+
+def get_database_details():
+    """
+    Returns a list of dicts with db name, plus all users and their allowed hosts that
+    have privileges on each database.
+    """
+    conn = get_mysql_connection()
+    if not conn: return []
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SHOW DATABASES")
+            raw_dbs = [db['Database'] for db in cursor.fetchall()
+                       if db['Database'] not in ('information_schema', 'mysql', 'performance_schema', 'sys')]
+
+            result = []
+            for db in raw_dbs:
+                db_escaped = db.replace('`', '``')
+                cursor.execute(
+                    "SELECT User, Host FROM mysql.db WHERE Db = %s ORDER BY User, Host",
+                    (db,)
+                )
+                users = cursor.fetchall()  # [{User:..., Host:...}, ...]
+                result.append({'name': db, 'users': users})
+            return result
+    finally:
+        conn.close()
+
+def change_user_password(db_user, host, new_password):
+    conn = get_mysql_connection()
+    if not conn: return False, "Could not connect to database server."
+    try:
+        with conn.cursor() as cursor:
+            new_password = pymysql.converters.escape_string(new_password)
+            cursor.execute(
+                f"ALTER USER '{db_user}'@'{host}' IDENTIFIED BY '{new_password}'"
+            )
+            cursor.execute("FLUSH PRIVILEGES")
+        conn.commit()
+        return True, f"Password updated for {db_user}@{host}."
+    except pymysql.MySQLError as e:
+        return False, f"Error: {str(e)}"
+    finally:
+        conn.close()
+
+def update_user_host(db_name, db_user, old_host, new_host):
+    """
+    Changes a user's host, effectively toggling between 'localhost' (local-only)
+    and '%' (remote access allowed).
+    """
+    conn = get_mysql_connection()
+    if not conn: return False, "Could not connect to database server."
+    try:
+        with conn.cursor() as cursor:
+            db_escaped  = db_name.replace('`', '``')
+            new_host_esc = pymysql.converters.escape_string(new_host)
+            old_host_esc = pymysql.converters.escape_string(old_host)
+            user_esc     = pymysql.converters.escape_string(db_user)
+
+            # Rename the user
+            cursor.execute(
+                f"RENAME USER '{user_esc}'@'{old_host_esc}' TO '{user_esc}'@'{new_host_esc}'"
+            )
+            cursor.execute("FLUSH PRIVILEGES")
+        conn.commit()
+        label = 'remote (%)' if new_host == '%' else 'local (localhost)'
+        return True, f"{db_user} host updated to {label}."
+    except pymysql.MySQLError as e:
+        return False, f"Error: {str(e)}"
+    finally:
+        conn.close()
 
 def create_database(db_name, db_user, db_pass):
     conn = get_mysql_connection()

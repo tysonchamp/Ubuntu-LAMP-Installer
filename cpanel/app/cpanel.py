@@ -143,25 +143,30 @@ def domain_logs(domain):
     """Page view: discover all log files for the given domain."""
     available_logs = {}
 
-    # Apache dedicated log files
+    # Domain-specific Apache log files
     for suffix, label in [('_error.log', 'Apache Error'), ('_access.log', 'Apache Access'),
                           ('_ssl_error.log', 'Apache SSL Error'), ('_ssl_access.log', 'Apache SSL Access')]:
         path = f'/var/log/apache2/{domain}{suffix}'
         if os.path.exists(path):
             available_logs[label] = path
 
-    # Nginx dedicated log files (set by our vhost template)
+    # Global Apache fallback — traffic from vhosts without dedicated log lines lands here
+    for path, label in [('/var/log/apache2/error.log',  'Apache Error (Global)'),
+                        ('/var/log/apache2/access.log', 'Apache Access (Global)')]:
+        if os.path.exists(path):
+            available_logs[label] = f'__apache_filter__:{path}'
+
+    # Domain-specific Nginx log files
     for suffix, label in [('_error.log', 'Nginx Error'), ('_access.log', 'Nginx Access')]:
         path = f'/var/log/nginx/{domain}{suffix}'
         if os.path.exists(path):
             available_logs[label] = path
 
-    # Fallback: global Nginx logs (filtered)
-    if not any('Nginx' in k for k in available_logs):
-        if os.path.exists('/var/log/nginx/error.log'):
-            available_logs['Nginx Error (Global, filtered)'] = f'__nginx_filter__:/var/log/nginx/error.log'
-        if os.path.exists('/var/log/nginx/access.log'):
-            available_logs['Nginx Access (Global, filtered)'] = f'__nginx_filter__:/var/log/nginx/access.log'
+    # Global Nginx fallback — always include, filtered by domain
+    for path, label in [('/var/log/nginx/error.log',  'Nginx Error (Global, filtered)'),
+                        ('/var/log/nginx/access.log', 'Nginx Access (Global, filtered)')]:
+        if os.path.exists(path):
+            available_logs[label] = f'__nginx_filter__:{path}'
 
     return render_template('domain_logs.html', domain=domain, available_logs=available_logs)
 
@@ -183,15 +188,18 @@ def domain_logs_fetch(domain):
         path = f'/var/log/apache2/{domain}{suffix}'
         if os.path.exists(path):
             available_logs[label] = path
+    for path, label in [('/var/log/apache2/error.log',  'Apache Error (Global)'),
+                        ('/var/log/apache2/access.log', 'Apache Access (Global)')]:
+        if os.path.exists(path):
+            available_logs[label] = f'__apache_filter__:{path}'
     for suffix, label in [('_error.log', 'Nginx Error'), ('_access.log', 'Nginx Access')]:
         path = f'/var/log/nginx/{domain}{suffix}'
         if os.path.exists(path):
             available_logs[label] = path
-    if not any('Nginx' in k for k in available_logs):
-        if os.path.exists('/var/log/nginx/error.log'):
-            available_logs['Nginx Error (Global, filtered)'] = '__nginx_filter__:/var/log/nginx/error.log'
-        if os.path.exists('/var/log/nginx/access.log'):
-            available_logs['Nginx Access (Global, filtered)'] = '__nginx_filter__:/var/log/nginx/access.log'
+    for path, label in [('/var/log/nginx/error.log',  'Nginx Error (Global, filtered)'),
+                        ('/var/log/nginx/access.log', 'Nginx Access (Global, filtered)')]:
+        if os.path.exists(path):
+            available_logs[label] = f'__nginx_filter__:{path}'
 
     if log_key not in available_logs:
         return jsonify({'error': 'Invalid log file selected.'}), 400
@@ -209,15 +217,26 @@ def domain_logs_fetch(domain):
                 f'grep "{domain}" {real_path} | tail -n {lines_int}',
                 shell=True, capture_output=True, text=True
             )
+            display_path = real_path
+        elif path.startswith('__apache_filter__:'):
+            real_path = path.split(':', 1)[1]
+            res = subprocess.run(
+                f'grep "{domain}" {real_path} | tail -n {lines_int}',
+                shell=True, capture_output=True, text=True
+            )
+            display_path = real_path
         else:
             res = subprocess.run(['tail', '-n', str(lines_int), path], capture_output=True, text=True)
+            display_path = path
 
         content = res.stdout if res.stdout.strip() else '(Log is empty or has no entries yet.)'
-        return jsonify({'content': content, 'path': path if not path.startswith('__nginx_filter__:') else path.split(':',1)[1]})
+        return jsonify({'content': content, 'path': display_path})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-from database_mgr import get_databases, create_database, delete_database, setup_phpmyadmin_signon
+from database_mgr import (get_databases, get_database_details, create_database,
+                           delete_database, setup_phpmyadmin_signon,
+                           change_user_password, update_user_host)
 
 @app.route('/databases', methods=['GET', 'POST'])
 @login_required
@@ -237,10 +256,25 @@ def databases():
             success, message = delete_database(db_name)
             flash(message, 'success' if success else 'danger')
 
+        elif action == 'change_password':
+            db_user = request.form.get('db_user')
+            host    = request.form.get('host')
+            new_pw  = request.form.get('new_password')
+            success, message = change_user_password(db_user, host, new_pw)
+            flash(message, 'success' if success else 'danger')
+
+        elif action == 'update_host':
+            db_name  = request.form.get('db_name')
+            db_user  = request.form.get('db_user')
+            old_host = request.form.get('old_host')
+            new_host = request.form.get('new_host')
+            success, message = update_user_host(db_name, db_user, old_host, new_host)
+            flash(message, 'success' if success else 'danger')
+
         return redirect(url_for('databases'))
 
-    dbs = get_databases()
-    return render_template('databases.html', databases=dbs)
+    db_details = get_database_details()
+    return render_template('databases.html', db_details=db_details)
 
 @app.route('/phpmyadmin-login')
 @login_required

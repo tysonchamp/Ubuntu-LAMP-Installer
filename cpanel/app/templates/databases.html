@@ -3,32 +3,36 @@
 {% block header_title %}Databases{% endblock %}
 
 {% block content %}
+<!-- Create Database -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Create New Database</h5>
-                <a href="{{ url_for('phpmyadmin_login') }}" target="_blank" class="btn btn-sm btn-info text-white"><i class="fas fa-external-link-alt me-2"></i> phpMyAdmin Auto-login</a>
+                <a href="{{ url_for('phpmyadmin_login') }}" target="_blank" class="btn btn-sm btn-info text-white">
+                    <i class="fas fa-external-link-alt me-2"></i>phpMyAdmin Auto-login
+                </a>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('databases') }}" class="row g-3">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="create">
                     <div class="col-md-4">
-                        <label class="form-label">Database Name</label>
-                        <input type="text" class="form-control" name="db_name" required>
+                        <label class="form-label fw-semibold">Database Name</label>
+                        <input type="text" class="form-control" name="db_name" required placeholder="myapp_db">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Database User</label>
-                        <input type="text" class="form-control" name="db_user" required>
+                        <label class="form-label fw-semibold">Database User</label>
+                        <input type="text" class="form-control" name="db_user" required placeholder="myapp_user">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">User Password</label>
-                        <input type="password" class="form-control" name="db_pass" required>
+                        <label class="form-label fw-semibold">User Password</label>
+                        <input type="password" class="form-control" name="db_pass" required placeholder="••••••••">
                     </div>
-                    <div class="col-12 mt-3">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-2"></i> Create Database & User</button>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create Database &amp; User
+                        </button>
                     </div>
                 </form>
             </div>
@@ -36,6 +40,7 @@
     </div>
 </div>
 
+<!-- Existing Databases -->
 <div class="row">
     <div class="col-12">
         <div class="card shadow-sm border-0">
@@ -44,30 +49,90 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0 align-middle">
                         <thead class="bg-light">
                             <tr>
-                                <th>Database Name</th>
-                                <th>Actions</th>
+                                <th>Database</th>
+                                <th>Users</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for db in databases %}
+                            {% for db in db_details %}
                             <tr>
-                                <td class="align-middle fw-bold">{{ db }}</td>
-                                <td class="align-middle">
-                                    <form method="POST" action="{{ url_for('databases') }}" class="d-inline" onsubmit="return confirm('Are you sure you want to drop this database? This action cannot be undone.');">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <!-- DB Name -->
+                                <td class="fw-bold">
+                                    <i class="fas fa-database text-primary me-2"></i>{{ db.name }}
+                                </td>
 
+                                <!-- Users + host badges -->
+                                <td>
+                                    {% if db.users %}
+                                        {% for u in db.users %}
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="font-monospace fw-semibold">{{ u.User }}</span>
+                                            {% if u.Host == 'localhost' %}
+                                            <span class="badge bg-secondary" title="Local access only">
+                                                <i class="fas fa-house me-1"></i>localhost
+                                            </span>
+                                            {% elif u.Host == '%' %}
+                                            <span class="badge bg-warning text-dark" title="Remote access allowed">
+                                                <i class="fas fa-globe me-1"></i>Remote (%)
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-info text-dark">{{ u.Host }}</span>
+                                            {% endif %}
+
+                                            <!-- Change Password trigger -->
+                                            <button class="btn btn-link btn-sm p-0 text-muted" title="Change Password"
+                                                onclick="openChangePassword('{{ u.User }}', '{{ u.Host }}')">
+                                                <i class="fas fa-key"></i>
+                                            </button>
+
+                                            <!-- Toggle Host -->
+                                            <form method="POST" action="{{ url_for('databases') }}" class="mb-0 d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="action" value="update_host">
+                                                <input type="hidden" name="db_name" value="{{ db.name }}">
+                                                <input type="hidden" name="db_user" value="{{ u.User }}">
+                                                <input type="hidden" name="old_host" value="{{ u.Host }}">
+                                                {% if u.Host == 'localhost' %}
+                                                <input type="hidden" name="new_host" value="%">
+                                                <button type="submit" class="btn btn-link btn-sm p-0 text-warning" title="Allow Remote Access">
+                                                    <i class="fas fa-globe"></i>
+                                                </button>
+                                                {% else %}
+                                                <input type="hidden" name="new_host" value="localhost">
+                                                <button type="submit" class="btn btn-link btn-sm p-0 text-secondary" title="Restrict to Local Only">
+                                                    <i class="fas fa-lock"></i>
+                                                </button>
+                                                {% endif %}
+                                            </form>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted small"><em>No users found</em></span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Drop DB -->
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('databases') }}" class="d-inline"
+                                          onsubmit="return confirm('Drop {{ db.name }}? This is permanent.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="db_name" value="{{ db }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Drop</button>
+                                        <input type="hidden" name="db_name" value="{{ db.name }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash me-1"></i>Drop
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="2" class="text-center py-4 text-muted">No databases found or database server offline.</td>
+                                <td colspan="3" class="text-center py-4 text-muted">
+                                    No databases found or database server is offline.
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -77,4 +142,48 @@
         </div>
     </div>
 </div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="cpwLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('databases') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="change_password">
+                <input type="hidden" name="db_user" id="cpw_user">
+                <input type="hidden" name="host"    id="cpw_host">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cpwLabel"><i class="fas fa-key me-2"></i>Change Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        Changing password for user <strong id="cpw_user_display"></strong>
+                        on host <code id="cpw_host_display"></code>
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">New Password</label>
+                        <input type="password" class="form-control" name="new_password" required
+                               placeholder="Enter new password" autocomplete="new-password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openChangePassword(user, host) {
+    document.getElementById('cpw_user').value         = user;
+    document.getElementById('cpw_host').value         = host;
+    document.getElementById('cpw_user_display').textContent = user;
+    document.getElementById('cpw_host_display').textContent = host;
+    new bootstrap.Modal(document.getElementById('changePasswordModal')).show();
+}
+</script>
 {% endblock %}
