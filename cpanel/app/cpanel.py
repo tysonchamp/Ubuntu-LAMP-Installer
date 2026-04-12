@@ -529,8 +529,26 @@ def edit_config():
     if not success:
         flash(content, "danger")
         return redirect(url_for('settings'))
-
     return render_template('edit_config.html', filepath=filepath, content=content)
+
+from wordpress_mgr import get_installed_wordpress, install_wordpress
+
+@app.route('/wordpress', methods=['GET', 'POST'])
+@login_required
+def wordpress():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'install_wp':
+            domain = request.form.get('domain')
+            target_path = request.form.get('target_path', '').strip()
+            success, message = install_wordpress(domain, target_path)
+            flash(message, 'success' if success else 'danger')
+        return redirect(url_for('wordpress'))
+
+    from domains_mgr import get_virtual_hosts
+    domains = get_virtual_hosts()
+    wp_installs = get_installed_wordpress(domains)
+    return render_template('wordpress.html', domains=domains, wp_installs=wp_installs)
 
 if __name__ == '__main__':
     # Run on all interfaces, port 2083

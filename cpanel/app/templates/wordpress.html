@@ -1,0 +1,102 @@
+{% extends 'dashboard.html' %}
+
+{% block header_title %}WordPress Installer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Install New WordPress Site</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('wordpress') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="install_wp">
+                    
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label" for="domainSelect">Select Domain</label>
+                            <select class="form-select" id="domainSelect" name="domain" required>
+                                <option value="" disabled selected>Choose a domain...</option>
+                                {% for vhost in domains %}
+                                    <option value="{{ vhost.domain }}">{{ vhost.domain }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label" for="targetPath">Installation Path (Optional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">/var/www/{domain}/</span>
+                                <input type="text" class="form-control" id="targetPath" name="target_path" placeholder="e.g. blog or leave blank for root">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100"><i class="fab fa-wordpress me-2"></i> Install</button>
+                        </div>
+                    </div>
+                </form>
+                <small class="text-muted mt-3 d-block">This will download WordPress, set up a secure MySQL database and configure WP automatically. Passwords will be saved in <code>.passwords</code>.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0">Existing WordPress Installations</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Wordpress Site (Domain/Path)</th>
+                                <th>Installation Directory</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wp in wp_installs %}
+                            <tr>
+                                <td class="align-middle fw-bold">
+                                    <a href="http://{{ wp.domain }}" target="_blank" class="text-decoration-none">
+                                        {{ wp.domain }} <i class="fas fa-external-link-alt ms-1 small"></i>
+                                    </a>
+                                </td>
+                                <td class="align-middle font-monospace small">
+                                    {{ wp.path }}
+                                </td>
+                                <td class="align-middle">
+                                    <span class="badge bg-success"><i class="fas fa-check"></i> Installed</span>
+                                </td>
+                                <td class="align-middle">
+                                    <!-- Potentially we can add login redirects or DB management links here -->
+                                    <a href="http://{{ wp.domain }}/wp-admin" target="_blank" class="btn btn-sm btn-outline-primary" title="WP Admin">
+                                        <i class="fas fa-sign-in-alt"></i> Admin Panel
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">No WordPress installations found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('domainSelect').addEventListener('change', function() {
+        const span = document.querySelector('.input-group-text');
+        span.textContent = `/var/www/${this.value}/`;
+    });
+</script>
+{% endblock %}
