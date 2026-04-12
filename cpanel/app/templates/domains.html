@@ -86,7 +86,7 @@
 
                                         <!-- Edit Configs -->
                                         {% for server, path in vhost.config_paths.items() %}
-                                        <a href="{{ url_for('edit_config', filepath=path) }}" class="btn btn-sm btn-outline-secondary" title="Edit {{ server }} Config">
+                                        <a href="{{ url_for('edit_vhost', filepath=path) }}" class="btn btn-sm btn-outline-secondary" title="Edit {{ server }} Config">
                                             <i class="fas fa-edit"></i>
                                             <small style="font-size: 0.6rem; vertical-align: top;">{{ server[0] }}</small>
                                         </a>

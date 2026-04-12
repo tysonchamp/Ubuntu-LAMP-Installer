@@ -8,10 +8,10 @@
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Editing: <span class="text-primary font-monospace" style="font-size: 1rem;">{{ filepath }}</span></h5>
-                <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i> Back to Settings</a>
+                <a href="{{ back_url }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i> {{ back_label }}</a>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('settings') }}">
+                <form method="POST" action="{{ save_url | default(url_for('settings')) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <input type="hidden" name="action" value="save_config">

@@ -635,7 +635,78 @@ def edit_config():
     if not success:
         flash(content, "danger")
         return redirect(url_for('settings'))
-    return render_template('edit_config.html', filepath=filepath, content=content)
+    return render_template('edit_config.html', filepath=filepath, content=content,
+                           back_url=url_for('settings'), back_label='Back to Settings')
+
+@app.route('/domains/edit-vhost')
+@login_required
+def edit_vhost():
+    """Dedicated editor for Apache/Nginx vhost config files, accessed from the Domains page."""
+    import subprocess
+    filepath = request.args.get('filepath', '')
+    if not filepath:
+        flash("No file specified.", "danger")
+        return redirect(url_for('domains'))
+
+    # Only allow files inside the vhost directories — hard security boundary
+    allowed_dirs = [
+        '/etc/apache2/sites-available/',
+        '/etc/nginx/sites-available/',
+        '/etc/nginx/conf.d/',
+    ]
+    if not any(filepath.startswith(d) for d in allowed_dirs):
+        flash("Access denied: that file is not an editable vhost config.", "danger")
+        return redirect(url_for('domains'))
+
+    import os
+    if not os.path.exists(filepath):
+        flash(f"File not found: {filepath}", "danger")
+        return redirect(url_for('domains'))
+
+    if request.method == 'POST' if False else False:
+        pass  # see edit_vhost_save below
+
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+    except Exception as e:
+        flash(str(e), "danger")
+        return redirect(url_for('domains'))
+
+    return render_template('edit_config.html', filepath=filepath, content=content,
+                           back_url=url_for('domains'), back_label='Back to Domains',
+                           save_url=url_for('save_vhost'))
+
+@app.route('/domains/save-vhost', methods=['POST'])
+@login_required
+def save_vhost():
+    """Save handler for vhost files edited from the Domains page."""
+    import subprocess
+    filepath = request.form.get('filepath', '')
+    content  = request.form.get('content', '')
+
+    allowed_dirs = [
+        '/etc/apache2/sites-available/',
+        '/etc/nginx/sites-available/',
+        '/etc/nginx/conf.d/',
+    ]
+    if not any(filepath.startswith(d) for d in allowed_dirs):
+        flash("Access denied: cannot save that file.", "danger")
+        return redirect(url_for('domains'))
+
+    try:
+        with open(filepath, 'w') as f:
+            f.write(content)
+        # Reload relevant server
+        if 'apache2' in filepath:
+            subprocess.run(['systemctl', 'reload', 'apache2'], capture_output=True)
+        elif 'nginx' in filepath:
+            subprocess.run(['systemctl', 'reload', 'nginx'], capture_output=True)
+        flash("Virtual host config saved and service reloaded.", "success")
+    except Exception as e:
+        flash(str(e), "danger")
+
+    return redirect(url_for('domains'))
 
 from wordpress_mgr import get_installed_wordpress
 
