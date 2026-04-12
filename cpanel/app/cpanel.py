@@ -382,9 +382,11 @@ def ftp():
     return render_template('ftp.html', ftp_installed=ftp_installed, users=users)
 
 from security_mgr import (check_csf_installed, get_csf_status, csf_action, csf_ip_action,
-                           get_csf_file, save_csf_file, check_modsec_installed, get_modsec_status,
-                           set_modsec_status, get_modsec_audit_log, get_csf_temp_entries,
+                           get_csf_file, save_csf_file, get_csf_temp_entries,
                            get_open_ports, get_csf_conf_settings, save_csf_conf_key)
+from modsec_mgr import (check_modsec_installed, get_modsec_status, set_modsec_status,
+                        get_modsec_profiles, get_domains_modsec_status, toggle_domain_modsec,
+                        get_modsec_config, save_modsec_config, get_modsec_audit_log)
 
 @app.route('/firewall', methods=['GET', 'POST'])
 @login_required
@@ -452,13 +454,33 @@ def modsecurity():
             status = request.form.get('status')
             success, message = set_modsec_status(status)
             flash(message, 'success' if success else 'danger')
+        
+        elif action == 'toggle_domain':
+            domain = request.form.get('domain')
+            enabled = request.form.get('enabled') == 'true'
+            success, message = toggle_domain_modsec(domain, enabled)
+            flash(message, 'success' if success else 'danger')
+            
+        elif action == 'save_config':
+            file_type = request.form.get('file_type')
+            content = request.form.get('content')
+            success, message = save_modsec_config(file_type, content)
+            flash(message, 'success' if success else 'danger')
 
         return redirect(url_for('modsecurity'))
+
+    domain_filter = request.args.get('domain')
 
     context = {
         'modsec_installed': modsec_installed,
         'modsec_status':    get_modsec_status()     if modsec_installed else None,
-        'modsec_log':       get_modsec_audit_log()  if modsec_installed else ""
+        'modsec_log':       get_modsec_audit_log(domain_filter) if modsec_installed else "",
+        'modsec_profiles':  get_modsec_profiles()   if modsec_installed else [],
+        'domain_modsec':    get_domains_modsec_status() if modsec_installed else [],
+        'main_config':      get_modsec_config('main')   if modsec_installed else "",
+        'custom_rules':     get_modsec_config('custom') if modsec_installed else "",
+        'disabled_rules':   get_modsec_config('disabled') if modsec_installed else "",
+        'current_filter':   domain_filter
     }
     return render_template('modsecurity.html', **context)
 
