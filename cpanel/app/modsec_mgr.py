@@ -291,3 +291,78 @@ def get_modsec_audit_log(domain_filter=None):
         return "\n".join(filtered)
     except Exception:
         return "Error reading log."
+
+def install_modsecurity_generator():
+    """Generator for live-streaming the ModSecurity installation."""
+    import json
+    import os
+    import subprocess
+    import shutil
+
+    def emit(progress, message, error=False, success=False):
+        return json.dumps({
+            'progress': progress,
+            'message': message,
+            'error': error,
+            'success': success
+        }) + "\n"
+
+    try:
+        yield emit(5, "Contacting repositories via apt-get update...")
+        subprocess.run(['apt-get', 'update', '-y'], check=False)
+        
+        yield emit(25, "Installing core ModSecurity engine (libapache2-mod-security2)...")
+        res = subprocess.run(
+            ['DEBIAN_FRONTEND=noninteractive apt-get install libapache2-mod-security2 -y'], 
+            shell=True, capture_output=True, text=True
+        )
+        if res.returncode != 0:
+            yield emit(25, f"Installation failed: {res.stderr}", error=True)
+            return
+
+        yield emit(50, "Configuring primary ModSecurity settings...")
+        rec_path = '/etc/modsecurity/modsecurity.conf-recommended'
+        conf_path = '/etc/modsecurity/modsecurity.conf'
+        if os.path.exists(rec_path) and not os.path.exists(conf_path):
+            shutil.copy(rec_path, conf_path)
+            subprocess.run(['sed', '-i', 's/SecRuleEngine DetectionOnly/SecRuleEngine On/', conf_path])
+        elif not os.path.exists(conf_path):
+            os.makedirs('/etc/modsecurity', exist_ok=True)
+            with open(conf_path, 'w') as f:
+                f.write('SecRuleEngine On\n')
+
+        yield emit(75, "Downloading high-security OWASP Core Rule Set (CRS) profile...")
+        crs_path = '/etc/modsecurity/owasp-crs'
+        if not os.path.exists(crs_path):
+            subprocess.run(['git', 'clone', 'https://github.com/coreruleset/coreruleset', crs_path], capture_output=True)
+            if os.path.exists(f'{crs_path}/crs-setup.conf.example'):
+                shutil.copy(f'{crs_path}/crs-setup.conf.example', f'{crs_path}/crs-setup.conf')
+            
+            apache_sec_conf = '/etc/apache2/mods-available/security2.conf'
+            if os.path.exists(apache_sec_conf):
+                with open(apache_sec_conf, 'r') as f:
+                    content = f.read()
+                
+                if 'owasp-crs' not in content:
+                    new_conf = content.replace(
+                        '</IfModule>',
+                        '        IncludeOptional /etc/modsecurity/owasp-crs/crs-setup.conf\n'
+                        '        IncludeOptional /etc/modsecurity/owasp-crs/rules/*.conf\n</IfModule>'
+                    )
+                    with open(apache_sec_conf, 'w') as f:
+                        f.write(new_conf)
+
+        os.makedirs('/etc/modsecurity/rules', exist_ok=True)
+        with open('/etc/modsecurity/rules/custom_rules.conf', 'a'): pass
+        with open('/etc/modsecurity/rules/disabled_rules.conf', 'a'): pass
+        with open('/etc/modsecurity/active_profile.txt', 'w') as f: f.write('owasp')
+
+        yield emit(90, "Enabling Apache ModSecurity Module globally...")
+        subprocess.run(['a2enmod', 'security2'], capture_output=True)
+        subprocess.run(['systemctl', 'restart', 'apache2'], capture_output=True)
+
+        yield emit(100, "ModSecurity firewall engine has been successfully installed and natively configured!", success=True)
+        
+    except Exception as e:
+        yield emit(0, str(e), error=True)
+

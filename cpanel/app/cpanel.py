@@ -552,6 +552,11 @@ def modsecurity():
     if request.method == 'POST':
         action = request.form.get('action')
 
+        if action == 'install_modsec':
+            from modsec_mgr import install_modsecurity_generator
+            from flask import Response, stream_with_context
+            return Response(stream_with_context(install_modsecurity_generator()), mimetype='application/x-ndjson')
+
         if action == 'set_modsec_status':
             status = request.form.get('status')
             success, message = set_modsec_status(status)

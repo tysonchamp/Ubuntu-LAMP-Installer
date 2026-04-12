@@ -3,6 +3,124 @@
 
 {% block content %}
 
+{% if not modsec_installed %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 border-primary border-top border-3">
+            <div class="card-body p-5 text-center">
+                <i class="fas fa-shield-alt text-primary mb-3" style="font-size: 3rem;"></i>
+                <h4 class="mb-3">ModSecurity Web Application Firewall (WAF)</h4>
+                <p class="text-muted mb-4 mx-auto" style="max-width: 600px;">
+                    ModSecurity is currently <strong>UNINSTALLED</strong>. It appears the initial setup script bypassed this module. 
+                    Installing the WAF framework natively via cPanel enables robust traffic inspection, deep request scanning, and integrates the high-security OWASP Core Rule Set.
+                </p>
+                
+                <form id="modsecInstallForm" method="POST" action="{{ url_for('modsecurity') }}" class="d-inline-block">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="install_modsec">
+                    <button type="submit" class="btn btn-primary btn-lg px-5">
+                        <i class="fas fa-download me-2"></i> Install & Configure ModSecurity
+                    </button>
+                </form>
+
+                <!-- Progress Bar UI -->
+                <div id="progressContainer" class="mt-5 mx-auto" style="display: none; max-width: 600px; text-align: left;">
+                    <h6 id="progressText" class="mb-2 fw-bold text-dark">Initializing installation sequence...</h6>
+                    <div class="progress shadow-sm" style="height: 25px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%;">0%</div>
+                    </div>
+                </div>
+                
+                <!-- Feedback UI -->
+                <div id="progressAlert" class="alert mt-4 mx-auto" style="display: none; max-width: 600px; text-align: left;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('modsecInstallForm');
+    const btn = form.querySelector('button[type="submit"]');
+    const container = document.getElementById('progressContainer');
+    const text = document.getElementById('progressText');
+    const bar = document.getElementById('progressBar');
+    const alertDiv = document.getElementById('progressAlert');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Executing Configuration...';
+        
+        container.style.display = 'block';
+        alertDiv.style.display = 'none';
+        bar.style.width = '0%';
+        bar.innerText = '0%';
+        text.innerText = 'Connecting to external apt repositories...';
+        bar.classList.remove('bg-danger', 'bg-success', 'bg-primary');
+        bar.classList.add('bg-primary', 'progress-bar-animated');
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch("{{ url_for('modsecurity') }}", {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error("Network response drop");
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, {stream: true});
+                const lines = buffer.split("\n");
+                
+                buffer = lines.pop(); // remainder
+                
+                for (let line of lines) {
+                    if (line.trim()) {
+                        const data = JSON.parse(line);
+                        bar.style.width = data.progress + "%";
+                        bar.innerText = data.progress + "%";
+                        text.innerText = data.message;
+                        
+                        if (data.error) {
+                            bar.classList.replace('bg-primary', 'bg-danger');
+                            alertDiv.className = 'alert alert-danger mt-3 shadow-sm';
+                            alertDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> ' + data.message;
+                            alertDiv.style.display = 'block';
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-redo me-2"></i> Retry Installation';
+                        } else if (data.success) {
+                            bar.classList.replace('bg-primary', 'bg-success');
+                            bar.classList.remove('progress-bar-animated');
+                            alertDiv.className = 'alert alert-success mt-3 shadow-sm';
+                            alertDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i> ' + data.message + ' Refreshing platform...';
+                            alertDiv.style.display = 'block';
+                            
+                            setTimeout(() => { window.location.reload(); }, 2500);
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            bar.classList.replace('bg-primary', 'bg-danger');
+            alertDiv.className = 'alert alert-danger mt-3 shadow-sm';
+            alertDiv.innerText = "Connection failed: " + err.message;
+            alertDiv.style.display = 'block';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-redo me-2"></i> Retry Installation';
+        }
+    });
+</script>
+
+{% else %}
+
 <!-- Tab Navigation -->
 <ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm" id="modsecTabs" role="tablist">
     <li class="nav-item" role="presentation">
@@ -375,4 +493,7 @@
     };
 </script>
 
+</script>
+
+{% endif %}
 {% endblock %}
