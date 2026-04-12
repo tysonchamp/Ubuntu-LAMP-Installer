@@ -46,9 +46,13 @@ def add_virtual_host(domain):
 
     if os.path.exists(script_path):
         try:
+            # Provide an explicit environment with guaranteed standard PATH to prevent 'command not found' errors
+            env = os.environ.copy()
+            env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" + env.get("PATH", "")
+            
             # We assume it's run as root, so we just execute it directly
-            result = subprocess.run([script_path, domain],
-                                  capture_output=True, text=True, check=True)
+            result = subprocess.run(['/bin/bash', script_path, domain],
+                                  capture_output=True, text=True, check=True, env=env)
             return True, "Virtual host created successfully."
         except subprocess.CalledProcessError as e:
             err_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
