@@ -70,11 +70,14 @@ def get_version_info():
     }
 
 def perform_update():
-    """Performs git pull on the current branch."""
+    """Performs git pull on the current branch after stashing local changes."""
     # First, get the current branch name
     success_br, branch = run_git(['rev-parse', '--abbrev-ref', 'HEAD'])
     if not success_br:
         return False, f"Could not detect current branch: {branch}"
+    
+    # Stash any local changes to avoid merge conflicts
+    run_git(['stash'])
         
     success, output = run_git(['pull', 'origin', branch])
     if success:
