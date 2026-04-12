@@ -192,3 +192,51 @@ def save_csf_conf_key(key, value):
         return False, str(e)
 
 
+def setup_lfd_protection():
+    """Configures CSF/LFD to monitor cPanel login failures and block IPs."""
+    log_path = '/var/log/cpanel_auth.log'
+    conf_path = '/etc/csf/csf.conf'
+    regex_path = '/etc/csf/regex.custom.pm'
+    
+    try:
+        # 1. Initialize log file
+        if not os.path.exists(log_path):
+            with open(log_path, 'a') as f:
+                pass
+            os.chmod(log_path, 0o644)
+            
+        # 2. Update csf.conf CUSTOM1_LOG
+        with open(conf_path, 'r') as f:
+            lines = f.readlines()
+        
+        updated_conf = False
+        with open(conf_path, 'w') as f:
+            for line in lines:
+                if line.startswith('CUSTOM1_LOG ='):
+                    f.write(f'CUSTOM1_LOG = "{log_path}"\n')
+                    updated_conf = True
+                else:
+                    f.write(line)
+        
+        # 3. Add custom regex to regex.custom.pm
+        with open(regex_path, 'r') as f:
+            regex_content = f.read()
+            
+        if 'cpanel_brute' not in regex_content:
+            # We insert before the "return 0;" line
+            regex_entry = f'''
+if (($globlogs{{CUSTOM1_LOG}} ~~ /^\\/var\\/log\\/cpanel_auth\\.log$/) && ($line =~ /Failed login attempt for user (\\S+) from (\\S+)/)) {{
+    return ("Failed cPanel login",$2,"cpanel_brute","5","2083","3600");
+}}
+'''
+            new_regex_content = regex_content.replace('return 0;', regex_entry + '\n\treturn 0;')
+            with open(regex_path, 'w') as f:
+                f.write(new_regex_content)
+                
+        # 4. Restart LFD
+        subprocess.run(['csf', '-r'], capture_output=True)
+        subprocess.run(['systemctl', 'restart', 'lfd'], capture_output=True)
+        
+        return True, "Brute-force protection enabled in CSF/LFD."
+    except Exception as e:
+        return False, str(e)

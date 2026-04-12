@@ -11,6 +11,22 @@ from flask_wtf.csrf import CSRFProtect
 
 load_dotenv()
 from security_mgr import validate_input, is_safe_path, python_grep
+import logging
+from logging.handlers import RotatingFileHandler
+
+# --- Auth Logging Setup for CSF/LFD ---
+auth_logger = logging.getLogger('cpanel_auth')
+auth_logger.setLevel(logging.INFO)
+try:
+    log_handler = RotatingFileHandler('/var/log/cpanel_auth.log', maxBytes=1000000, backupCount=5)
+    log_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s', '%b %d %H:%M:%S'))
+    auth_logger.addHandler(log_handler)
+except Exception:
+    # Fallback if log dir isn't writable yet during init
+    pass
+
+def log_auth_failure(username, ip):
+    auth_logger.info(f"Failed login attempt for user {username} from {ip}")
 
 app = Flask(__name__)
 csrf = CSRFProtect(app)
@@ -78,6 +94,9 @@ def login():
                 next_page = url_for('dashboard')
             return redirect(next_page)
         else:
+            # Capture real IP even if behind proxy
+            user_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
+            log_auth_failure(username, user_ip)
             flash('Invalid username or password', 'danger')
     return render_template('login.html')
 
