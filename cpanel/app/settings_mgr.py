@@ -9,7 +9,9 @@ def get_system_logs():
     """
     logs = {
         'Apache Error': '/var/log/apache2/error.log',
+        'Apache Access': '/var/log/apache2/access.log',
         'Nginx Error': '/var/log/nginx/error.log',
+        'Nginx Access': '/var/log/nginx/access.log',
         'Syslog': '/var/log/syslog',
         'MySQL Error': '/var/log/mysql/error.log'
     }
@@ -17,6 +19,10 @@ def get_system_logs():
     # Automatically add Apache vhost logs
     for log_path in glob.glob('/var/log/apache2/*-error.log'):
         name = os.path.basename(log_path).replace('-error.log', ' (Apache Error)')
+        logs[name] = log_path
+
+    for log_path in glob.glob('/var/log/apache2/*-access.log'):
+        name = os.path.basename(log_path).replace('-access.log', ' (Apache Access)')
         logs[name] = log_path
 
     # Automatically add Nginx vhost logs

@@ -21,6 +21,8 @@ create_vhost_with_ssl() {
     ServerName $domain
     ServerAlias www.$domain
     DocumentRoot $doc_root
+    ErrorLog \${APACHE_LOG_DIR}/${domain}_error.log
+    CustomLog \${APACHE_LOG_DIR}/${domain}_access.log combined
     Redirect permanent / https://$domain/
 </VirtualHost>
 

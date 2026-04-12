@@ -287,6 +287,9 @@ server {
     server_name $domain www.$domain;
     root $doc_root;
     index index.php index.html;
+
+    access_log /var/log/nginx/${domain}_access.log;
+    error_log  /var/log/nginx/${domain}_error.log;
     
     location ~ \.php$ {
         fastcgi_pass unix:/var/run/php/php$(get_php_version)-fpm.sock;
@@ -318,6 +321,8 @@ create_hybrid_vhost() {
         AllowOverride All
         Require all granted
     </Directory>
+    ErrorLog \${APACHE_LOG_DIR}/${domain}_error.log
+    CustomLog \${APACHE_LOG_DIR}/${domain}_access.log combined
 </VirtualHost>
 EOF
     
@@ -325,6 +330,9 @@ EOF
 server {
     listen 80;
     server_name $domain www.$domain;
+
+    access_log /var/log/nginx/${domain}_access.log;
+    error_log  /var/log/nginx/${domain}_error.log;
     
     location / {
         proxy_pass http://127.0.0.1:8080;
