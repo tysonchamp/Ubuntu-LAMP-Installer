@@ -78,6 +78,107 @@ def dashboard():
 
     return render_template('dashboard.html', stats=stats)
 
+@app.route('/api/sysinfo')
+@login_required
+def api_sysinfo():
+    import os
+    import subprocess
+    from flask import jsonify
+    
+    load1, load5, load15 = os.getloadavg()
+    
+    res = subprocess.run(['ps', 'aux', '--sort=-%cpu'], capture_output=True, text=True)
+    lines = res.stdout.strip().split('\n')
+    
+    processes = []
+    # Index 1 to 11 for the top 10 bypassing the header
+    for line in lines[1:11]:
+        parts = line.split(None, 10)
+        if len(parts) == 11:
+            cmd = parts[10]
+            if len(cmd) > 50: cmd = cmd[:47] + '...'
+            processes.append({
+                'user': parts[0],
+                'pid': parts[1],
+                'cpu': parts[2],
+                'mem': parts[3],
+                'name': cmd
+            })
+            
+    return jsonify({
+        'load': [round(load1, 2), round(load5, 2), round(load15, 2)],
+        'processes': processes
+    })
+
+@app.route('/api/services')
+@login_required
+def api_services():
+    import subprocess
+    from flask import jsonify
+    from modsec_mgr import get_modsec_status
+    
+    res = subprocess.run("systemctl list-units --type=service --all | grep -m1 -oE 'php[0-9.]+-fpm\\.service'", shell=True, capture_output=True, text=True)
+    php_fpm_id = res.stdout.strip().replace('.service', '') or 'php-fpm'
+
+    services = [
+        {'id': 'apache2', 'name': 'Apache Engine'},
+        {'id': 'nginx', 'name': 'Nginx Engine'},
+        {'id': php_fpm_id, 'name': 'PHP-FPM'}, 
+        {'id': 'mariadb', 'name': 'MySQL / MariaDB'},
+        {'id': 'csf', 'name': 'CSF Firewall'},
+        {'id': 'cpanel', 'name': 'cPanel Platform'},
+    ]
+
+    for srv in services:
+        sys_id = srv['id']
+        chk = subprocess.run(['systemctl', 'is-active', sys_id], capture_output=True, text=True)
+        status = chk.stdout.strip()
+        srv['status'] = status if status in ['active', 'inactive', 'failed'] else 'not_installed'
+
+    try:
+        modsec_enabled = get_modsec_status() == 'On'
+        apache_active = any(s['id'] == 'apache2' and s['status'] == 'active' for s in services)
+        modsec_state = 'active' if (modsec_enabled and apache_active) else ('inactive' if modsec_enabled else 'not_installed')
+    except Exception:
+        modsec_state = 'unknown'
+
+    services.append({
+        'id': 'modsec',
+        'name': 'ModSecurity',
+        'status': modsec_state
+    })
+
+    return jsonify({'services': services})
+
+@app.route('/api/services/restart', methods=['POST'])
+@login_required
+def api_service_restart():
+    from flask import jsonify
+    import subprocess
+    
+    service_id = request.json.get('service_id') if request.is_json else request.form.get('service_id')
+    if not service_id:
+        return jsonify({'success': False, 'message': 'Missing service identification.'})
+
+    if service_id == 'modsec':
+        res = subprocess.run(['systemctl', 'restart', 'apache2'], capture_output=True, text=True)
+        if res.returncode == 0:
+            return jsonify({'success': True, 'message': 'ModSecurity refreshed successfully.'})
+        return jsonify({'success': False, 'message': f'Operation failed: {res.stderr}'})
+
+    if service_id == 'cpanel':
+        subprocess.Popen(['bash', '-c', 'sleep 1 && systemctl restart cpanel.service'])
+        return jsonify({'success': True, 'message': 'Process initiated in background...'})
+
+    if service_id not in ['apache2', 'nginx', 'mariadb', 'mysql', 'csf'] and not service_id.startswith('php'):
+        return jsonify({'success': False, 'message': 'Forbidden infrastructure target.'})
+
+    res = subprocess.run(['systemctl', 'restart', service_id], capture_output=True, text=True)
+    if res.returncode == 0:
+        return jsonify({'success': True, 'message': f'{service_id.title()} has been restarted successfully.'})
+    else:
+        return jsonify({'success': False, 'message': f'Crash/Timeout: {res.stderr}'})
+
 from domains_mgr import get_virtual_hosts, add_virtual_host, toggle_virtual_host
 
 @app.route('/domains', methods=['GET', 'POST'])

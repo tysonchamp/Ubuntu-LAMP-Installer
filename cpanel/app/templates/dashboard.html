@@ -86,6 +86,162 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Live Process & Service Manager Section -->
+            <div class="row g-4 mt-2 mb-4">
+                <div class="col-md-8">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-server me-2 text-primary"></i>Live Process View & Load Average</h5>
+                            <span id="loadAverages" class="badge bg-light text-dark border">Load: --, --, --</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th class="ps-3 border-bottom-0 text-muted small fw-bold">PID</th>
+                                            <th class="border-bottom-0 text-muted small fw-bold">User</th>
+                                            <th class="border-bottom-0 text-muted small fw-bold">Process Command</th>
+                                            <th class="text-end border-bottom-0 text-muted small fw-bold">CPU %</th>
+                                            <th class="text-end pe-3 border-bottom-0 text-muted small fw-bold">Mem %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="processTableBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i> Fetching live processes...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-cogs me-2 text-primary"></i>System Services</h5>
+                            <button id="refreshServicesBtn" class="btn btn-sm btn-outline-secondary" onclick="fetchServices()"><i class="fas fa-sync-alt"></i></button>
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush" id="serviceList">
+                                <li class="list-group-item text-center py-4 text-muted">
+                                    <i class="fas fa-spinner fa-spin me-2"></i> Loading services...
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                async function fetchSysinfo() {
+                    try {
+                        const res = await fetch("{{ url_for('api_sysinfo') }}");
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        
+                        document.getElementById('loadAverages').innerText = `Load: ${data.load.join(', ')}`;
+                        
+                        let html = '';
+                        for (let p of data.processes) {
+                            html += `<tr>
+                                <td class="ps-3 font-monospace text-muted small">${p.pid}</td>
+                                <td><span class="badge bg-light text-dark border">${p.user}</span></td>
+                                <td class="text-truncate" style="max-width: 250px;" title="${p.name}">${p.name}</td>
+                                <td class="text-end"><span class="badge bg-${p.cpu > 50 ? 'danger' : (p.cpu > 20 ? 'warning' : 'success')}">${p.cpu}%</span></td>
+                                <td class="text-end pe-3"><span class="badge bg-secondary">${p.mem}%</span></td>
+                            </tr>`;
+                        }
+                        document.getElementById('processTableBody').innerHTML = html;
+                    } catch (e) {
+                        console.error('Failed to fetch sysinfo:', e);
+                    }
+                }
+
+                async function fetchServices() {
+                    const list = document.getElementById('serviceList');
+                    const btn = document.getElementById('refreshServicesBtn');
+                    if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    
+                    try {
+                        const res = await fetch("{{ url_for('api_services') }}");
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        
+                        let html = '';
+                        for (let s of data.services) {
+                            let badgeClass = 'bg-secondary';
+                            let statusText = s.status.toUpperCase();
+                            
+                            if (s.status === 'active') badgeClass = 'bg-success';
+                            else if (s.status === 'inactive') badgeClass = 'bg-warning text-dark';
+                            else if (s.status === 'failed') badgeClass = 'bg-danger';
+                            else if (s.status === 'not_installed') { badgeClass = 'bg-light text-muted border'; statusText = 'UNINSTALLED'; }
+                            
+                            html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark">${s.name}</div>
+                                    <span class="badge ${badgeClass} small">${statusText}</span>
+                                </div>
+                                <div>
+                                    ${s.status !== 'not_installed' ? 
+                                      `<button class="btn btn-sm btn-outline-primary" onclick="restartService('${s.id}', '${s.name}', this)" title="Restart ${s.name}"><i class="fas fa-redo"></i></button>` : 
+                                      ''}
+                                </div>
+                            </li>`;
+                        }
+                        list.innerHTML = html;
+                    } catch (e) {
+                        list.innerHTML = `<li class="list-group-item text-danger text-center"><i class="fas fa-exclamation-triangle"></i> Error loading services</li>`;
+                    } finally {
+                        if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                    }
+                }
+
+                async function restartService(serviceId, serviceName, btnEl) {
+                    if (!confirm(`Are you sure you want to restart ${serviceName}?`)) return;
+                    
+                    const originalIcon = btnEl.innerHTML;
+                    btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    btnEl.disabled = true;
+                    btnEl.classList.replace('btn-outline-primary', 'btn-primary');
+                    
+                    try {
+                        const formData = new FormData();
+                        formData.append('service_id', serviceId);
+                        formData.append('csrf_token', '{{ csrf_token() }}');
+
+                        const res = await fetch("{{ url_for('api_service_restart') }}", {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await res.json();
+                        if (data.success) {
+                            // Non intrusive alert or flash
+                            console.log(data.message);
+                        } else {
+                            alert(data.message);
+                        }
+                        
+                        setTimeout(fetchServices, 1500);
+                    } catch (e) {
+                        alert('Network/Server drops detected during restart request.');
+                        setTimeout(fetchServices, 2500);
+                    } finally {
+                        btnEl.innerHTML = originalIcon;
+                        btnEl.classList.replace('btn-primary', 'btn-outline-primary');
+                        btnEl.disabled = false;
+                    }
+                }
+
+                setInterval(fetchSysinfo, 3000);
+                
+                fetchSysinfo();
+                fetchServices();
+            </script>
             {% endblock %}
         </div>
     </div>
