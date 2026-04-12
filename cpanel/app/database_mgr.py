@@ -163,6 +163,11 @@ def create_database(db_name, db_user, db_pass):
                 f"CREATE USER IF NOT EXISTS '{user_host}'@'localhost' IDENTIFIED BY %s",
                 (db_pass,)
             )
+            # Force update the password in case the user already existed
+            cursor.execute(
+                f"ALTER USER '{user_host}'@'localhost' IDENTIFIED BY %s",
+                (db_pass,)
+            )
             cursor.execute(f"GRANT ALL PRIVILEGES ON `{db_name_esc}`.* TO '{user_host}'@'localhost'")
             cursor.execute("FLUSH PRIVILEGES")
         conn.commit()
