@@ -552,7 +552,7 @@ def ftp():
     users = get_ftp_users() if ftp_installed else None
     return render_template('ftp.html', ftp_installed=ftp_installed, users=users)
 
-from security_mgr import (check_csf_installed, get_csf_status, csf_action, csf_ip_action,
+from csf_mgr import (check_csf_installed, get_csf_status, csf_action, csf_ip_action,
                            get_csf_file, save_csf_file, get_csf_temp_entries,
                            get_open_ports, get_csf_conf_settings, save_csf_conf_key)
 from modsec_mgr import (check_modsec_installed, get_modsec_status, set_modsec_status,
