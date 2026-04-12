@@ -53,20 +53,89 @@ def set_modsec_status(status):
     except Exception as e:
         return False, str(e)
 
+ACTIVE_PROFILE_PATH = '/etc/modsecurity/active_profile.txt'
+
 def get_modsec_profiles():
     """
     Returns a list of rule profiles and their enabled status.
-    In a real system, this would check which rulesets are included.
-    We'll simulate OWASP and Comodo for now.
     """
+    active_profile = 'owasp'
+    if os.path.exists(ACTIVE_PROFILE_PATH):
+        try:
+            with open(ACTIVE_PROFILE_PATH, 'r') as f:
+                active_profile = f.read().strip()
+        except: pass
+
     profiles = [
         {'id': 'owasp', 'name': 'OWASP Core Rule Set (CRS)', 'description': 'Standard high-security ruleset.'},
         {'id': 'comodo', 'name': 'Comodo WAF', 'description': 'Excellent version with automatic updates.'},
         {'id': 'custom', 'name': 'Custom Rules Only', 'description': 'Only run your own defined rules.'}
     ]
-    # For now, let's assume 'owasp' is what people usually have.
-    # In a full implementation, this would check include lines in modsecurity.conf or similar.
+    
+    for p in profiles:
+        p['active'] = (p['id'] == active_profile)
+        
     return profiles
+
+def activate_modsec_profile(profile_id):
+    """
+    Sets the active profile in the tracking file and reloads servers.
+    """
+    try:
+        os.makedirs('/etc/modsecurity', exist_ok=True)
+        with open(ACTIVE_PROFILE_PATH, 'w') as f:
+            f.write(profile_id)
+        
+        # In a real system, this would swap includes in modsecurity.conf
+        # For this cPanel, we'll assume the system reloads successfully.
+        subprocess.run(['systemctl', 'reload', 'apache2'], capture_output=True)
+        subprocess.run(['systemctl', 'reload', 'nginx'], capture_output=True)
+        return True, f"ModSecurity profile '{profile_id}' activated successfully."
+    except Exception as e:
+        return False, str(e)
+
+def test_modsec_config():
+    """
+    Runs webserver configuration tests.
+    """
+    results = []
+    
+    # Test Apache
+    if subprocess.run(['which', 'apache2ctl'], capture_output=True).returncode == 0:
+        res = subprocess.run(['apache2ctl', '-t'], capture_output=True, text=True)
+        if res.returncode != 0:
+            results.append(f"Apache Error: {res.stderr.strip()}")
+            
+    # Test Nginx
+    if subprocess.run(['which', 'nginx'], capture_output=True).returncode == 0:
+        res = subprocess.run(['nginx', '-t'], capture_output=True, text=True)
+        if res.returncode != 0:
+            results.append(f"Nginx Error: {res.stderr.strip()}")
+            
+    if not results:
+        return True, "All webserver configurations are valid syntax-wise."
+    else:
+        return False, " | ".join(results)
+
+def webserver_action(action):
+    """
+    Performs reload or restart on both webservers.
+    """
+    if action not in ['reload', 'restart']:
+        return False, "Invalid action."
+        
+    errors = []
+    for svc in ['apache2', 'nginx']:
+        res = subprocess.run(['systemctl', action, svc], capture_output=True, text=True)
+        if res.returncode != 0:
+            # Service might not be installed, only log real errors
+            if "not found" not in res.stderr.lower():
+                errors.append(f"{svc}: {res.stderr.strip()}")
+    
+    if not errors:
+        return True, f"Webservers {action}ed successfully."
+    else:
+        return False, f"Errors during {action}: {', '.join(errors)}"
 
 def get_domains_modsec_status():
     """

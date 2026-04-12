@@ -386,7 +386,8 @@ from security_mgr import (check_csf_installed, get_csf_status, csf_action, csf_i
                            get_open_ports, get_csf_conf_settings, save_csf_conf_key)
 from modsec_mgr import (check_modsec_installed, get_modsec_status, set_modsec_status,
                         get_modsec_profiles, get_domains_modsec_status, toggle_domain_modsec,
-                        get_modsec_config, save_modsec_config, get_modsec_audit_log)
+                        get_modsec_config, save_modsec_config, get_modsec_audit_log,
+                        activate_modsec_profile, test_modsec_config, webserver_action)
 
 @app.route('/firewall', methods=['GET', 'POST'])
 @login_required
@@ -465,6 +466,19 @@ def modsecurity():
             file_type = request.form.get('file_type')
             content = request.form.get('content')
             success, message = save_modsec_config(file_type, content)
+            flash(message, 'success' if success else 'danger')
+        
+        elif action == 'activate_profile':
+            profile_id = request.form.get('profile_id')
+            success, message = activate_modsec_profile(profile_id)
+            flash(message, 'success' if success else 'danger')
+
+        elif action == 'test_config':
+            success, message = test_modsec_config()
+            flash(message, 'success' if success else 'danger')
+
+        elif action in ['reload', 'restart']:
+            success, message = webserver_action(action)
             flash(message, 'success' if success else 'danger')
 
         return redirect(url_for('modsecurity'))
