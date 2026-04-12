@@ -10,26 +10,52 @@ def get_mysql_connection():
     It checks common locations for the root password created by the stack installer.
     """
     password = ''
-    if os.path.exists('/root/.mysql_password'):
-        with open('/root/.mysql_password', 'r') as f:
-            password = f.read().strip()
+    pass_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts/.passwords'))
+    if os.path.exists(pass_file):
+        with open(pass_file, 'r') as f:
+            for line in f:
+                if line.startswith('MySQL Root Password:'):
+                    password = line.split(':', 1)[1].strip()
+                    break
+            
+    sock_paths = ['/var/run/mysqld/mysqld.sock', '/tmp/mysql.sock']
+    sock = None
+    for s in sock_paths:
+        if os.path.exists(s):
+            sock = s
+            break
 
     try:
-        connection = pymysql.connect(
-            host='localhost',
-            user='root',
-            password=password,
-            cursorclass=pymysql.cursors.DictCursor
-        )
+        if sock:
+            connection = pymysql.connect(
+                unix_socket=sock,
+                user='root',
+                password=password,
+                cursorclass=pymysql.cursors.DictCursor
+            )
+        else:
+            connection = pymysql.connect(
+                host='localhost',
+                user='root',
+                password=password,
+                cursorclass=pymysql.cursors.DictCursor
+            )
         return connection
     except pymysql.MySQLError as e:
         # Maybe passwordless root login is enabled via unix_socket
         try:
-            connection = pymysql.connect(
-                host='localhost',
-                user='root',
-                cursorclass=pymysql.cursors.DictCursor
-            )
+            if sock:
+                connection = pymysql.connect(
+                    unix_socket=sock,
+                    user='root',
+                    cursorclass=pymysql.cursors.DictCursor
+                )
+            else:
+                connection = pymysql.connect(
+                    host='localhost',
+                    user='root',
+                    cursorclass=pymysql.cursors.DictCursor
+                )
             return connection
         except pymysql.MySQLError as e2:
             return None

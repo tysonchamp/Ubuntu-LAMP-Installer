@@ -162,9 +162,13 @@ def phpmyadmin_login():
     token_file = os.path.join(token_dir, f'pma_{token}.txt')
 
     mysql_pass = ''
-    if os.path.exists('/root/.mysql_password'):
-        with open('/root/.mysql_password', 'r') as f:
-            mysql_pass = f.read().strip()
+    pass_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts/.passwords'))
+    if os.path.exists(pass_file):
+        with open(pass_file, 'r') as f:
+            for line in f:
+                if line.startswith('MySQL Root Password:'):
+                    mysql_pass = line.split(':', 1)[1].strip()
+                    break
 
     # Write only readable by root and www-data group
     # 0o640: rw-r-----

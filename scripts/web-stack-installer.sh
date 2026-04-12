@@ -60,7 +60,7 @@ install_database() {
     debconf-set-selections <<< "mariadb-server mysql-server/root_password_again password $MYSQL_ROOT_PASSWORD"
     apt-get install mariadb-server -y
     
-    mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<EOF
+    mysql -u root <<EOF || mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<EOF
 ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('$MYSQL_ROOT_PASSWORD');
 
 CREATE USER IF NOT EXISTS 'admin'@'localhost' IDENTIFIED BY '$PHPMYADMIN_PASSWORD';
@@ -486,8 +486,12 @@ main() {
     fi
     
     while true; do
-        show_menu
-        read choice
+        if [ -n "$AUTO_STACK_CHOICE" ] && ! is_stack_installed; then
+            choice="$AUTO_STACK_CHOICE"
+        else
+            show_menu
+            read choice
+        fi
         
         if ! is_stack_installed; then
             case $choice in
@@ -497,6 +501,11 @@ main() {
                 4) echo -e "${GREEN}Goodbye!${NC}"; exit 0 ;;
                 *) echo -e "${RED}Invalid option${NC}" ;;
             esac
+            
+            # If auto-installing, exit immediately after the stack is installed
+            if [ -n "$AUTO_STACK_CHOICE" ]; then
+                exit 0
+            fi
         else
             case $choice in
                 1)

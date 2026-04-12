@@ -35,8 +35,9 @@ echo "======================================"
 echo "    Installing Web Stack...           "
 echo "======================================"
 
-# Run the stack installer and auto-exit its menu after installation
-echo -e "${stack_choice}\n7\n" | bash "$SCRIPT_DIR/scripts/web-stack-installer.sh"
+# Set auto stack choice and execute script normally to preserve stdin
+export AUTO_STACK_CHOICE=$stack_choice
+bash "$SCRIPT_DIR/scripts/web-stack-installer.sh"
 
 echo ""
 echo "======================================"
