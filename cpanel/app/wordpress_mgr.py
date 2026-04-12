@@ -2,6 +2,7 @@ import os
 import subprocess
 import secrets
 import string
+from database_mgr import create_database
 
 def generate_password(length=24):
     alphabet = string.ascii_letters + string.digits
@@ -55,16 +56,10 @@ def install_wordpress(domain, target_path=""):
     db_user = f"{db_name_base[:12]}_usr"
     db_pass = generate_password()
 
-    mysql_script = f"""
-    CREATE DATABASE IF NOT EXISTS `{db_name}`;
-    CREATE USER IF NOT EXISTS '{db_user}'@'localhost' IDENTIFIED BY '{db_pass}';
-    GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'localhost';
-    FLUSH PRIVILEGES;
-    """
-
-    res = subprocess.run(['mysql', '-u', 'root'], input=mysql_script, text=True, capture_output=True)
-    if res.returncode != 0:
-        return False, f"Database creation failed: {res.stderr}"
+    # Create the database securely using database_mgr's connection
+    success, msg = create_database(db_name, db_user, db_pass)
+    if not success:
+        return False, f"Database creation failed: {msg}"
 
     default_index = os.path.join(doc_root, 'index.php')
     if os.path.exists(default_index):
@@ -83,17 +78,5 @@ def install_wordpress(domain, target_path=""):
 
     subprocess.run(['chown', '-R', 'www-data:www-data', doc_root])
     subprocess.run(['chmod', '-R', '755', doc_root])
-
-    pass_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts/.passwords'))
-    domain_display = domain if not target_path else f"{domain}/{target_path}"
-    
-    try:
-        with open(pass_file, 'a') as f:
-            f.write(f"\nWordPress ({domain_display}):\n")
-            f.write(f"DB Name: {db_name}\n")
-            f.write(f"DB User: {db_user}\n")
-            f.write(f"DB Pass: {db_pass}\n")
-    except Exception as e:
-        return True, f"WordPress installed successfully in {doc_root}, but failed to save passwords: {str(e)}"
 
     return True, f"WordPress installed successfully in {doc_root}"
