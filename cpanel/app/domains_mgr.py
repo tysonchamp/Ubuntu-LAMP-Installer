@@ -12,7 +12,7 @@ def get_virtual_hosts():
     nginx_dir = '/etc/nginx/sites-available'
     if os.path.exists(nginx_dir):
         for f in os.listdir(nginx_dir):
-            if f != 'default':
+            if f not in ['default', 'default-modsecurity.conf']:
                 enabled = os.path.exists(f'/etc/nginx/sites-enabled/{f}')
                 vhosts.append({
                     'server': 'Nginx',
@@ -42,16 +42,17 @@ def add_virtual_host(domain):
     Calls the existing vhost-manager.sh script to create a new virtual host.
     """
     # Try to find the script in the scripts directory
-    script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scripts', 'vhost-manager.sh')
+    script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scripts', 'web-stack-installer.sh')
 
     if os.path.exists(script_path):
         try:
             # We assume it's run as root, so we just execute it directly
-            result = subprocess.run([script_path, 'create', domain],
+            result = subprocess.run([script_path, domain],
                                   capture_output=True, text=True, check=True)
             return True, "Virtual host created successfully."
         except subprocess.CalledProcessError as e:
-            return False, f"Error creating virtual host: {e.stderr}"
+            err_msg = e.stderr.strip() if e.stderr else e.stdout.strip()
+            return False, f"Error creating virtual host: {err_msg}"
     else:
         # Fallback if the script isn't found
         return False, "vhost-manager.sh script not found."
