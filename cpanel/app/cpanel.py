@@ -135,8 +135,11 @@ def databases():
 @app.route('/phpmyadmin-login')
 @login_required
 def phpmyadmin_login():
-    # Setup signon config if it hasn't been done
-    setup_phpmyadmin_signon()
+    success, msg = setup_phpmyadmin_signon()
+    if not success:
+        flash(f"phpMyAdmin signon setup failed: {msg}", "danger")
+        return redirect(url_for('dashboard'))
+
 
     # In a real environment, sharing credentials between Python and PHP should use
     # a secure backing store (e.g. database, redis, memcached).
