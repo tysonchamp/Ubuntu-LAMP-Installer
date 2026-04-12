@@ -382,8 +382,9 @@ def ftp():
     return render_template('ftp.html', ftp_installed=ftp_installed, users=users)
 
 from security_mgr import (check_csf_installed, get_csf_status, csf_action, csf_ip_action,
-                          get_csf_file, save_csf_file, check_modsec_installed, get_modsec_status,
-                          set_modsec_status, get_modsec_audit_log)
+                           get_csf_file, save_csf_file, check_modsec_installed, get_modsec_status,
+                           set_modsec_status, get_modsec_audit_log, get_csf_temp_entries,
+                           get_open_ports, get_csf_conf_settings, save_csf_conf_key)
 
 @app.route('/security', methods=['GET', 'POST'])
 @login_required
@@ -412,6 +413,19 @@ def security():
             success, message = save_csf_file(file_type, content)
             flash(message, 'success' if success else 'danger')
 
+        elif action == 'save_csf_conf_key':
+            key   = request.form.get('conf_key')
+            value = request.form.get('conf_value')
+            success, message = save_csf_conf_key(key, value)
+            flash(message, 'success' if success else 'danger')
+
+        elif action == 'remove_temp':
+            ip = request.form.get('ip')
+            entry_type = request.form.get('entry_type', 'deny').lower()
+            rm_action = 'unallow' if entry_type == 'allow' else 'undeny'
+            success, message = csf_ip_action(rm_action, ip)
+            flash(message, 'success' if success else 'danger')
+
         # ModSec Actions
         elif action == 'set_modsec_status':
             status = request.form.get('status')
@@ -422,14 +436,19 @@ def security():
 
     # GET Request info
     context = {
-        'csf_installed': csf_installed,
-        'csf_status': get_csf_status() if csf_installed else None,
-        'csf_allow_file': get_csf_file('allow') if csf_installed else "",
-        'csf_deny_file': get_csf_file('deny') if csf_installed else "",
-        'csf_config_file': get_csf_file('config') if csf_installed else "",
+        'csf_installed':    csf_installed,
+        'csf_status':       get_csf_status() if csf_installed else None,
+        'csf_allow_file':   get_csf_file('allow')  if csf_installed else "",
+        'csf_deny_file':    get_csf_file('deny')   if csf_installed else "",
+        'csf_ignore_file':  get_csf_file('ignore') if csf_installed else "",
+        'csf_pignore_file': get_csf_file('pignore') if csf_installed else "",
+        'csf_config_file':  get_csf_file('config') if csf_installed else "",
+        'csf_temp':         get_csf_temp_entries() if csf_installed else [],
+        'csf_ports':        get_open_ports()        if csf_installed else {},
+        'csf_conf_settings': get_csf_conf_settings() if csf_installed else [],
         'modsec_installed': modsec_installed,
-        'modsec_status': get_modsec_status() if modsec_installed else None,
-        'modsec_log': get_modsec_audit_log() if modsec_installed else ""
+        'modsec_status':    get_modsec_status()     if modsec_installed else None,
+        'modsec_log':       get_modsec_audit_log()  if modsec_installed else ""
     }
 
     return render_template('security.html', **context)
