@@ -140,51 +140,82 @@ def domains():
 @app.route('/domains/logs/<domain>')
 @login_required
 def domain_logs(domain):
-    logs = {}
+    """Page view: discover all log files for the given domain."""
+    available_logs = {}
+
+    # Apache dedicated log files
+    for suffix, label in [('_error.log', 'Apache Error'), ('_access.log', 'Apache Access'),
+                          ('_ssl_error.log', 'Apache SSL Error'), ('_ssl_access.log', 'Apache SSL Access')]:
+        path = f'/var/log/apache2/{domain}{suffix}'
+        if os.path.exists(path):
+            available_logs[label] = path
+
+    # Nginx dedicated log files (set by our vhost template)
+    for suffix, label in [('_error.log', 'Nginx Error'), ('_access.log', 'Nginx Access')]:
+        path = f'/var/log/nginx/{domain}{suffix}'
+        if os.path.exists(path):
+            available_logs[label] = path
+
+    # Fallback: global Nginx logs (filtered)
+    if not any('Nginx' in k for k in available_logs):
+        if os.path.exists('/var/log/nginx/error.log'):
+            available_logs['Nginx Error (Global, filtered)'] = f'__nginx_filter__:/var/log/nginx/error.log'
+        if os.path.exists('/var/log/nginx/access.log'):
+            available_logs['Nginx Access (Global, filtered)'] = f'__nginx_filter__:/var/log/nginx/access.log'
+
+    return render_template('domain_logs.html', domain=domain, available_logs=available_logs)
+
+
+@app.route('/domains/logs/<domain>/fetch')
+@login_required
+def domain_logs_fetch(domain):
+    """JSON API: return the last N lines of a given log file for this domain."""
+    from flask import jsonify
     import subprocess
-    
-    # Check Apache logs
-    apache_error = f'/var/log/apache2/{domain}_error.log'
-    apache_access = f'/var/log/apache2/{domain}_access.log'
-    
-    if os.path.exists(apache_error):
-        try:
-            res = subprocess.run(['tail', '-n', '100', apache_error], capture_output=True, text=True)
-            logs['Apache Error Log'] = res.stdout if res.stdout.strip() else 'Log is empty.'
-        except Exception as e:
-            logs['Apache Error Log'] = str(e)
-            
-    if os.path.exists(apache_access):
-        try:
-            res = subprocess.run(['tail', '-n', '100', apache_access], capture_output=True, text=True)
-            logs['Apache Access Log'] = res.stdout if res.stdout.strip() else 'Log is empty.'
-        except Exception as e:
-            logs['Apache Access Log'] = str(e)
-            
-    # Check Nginx (filtered global log)
-    nginx_error = '/var/log/nginx/error.log'
-    nginx_access = '/var/log/nginx/access.log'
-    
-    if os.path.exists(nginx_error):
-        try:
-            res = subprocess.run(f'grep "{domain}" {nginx_error} | tail -n 100', shell=True, capture_output=True, text=True)
-            if res.stdout:
-                logs['Nginx Error Log (Filtered)'] = res.stdout
-        except Exception:
-            pass
-            
-    if os.path.exists(nginx_access):
-        try:
-            res = subprocess.run(f'grep "{domain}" {nginx_access} | tail -n 100', shell=True, capture_output=True, text=True)
-            if res.stdout:
-                logs['Nginx Access Log (Filtered)'] = res.stdout
-        except Exception:
-            pass
-            
-    if not logs:
-        logs['Info'] = f"No standard log entries found for {domain}."
-        
-    return render_template('domain_logs.html', domain=domain, logs=logs)
+
+    log_key  = request.args.get('log', '')
+    lines    = request.args.get('lines', '100')
+
+    # Rebuild available_logs the same way as domain_logs() to validate the path
+    available_logs = {}
+    for suffix, label in [('_error.log', 'Apache Error'), ('_access.log', 'Apache Access'),
+                          ('_ssl_error.log', 'Apache SSL Error'), ('_ssl_access.log', 'Apache SSL Access')]:
+        path = f'/var/log/apache2/{domain}{suffix}'
+        if os.path.exists(path):
+            available_logs[label] = path
+    for suffix, label in [('_error.log', 'Nginx Error'), ('_access.log', 'Nginx Access')]:
+        path = f'/var/log/nginx/{domain}{suffix}'
+        if os.path.exists(path):
+            available_logs[label] = path
+    if not any('Nginx' in k for k in available_logs):
+        if os.path.exists('/var/log/nginx/error.log'):
+            available_logs['Nginx Error (Global, filtered)'] = '__nginx_filter__:/var/log/nginx/error.log'
+        if os.path.exists('/var/log/nginx/access.log'):
+            available_logs['Nginx Access (Global, filtered)'] = '__nginx_filter__:/var/log/nginx/access.log'
+
+    if log_key not in available_logs:
+        return jsonify({'error': 'Invalid log file selected.'}), 400
+
+    try:
+        lines_int = max(1, min(int(lines), 5000))
+    except ValueError:
+        lines_int = 100
+
+    path = available_logs[log_key]
+    try:
+        if path.startswith('__nginx_filter__:'):
+            real_path = path.split(':', 1)[1]
+            res = subprocess.run(
+                f'grep "{domain}" {real_path} | tail -n {lines_int}',
+                shell=True, capture_output=True, text=True
+            )
+        else:
+            res = subprocess.run(['tail', '-n', str(lines_int), path], capture_output=True, text=True)
+
+        content = res.stdout if res.stdout.strip() else '(Log is empty or has no entries yet.)'
+        return jsonify({'content': content, 'path': path if not path.startswith('__nginx_filter__:') else path.split(':',1)[1]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 from database_mgr import get_databases, create_database, delete_database, setup_phpmyadmin_signon
 
