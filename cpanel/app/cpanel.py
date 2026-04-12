@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
 
 load_dotenv()
+from security_mgr import validate_input, is_safe_path, python_grep
 
 app = Flask(__name__)
 csrf = CSRFProtect(app)
@@ -219,6 +220,13 @@ def domains():
 
         if action == 'add':
             domain = request.form.get('domain')
+            
+            # SECURITY: Domain regex validation
+            v, e = validate_input(domain, 'domain')
+            if not v:
+                flash(f"Validation failed: {e}", "danger")
+                return redirect(url_for('domains'))
+
             success, message = add_virtual_host(domain)
             if success:
                 flash(message, 'success')
@@ -340,28 +348,25 @@ def domain_logs_fetch(domain):
     except ValueError:
         lines_int = 100
 
-    path = available_logs[log_key]
-    try:
-        if path.startswith('__nginx_filter__:'):
-            real_path = path.split(':', 1)[1]
-            res = subprocess.run(
-                f'grep "{domain}" {real_path} | tail -n {lines_int}',
-                shell=True, capture_output=True, text=True
-            )
-            display_path = real_path
-        elif path.startswith('__apache_filter__:'):
-            real_path = path.split(':', 1)[1]
-            res = subprocess.run(
-                f'grep "{domain}" {real_path} | tail -n {lines_int}',
-                shell=True, capture_output=True, text=True
-            )
-            display_path = real_path
-        else:
-            res = subprocess.run(['tail', '-n', str(lines_int), path], capture_output=True, text=True)
-            display_path = path
+    path = available_logs.get(log_key)
+    if not path:
+         return jsonify({'error': 'Invalid log file.'}), 400
 
-        content = res.stdout if res.stdout.strip() else '(Log is empty or has no entries yet.)'
-        return jsonify({'content': content, 'path': display_path})
+    # Standardize the path by removing our internal filter markers
+    real_path = path.split(':', 1)[1] if ':' in path else path
+    
+    # SECURITY: Check if the path is in the provide allowlist
+    if not is_safe_path(real_path):
+        return jsonify({'error': 'Access denied: Path is not in the allowed log directory list.'}), 403
+
+    try:
+        # Use our secure Python-native grep replacement
+        content = python_grep(real_path, domain, lines_int)
+        
+        if not content or not content.strip():
+            content = '(Log is empty or has no matching entries yet.)'
+            
+        return jsonify({'content': content, 'path': real_path})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -379,11 +384,24 @@ def databases():
             db_name = request.form.get('db_name')
             db_user = request.form.get('db_user')
             db_pass = request.form.get('db_pass')
+            
+            # SECURITY: Explicit regex validation
+            v1, e1 = validate_input(db_name, 'db_name')
+            v2, e2 = validate_input(db_user, 'username')
+            if not v1 or not v2:
+                flash(f"Validation failed: {e1 or e2}", "danger")
+                return redirect(url_for('databases'))
+
             success, message = create_database(db_name, db_user, db_pass)
             flash(message, 'success' if success else 'danger')
 
         elif action == 'delete':
             db_name = request.form.get('db_name')
+            # SECURITY: Regex validation
+            v, e = validate_input(db_name, 'db_name')
+            if not v:
+                flash(f"Validation failed: {e}", "danger")
+                return redirect(url_for('databases'))
             success, message = delete_database(db_name)
             flash(message, 'success' if success else 'danger')
 
@@ -391,6 +409,11 @@ def databases():
             db_user = request.form.get('db_user')
             host    = request.form.get('host')
             new_pw  = request.form.get('new_password')
+            # SECURITY: Regex validation
+            v, e = validate_input(db_user, 'username')
+            if not v:
+                flash(f"Validation failed: {e}", "danger")
+                return redirect(url_for('databases'))
             success, message = change_user_password(db_user, host, new_pw)
             flash(message, 'success' if success else 'danger')
 
@@ -399,6 +422,12 @@ def databases():
             db_user  = request.form.get('db_user')
             old_host = request.form.get('old_host')
             new_host = request.form.get('new_host')
+            # SECURITY: Regex validation
+            v, e = validate_input(db_name, 'db_name')
+            v2, e2 = validate_input(db_user, 'username')
+            if not v or not v2:
+                flash(f"Validation failed: {e or e2}", "danger")
+                return redirect(url_for('databases'))
             success, message = update_user_host(db_name, db_user, old_host, new_host)
             flash(message, 'success' if success else 'danger')
 
@@ -479,6 +508,12 @@ def ftp():
             password = request.form.get('password')
             raw_directory = request.form.get('directory')
 
+            # SECURITY: Username regex validation
+            v, e = validate_input(username, 'username')
+            if not v:
+                flash(f"Validation failed: {e}", "danger")
+                return redirect(url_for('ftp'))
+
             # Secure path resolution to prevent traversal
             base_dir = '/var/www'
             # If they didn't include the base, add it
@@ -498,6 +533,11 @@ def ftp():
 
         elif action == 'delete':
             username = request.form.get('username')
+            # SECURITY: Username regex validation
+            v, e = validate_input(username, 'username')
+            if not v:
+                flash(f"Validation failed: {e}", "danger")
+                return redirect(url_for('ftp'))
             success, message = delete_ftp_user(username)
             flash(message, 'success' if success else 'danger')
 
@@ -710,14 +750,9 @@ def edit_vhost():
         flash("No file specified.", "danger")
         return redirect(url_for('domains'))
 
-    # Only allow files inside the vhost directories — hard security boundary
-    allowed_dirs = [
-        '/etc/apache2/sites-available/',
-        '/etc/nginx/sites-available/',
-        '/etc/nginx/conf.d/',
-    ]
-    if not any(filepath.startswith(d) for d in allowed_dirs):
-        flash("Access denied: that file is not an editable vhost config.", "danger")
+    # SECURITY: Only allow files inside the vhost directories — hard security boundary
+    if not is_safe_path(filepath):
+        flash("Access denied: that file is not in an allowed directory.", "danger")
         return redirect(url_for('domains'))
 
     import os
@@ -747,13 +782,9 @@ def save_vhost():
     filepath = request.form.get('filepath', '')
     content  = request.form.get('content', '')
 
-    allowed_dirs = [
-        '/etc/apache2/sites-available/',
-        '/etc/nginx/sites-available/',
-        '/etc/nginx/conf.d/',
-    ]
-    if not any(filepath.startswith(d) for d in allowed_dirs):
-        flash("Access denied: cannot save that file.", "danger")
+    # SECURITY: Only allow files inside the vhost directories — hard security boundary
+    if not is_safe_path(filepath):
+        flash("Access denied: cannot save to that directory.", "danger")
         return redirect(url_for('domains'))
 
     try:
@@ -781,11 +812,22 @@ def wordpress():
             domain = request.form.get('domain')
             target_path = request.form.get('target_path', '').strip()
             
+            # SECURITY: Strict input validation
+            v, e = validate_input(domain, 'domain')
+            if not v:
+                 return Response(json.dumps({"progress": 100, "message": f"Validation failed: {e}", "error": True}) + "\n", mimetype='application/x-ndjson')
+
             from wordpress_mgr import install_wordpress_generator
             from flask import Response, stream_with_context
             return Response(stream_with_context(install_wordpress_generator(domain, target_path)), mimetype='application/x-ndjson')
         elif action == 'delete_wp':
             path = request.form.get('path')
+            
+            # SECURITY: Path boundary check
+            if not is_safe_path(path):
+                flash("Access denied: Invalid deletion path.", "danger")
+                return redirect(url_for('wordpress'))
+
             from wordpress_mgr import delete_wordpress
             success, msg = delete_wordpress(path)
             flash(msg, 'success' if success else 'danger')

@@ -41,11 +41,15 @@ def create_ftp_user(username, password, directory):
         return False, "pure-ftpd is not installed."
 
     try:
+        # SECURITY: Strictly enforce /var/www boundary for FTP directories
+        if not directory.startswith('/var/www'):
+            return False, "Access denied: FTP directory must be within /var/www"
+            
         # Ensure directory exists
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-            # Typically web files are owned by www-data
-            subprocess.run(['chown', '-R', 'www-data:www-data', directory])
+            # Safe chown
+            subprocess.run(['chown', '-R', 'www-data:www-data', directory], check=True)
 
         # pure-pw useradd <login> -u <uid> -g <gid> -d <home> -m (updates db)
         # It reads password from stdin

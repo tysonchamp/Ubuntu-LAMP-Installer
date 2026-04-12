@@ -322,9 +322,13 @@ def install_modsecurity_generator():
         subprocess.run(['apt-get', 'update', '-y'], check=False)
         
         yield emit(25, "Installing core ModSecurity engine (libapache2-mod-security2)...")
+        # SECURITY: Removed shell=True and DEBIAN_FRONTEND env injection via shell.
+        # We pass the environment explicitly to subprocess.
+        env = os.environ.copy()
+        env["DEBIAN_FRONTEND"] = "noninteractive"
         res = subprocess.run(
-            ['DEBIAN_FRONTEND=noninteractive apt-get install libapache2-mod-security2 -y'], 
-            shell=True, capture_output=True, text=True
+            ['apt-get', 'install', 'libapache2-mod-security2', '-y'], 
+            capture_output=True, text=True, env=env
         )
         if res.returncode != 0:
             yield emit(25, f"Installation failed: {res.stderr}", error=True)

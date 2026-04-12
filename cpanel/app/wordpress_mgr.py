@@ -125,13 +125,18 @@ def install_wordpress_generator(domain, target_path=""):
             return
 
         yield emit(15, "Checking WP-CLI utility...")
-        if not subprocess.run(['command', '-v', 'wp'], shell=True, capture_output=True).stdout:
+        # SECURITY: Remove shell=True, use list-based lookup
+        wp_check = subprocess.run(['which', 'wp'], capture_output=True, text=True)
+        if wp_check.returncode != 0:
             yield emit(20, "Downloading & Installing WP-CLI...")
-            # Download to tmp first, then move to avoid Text File Busy
-            cmd = 'curl -sL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /tmp/wp-cli.phar && chmod +x /tmp/wp-cli.phar && mv /tmp/wp-cli.phar /usr/local/bin/wp && sync'
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            if res.returncode != 0:
-                yield emit(100, f"WP-CLI install failed: {res.stderr}", error=True)
+            # We use multiple safe steps instead of a piped shell string
+            try:
+                subprocess.run(['curl', '-sL', 'https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar', '-o', '/tmp/wp-cli.phar'], check=True)
+                subprocess.run(['chmod', '+x', '/tmp/wp-cli.phar'], check=True)
+                subprocess.run(['mv', '/tmp/wp-cli.phar', '/usr/local/bin/wp'], check=True)
+                subprocess.run(['sync'], check=True)
+            except subprocess.CalledProcessError as e:
+                yield emit(100, f"WP-CLI install failed: {str(e)}", error=True)
                 return
 
         time.sleep(0.5) # ensure sync propagation
