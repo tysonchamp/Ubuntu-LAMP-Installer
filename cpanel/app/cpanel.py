@@ -386,23 +386,20 @@ from security_mgr import (check_csf_installed, get_csf_status, csf_action, csf_i
                            set_modsec_status, get_modsec_audit_log, get_csf_temp_entries,
                            get_open_ports, get_csf_conf_settings, save_csf_conf_key)
 
-@app.route('/security', methods=['GET', 'POST'])
+@app.route('/firewall', methods=['GET', 'POST'])
 @login_required
-def security():
+def firewall():
     csf_installed = check_csf_installed()
-    modsec_installed = check_modsec_installed()
 
     if request.method == 'POST':
         action = request.form.get('action')
 
-        # CSF Actions
         if action in ['start', 'stop', 'restart']:
             success, message = csf_action(action)
             flash(message, 'success' if success else 'danger')
 
         elif action in ['allow_ip', 'deny_ip', 'unallow_ip', 'undeny_ip']:
             ip = request.form.get('ip')
-            # remove _ip from action
             action_type = action.split('_')[0]
             success, message = csf_ip_action(action_type, ip)
             flash(message, 'success' if success else 'danger')
@@ -426,15 +423,8 @@ def security():
             success, message = csf_ip_action(rm_action, ip)
             flash(message, 'success' if success else 'danger')
 
-        # ModSec Actions
-        elif action == 'set_modsec_status':
-            status = request.form.get('status')
-            success, message = set_modsec_status(status)
-            flash(message, 'success' if success else 'danger')
+        return redirect(url_for('firewall'))
 
-        return redirect(url_for('security'))
-
-    # GET Request info
     context = {
         'csf_installed':    csf_installed,
         'csf_status':       get_csf_status() if csf_installed else None,
@@ -446,12 +436,31 @@ def security():
         'csf_temp':         get_csf_temp_entries() if csf_installed else [],
         'csf_ports':        get_open_ports()        if csf_installed else {},
         'csf_conf_settings': get_csf_conf_settings() if csf_installed else [],
+    }
+    return render_template('firewall.html', **context)
+
+
+@app.route('/modsecurity', methods=['GET', 'POST'])
+@login_required
+def modsecurity():
+    modsec_installed = check_modsec_installed()
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'set_modsec_status':
+            status = request.form.get('status')
+            success, message = set_modsec_status(status)
+            flash(message, 'success' if success else 'danger')
+
+        return redirect(url_for('modsecurity'))
+
+    context = {
         'modsec_installed': modsec_installed,
         'modsec_status':    get_modsec_status()     if modsec_installed else None,
         'modsec_log':       get_modsec_audit_log()  if modsec_installed else ""
     }
-
-    return render_template('security.html', **context)
+    return render_template('modsecurity.html', **context)
 
 from settings_mgr import get_system_logs, get_editable_configs, read_config_file, save_config_file
 

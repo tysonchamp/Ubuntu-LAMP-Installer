@@ -1,5 +1,5 @@
 {% extends 'dashboard.html' %}
-{% block header_title %}Security{% endblock %}
+{% block header_title %}Firewall Management (CSF){% endblock %}
 
 {% block content %}
 
@@ -14,7 +14,7 @@
             <i class="fas fa-circle me-1" style="font-size:.6rem;"></i>{{ csf_status }}
         </span>
         <!-- Service controls -->
-        <form method="POST" action="{{ url_for('security') }}" class="d-inline">
+        <form method="POST" action="{{ url_for('firewall') }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button name="action" value="start"   class="btn btn-sm btn-outline-success">Start</button>
             <button name="action" value="stop"    class="btn btn-sm btn-outline-danger">Stop</button>
@@ -29,13 +29,13 @@
         <div class="card shadow-sm border-0 h-100">
             <div class="card-header bg-white border-bottom fw-semibold"><i class="fas fa-bolt me-2 text-warning"></i>Quick IP Management</div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('security') }}" class="input-group mb-2">
+                <form method="POST" action="{{ url_for('firewall') }}" class="input-group mb-2">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="text" class="form-control" name="ip" placeholder="IP Address or CIDR (e.g. 1.2.3.4 or 1.2.3.0/24)" required>
                     <button name="action" value="allow_ip"   class="btn btn-success">Allow</button>
                     <button name="action" value="deny_ip"    class="btn btn-danger">Deny</button>
                 </form>
-                <form method="POST" action="{{ url_for('security') }}" class="input-group">
+                <form method="POST" action="{{ url_for('firewall') }}" class="input-group">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="text" class="form-control" name="ip" placeholder="IP Address to Remove" required>
                     <button name="action" value="unallow_ip" class="btn btn-outline-success">Un-Allow</button>
@@ -91,7 +91,7 @@
                         <td>{{ e.ttl }}</td>
                         <td class="text-muted small">{{ e.comment }}</td>
                         <td>
-                            <form method="POST" action="{{ url_for('security') }}" class="mb-0">
+                            <form method="POST" action="{{ url_for('firewall') }}" class="mb-0">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="action" value="remove_temp">
                                 <input type="hidden" name="ip" value="{{ e.ip }}">
@@ -123,7 +123,7 @@
         <div class="tab-content">
             {% for file_type, content in [('allow', csf_allow_file), ('deny', csf_deny_file), ('ignore', csf_ignore_file), ('pignore', csf_pignore_file)] %}
             <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="tab-{{ file_type }}">
-                <form method="POST" action="{{ url_for('security') }}">
+                <form method="POST" action="{{ url_for('firewall') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_csf_file">
                     <input type="hidden" name="file_type" value="{{ file_type }}">
@@ -134,7 +134,7 @@
             {% endfor %}
             <!-- Raw csf.conf -->
             <div class="tab-pane fade" id="tab-conf">
-                <form method="POST" action="{{ url_for('security') }}">
+                <form method="POST" action="{{ url_for('firewall') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_csf_file">
                     <input type="hidden" name="file_type" value="config">
@@ -163,7 +163,7 @@
                 <tr class="conf-row" data-key="{{ s.key|lower }}">
                     <td class="font-monospace fw-semibold text-nowrap">{{ s.key }}</td>
                     <td>
-                        <form method="POST" action="{{ url_for('security') }}" class="d-flex gap-1 mb-0">
+                        <form method="POST" action="{{ url_for('firewall') }}" class="d-flex gap-1 mb-0">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="action" value="save_csf_conf_key">
                             <input type="hidden" name="conf_key" value="{{ s.key }}">
@@ -184,46 +184,6 @@
 {% else %}
 <div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>CSF is not installed on this system.</div>
 {% endif %}
-
-<!-- ══════════════ ModSecurity ══════════════ -->
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-user-shield text-danger me-2"></i>ModSecurity</h5>
-        {% if modsec_installed %}
-        <span class="badge {% if modsec_status == 'On' %}bg-success{% elif modsec_status == 'DetectionOnly' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-            {{ modsec_status }}
-        </span>
-        {% endif %}
-    </div>
-    <div class="card-body">
-        {% if not modsec_installed %}
-        <div class="alert alert-warning mb-0">ModSecurity is not configured or installed on this system.</div>
-        {% else %}
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label fw-semibold">Rule Engine Status</label>
-                <form method="POST" action="{{ url_for('security') }}" class="d-flex gap-2">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="set_modsec_status">
-                    <select name="status" class="form-select">
-                        <option value="On"            {% if modsec_status == 'On' %}selected{% endif %}>On (Blocking)</option>
-                        <option value="DetectionOnly" {% if modsec_status == 'DetectionOnly' %}selected{% endif %}>Detection Only</option>
-                        <option value="Off"           {% if modsec_status == 'Off' %}selected{% endif %}>Off</option>
-                    </select>
-                    <button type="submit" class="btn btn-primary text-nowrap">Apply</button>
-                </form>
-                <small class="text-muted d-block mt-1">Changing status reloads the web server.</small>
-            </div>
-            <div class="col-md-8">
-                <label class="form-label fw-semibold">Audit Log (Last 50 lines)</label>
-                <div class="bg-dark text-light p-2 rounded" style="max-height: 300px; overflow-y: auto;">
-                    <pre class="mb-0" style="font-size: 0.78rem; white-space: pre-wrap; color:#a9b7c6;">{{ modsec_log }}</pre>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-</div>
 
 <script>
 function filterConf(q) {
