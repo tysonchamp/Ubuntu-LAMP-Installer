@@ -216,8 +216,13 @@ def api_services():
         {'id': 'cpanel', 'name': 'cPanel Platform'},
     ]
 
+    from mongodb_mgr import get_mongo_express_status
     for srv in services:
         sys_id = srv['id']
+        if sys_id == 'mongo-express':
+            me = get_mongo_express_status()
+            srv['status'] = 'active' if me == 'active' else ('not_installed' if me == 'not_installed' else 'inactive')
+            continue
         chk = subprocess.run(['systemctl', 'is-active', sys_id], capture_output=True, text=True)
         status = chk.stdout.strip()
         srv['status'] = status if status in ['active', 'inactive', 'failed'] else 'not_installed'
@@ -246,6 +251,11 @@ def api_service_restart():
     service_id = request.json.get('service_id') if request.is_json else request.form.get('service_id')
     if not service_id:
         return jsonify({'success': False, 'message': 'Missing service identification.'})
+
+    if service_id == 'mongo-express':
+        from mongodb_mgr import restart_mongo_express
+        ok, msg = restart_mongo_express()
+        return jsonify({'success': ok, 'message': msg})
 
     if service_id == 'modsec':
         res = subprocess.run(['systemctl', 'restart', 'apache2'], capture_output=True, text=True)
