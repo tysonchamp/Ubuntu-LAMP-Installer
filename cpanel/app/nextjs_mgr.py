@@ -82,7 +82,7 @@ def get_nextjs_apps():
 
 def get_webserver_type():
     """Determine the active webserver setup based on installed services and config."""
-    config_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scripts', '.stack_config')
+    config_file = '/var/lib/lite-cpanel/.stack_config'
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r') as f:

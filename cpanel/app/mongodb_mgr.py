@@ -238,7 +238,7 @@ npm install -g mongo-express@1.0.0
         if res.returncode != 0:
             return False, f"npm install failed: {res.stderr}"
 
-        # 2. Write config to writable scripts/ dir
+        # 2. Write mongo-express config to /var/lib/lite-cpanel
         import secrets
         os.makedirs(_ME_DIR, exist_ok=True)
         admin_pass = secrets.token_urlsafe(16)
