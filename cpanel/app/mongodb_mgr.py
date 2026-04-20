@@ -129,10 +129,17 @@ MONGO_EXPRESS_SERVICE = 'mongo-express'
 MONGO_EXPRESS_CONFIG = '/etc/mongo-express.config.js'
 
 def check_mongo_express_installed():
-    """Check if mongo-express is installed globally via npm or nvm."""
+    """Check if mongo-express is installed globally via npm or nvm and fully configured."""
     import shutil
+    import os
+    
+    # It must have the systemd service to be considered fully installed
+    if not os.path.exists(f'/etc/systemd/system/{MONGO_EXPRESS_SERVICE}.service'):
+        return False
+        
     if shutil.which('mongo-express'):
         return True
+    
     home = os.path.expanduser("~")
     nvm_dir = os.path.join(home, ".nvm", "versions", "node")
     if os.path.exists(nvm_dir):
