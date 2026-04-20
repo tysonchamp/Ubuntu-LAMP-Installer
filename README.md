@@ -81,6 +81,24 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - Detect existing and partial/broken WordPress installations
 - One-click **Uninstall** — drops the WordPress database/user and removes all WordPress-specific files
 
+### 🚀 Next.js Apps Manager
+- Manage Next.js applications running via PM2
+- Automatically generate Nginx/Apache reverse proxy configurations pointing to local ports
+- Visually isolated from standard domains to prevent clutter
+- Inline configuration editor and built-in SSL generation support
+
+### 💻 Web-based Terminal
+- Fully interactive root shell directly in the browser (via xterm.js)
+- Real-time bi-directional communication over WebSockets (flask-sock)
+- Automatic terminal resizing and window management
+- Run interactive console tools like `nano`, `htop`, or `top` natively
+
+### 🕒 Cron Job Manager
+- View, add, and delete system scheduled tasks directly from the UI
+- Beginner-friendly dropdown scheduler (Minute, Hour, Day, Month, Weekday)
+- **1-Click Let's Encrypt auto-renewal setup**
+- Safely parses and preserves existing cron comments and advanced macros
+
 ### ⚙️ Settings
 - Edit core system configuration files (Apache, Nginx, MariaDB, PHP, FTP) directly in-browser with auto-reload on save
 - **System Log Viewer** — tabbed viewer for Apache Error/Access, Nginx Error/Access, Syslog, and MySQL Error logs with auto-scroll and one-click refresh

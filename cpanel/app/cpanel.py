@@ -412,6 +412,50 @@ def cron():
     cron_jobs = get_cron_jobs()
     return render_template('cron.html', cron_jobs=cron_jobs)
 
+from backup_mgr import get_backup_settings, save_backup_settings, trigger_manual_backup, get_local_backups, delete_local_backup
+
+@app.route('/backups', methods=['GET', 'POST'])
+@login_required
+def backups():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'save_settings':
+            settings = {
+                'local_enabled': request.form.get('local_enabled') == 'yes',
+                'ftp_enabled': request.form.get('ftp_enabled') == 'yes',
+                'ftp_host': request.form.get('ftp_host', ''),
+                'ftp_port': request.form.get('ftp_port', '21'),
+                'ftp_user': request.form.get('ftp_user', ''),
+                'ftp_pass': request.form.get('ftp_pass', ''),
+                'ftp_path': request.form.get('ftp_path', '/'),
+                's3_enabled': request.form.get('s3_enabled') == 'yes',
+                's3_endpoint': request.form.get('s3_endpoint', ''),
+                's3_access_key': request.form.get('s3_access_key', ''),
+                's3_secret_key': request.form.get('s3_secret_key', ''),
+                's3_bucket': request.form.get('s3_bucket', ''),
+                's3_region': request.form.get('s3_region', ''),
+                'retention_days': int(request.form.get('retention_days', 7)),
+                'schedule': request.form.get('schedule', '').strip()
+            }
+            success, msg = save_backup_settings(settings)
+            flash(msg, "success" if success else "danger")
+            
+        elif action == 'trigger_backup':
+            success, msg = trigger_manual_backup()
+            flash(msg, "success" if success else "danger")
+            
+        elif action == 'delete_backup':
+            filename = request.form.get('filename')
+            success, msg = delete_local_backup(filename)
+            flash(msg, "success" if success else "danger")
+            
+        return redirect(url_for('backups'))
+
+    settings = get_backup_settings()
+    local_backups = get_local_backups()
+    return render_template('backups.html', settings=settings, local_backups=local_backups)
+
 @app.route('/domains/logs/<domain>')
 @login_required
 def domain_logs(domain):
