@@ -160,19 +160,18 @@ def install_mongo_express():
         install_script = """#!/bin/bash
 export NVM_DIR="$HOME/.nvm"
 
-# Check if node is installed globally
-if ! command -v node &> /dev/null && [ ! -s "$NVM_DIR/nvm.sh" ]; then
+# Ensure nvm is installed
+if [ ! -s "$NVM_DIR/nvm.sh" ]; then
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
 fi
 
-if [ -s "$NVM_DIR/nvm.sh" ]; then
-    \\. "$NVM_DIR/nvm.sh"
-    # Only install 24 if node isn't already installed via NVM
-    if ! command -v node &> /dev/null || [[ ! "$(node -v)" == v24* ]]; then
-        nvm install 24
-    fi
-    nvm use 24
+\\. "$NVM_DIR/nvm.sh"
+
+# Ensure Node 24 is installed via NVM
+if [[ ! "$(node -v 2>/dev/null)" == v24* ]]; then
+    nvm install 24
 fi
+nvm use 24
 
 npm install -g mongo-express
 """
