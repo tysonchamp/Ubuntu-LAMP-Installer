@@ -129,9 +129,17 @@ MONGO_EXPRESS_SERVICE = 'mongo-express'
 MONGO_EXPRESS_CONFIG = '/etc/mongo-express.config.js'
 
 def check_mongo_express_installed():
-    """Check if mongo-express is installed globally via npm."""
+    """Check if mongo-express is installed globally via npm or nvm."""
     import shutil
-    return shutil.which('mongo-express') is not None
+    if shutil.which('mongo-express'):
+        return True
+    home = os.path.expanduser("~")
+    nvm_dir = os.path.join(home, ".nvm", "versions", "node")
+    if os.path.exists(nvm_dir):
+        for version in os.listdir(nvm_dir):
+            if os.path.exists(os.path.join(nvm_dir, version, 'bin', 'mongo-express')):
+                return True
+    return False
 
 def get_mongo_express_status():
     """Returns 'active', 'inactive', or 'not_installed'."""
@@ -146,19 +154,51 @@ def get_mongo_express_status():
         return 'inactive'
 
 def install_mongo_express():
-    """Install mongo-express via npm, create config, systemd service, and Apache proxy."""
+    """Install mongo-express via nvm/npm, create config, systemd service, and Apache proxy."""
     try:
-        # 1. Install via npm globally
-        res = subprocess.run(['npm', 'install', '-g', 'mongo-express'],
-                             capture_output=True, text=True, timeout=120)
-        if res.returncode != 0:
-            return False, f"npm install failed: {res.stderr}"
+        # 1. Install nvm, node 24, and mongo-express
+        install_script = """#!/bin/bash
+export NVM_DIR="$HOME/.nvm"
 
-        # 2. Find the installed path
-        which_res = subprocess.run(['which', 'mongo-express'], capture_output=True, text=True)
-        me_bin = which_res.stdout.strip()
-        if not me_bin:
-            return False, "mongo-express binary not found after install."
+# Check if node is installed globally
+if ! command -v node &> /dev/null && [ ! -s "$NVM_DIR/nvm.sh" ]; then
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+fi
+
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+    \\. "$NVM_DIR/nvm.sh"
+    # Only install 24 if node isn't already installed via NVM
+    if ! command -v node &> /dev/null || [[ ! "$(node -v)" == v24* ]]; then
+        nvm install 24
+    fi
+    nvm use 24
+fi
+
+npm install -g mongo-express
+"""
+        res = subprocess.run(['bash', '-c', install_script], capture_output=True, text=True, timeout=300)
+        if res.returncode != 0:
+            return False, f"Installation via NVM failed: {res.stderr}"
+
+        # 2. Get the paths to node and mongo-express app.js
+        get_paths_script = """#!/bin/bash
+export NVM_DIR="$HOME/.nvm"
+\\. "$NVM_DIR/nvm.sh"
+nvm use 24 > /dev/null 2>&1
+which node
+npm root -g
+"""
+        res_paths = subprocess.run(['bash', '-c', get_paths_script], capture_output=True, text=True)
+        paths = res_paths.stdout.strip().split('\\n')
+        if len(paths) >= 2:
+            node_bin = paths[-2].strip()
+            npm_root = paths[-1].strip()
+        else:
+            return False, "Failed to resolve node/npm paths after installation."
+
+        me_app_js = os.path.join(npm_root, 'mongo-express', 'app.js')
+        if not os.path.exists(me_app_js):
+            return False, f"mongo-express app.js not found at {me_app_js}."
 
         # 3. Create config file
         import secrets
@@ -224,18 +264,11 @@ module.exports = {{
         # Save credentials for reference
         creds_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts/.mongo_express_creds'))
         with open(creds_file, 'w') as f:
-            f.write(f"Mongo Express Admin Username: admin\n")
-            f.write(f"Mongo Express Admin Password: {admin_pass}\n")
+            f.write(f"Mongo Express Admin Username: admin\\n")
+            f.write(f"Mongo Express Admin Password: {admin_pass}\\n")
         os.chmod(creds_file, 0o600)
 
         # 4. Create systemd service
-        # Resolve the npm global root to find the app.js
-        npm_root_res = subprocess.run(['npm', 'root', '-g'], capture_output=True, text=True)
-        npm_root = npm_root_res.stdout.strip()
-        me_app_js = os.path.join(npm_root, 'mongo-express', 'app.js')
-
-        node_bin = subprocess.run(['which', 'node'], capture_output=True, text=True).stdout.strip()
-
         service_content = f"""[Unit]
 Description=Mongo Express Web Admin
 After=network.target mongod.service

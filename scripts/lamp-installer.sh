@@ -77,6 +77,17 @@ EOF
     elif [ "$INSTALL_MONGODB" = "y" ]; then
         install_mongodb
     fi
+
+    # Install Node.js
+    if [ -z "$INSTALL_NODEJS" ]; then
+        echo -n "Do you want to install Node.js via NVM? (y/n): "
+        read user_node
+        if [ "$user_node" = "y" ]; then
+            install_nodejs
+        fi
+    elif [ "$INSTALL_NODEJS" = "y" ]; then
+        install_nodejs
+    fi
     
     # Enable Apache modules
     a2enmod rewrite
@@ -109,6 +120,22 @@ install_mongodb() {
     apt-get install -y mongodb-org php-pear php-mongodb
     systemctl enable mongod
     systemctl start mongod
+}
+
+# Install Node.js
+install_nodejs() {
+    echo -e "${GREEN}Installing Node.js via NVM...${NC}"
+    export NVM_DIR="$HOME/.nvm"
+    if ! command -v node &> /dev/null && [ ! -s "$NVM_DIR/nvm.sh" ]; then
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+    fi
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+        \\. "$NVM_DIR/nvm.sh"
+        if ! command -v node &> /dev/null || [[ ! "$(node -v)" == v24* ]]; then
+            nvm install 24
+        fi
+        nvm use 24
+    fi
 }
 
 # Create virtual host
