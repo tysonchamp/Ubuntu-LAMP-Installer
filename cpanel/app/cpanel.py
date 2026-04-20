@@ -792,26 +792,26 @@ def phpmyadmin_login():
                 elif line.startswith('MySQL SSO Password:'):
                     mysql_pass = line.split(':', 1)[1].strip()
 
-    # If still no password (unix socket auth server), auto-create pma_sso user once
-    if not mysql_pass:
-        sso_user = 'pma_sso'
-        sso_pass_file = '/var/lib/lite-cpanel/.pma_sso_pass'
-        if os.path.exists(sso_pass_file):
-            with open(sso_pass_file) as f:
-                sso_pass = f.read().strip()
+    # Always create and use pma_sso user for SSO
+    sso_user = 'pma_sso'
+    sso_pass_file = '/var/lib/lite-cpanel/.pma_sso_pass'
+    if os.path.exists(sso_pass_file):
+        with open(sso_pass_file) as f:
+            sso_pass = f.read().strip()
+    else:
+        import secrets as _sec
+        sso_pass = _sec.token_urlsafe(16)
+        sql = f"CREATE USER IF NOT EXISTS '{sso_user}'@'localhost' IDENTIFIED BY '{sso_pass}'; GRANT ALL PRIVILEGES ON *.* TO '{sso_user}'@'localhost' WITH GRANT OPTION; FLUSH PRIVILEGES;"
+        import subprocess as _sp
+        if mysql_pass:
+            _sp.run(['mysql', '-u', 'root', '-p', '-e', sql], input=mysql_pass + '\n', text=True, capture_output=True)
         else:
-            import secrets as _sec
-            sso_pass = _sec.token_urlsafe(16)
-            import subprocess as _sp
-            _sp.run(['mysql', '-u', 'root', '-e',
-                f"CREATE USER IF NOT EXISTS '{sso_user}'@'localhost' IDENTIFIED BY '{sso_pass}';"
-                f"GRANT ALL PRIVILEGES ON *.* TO '{sso_user}'@'localhost' WITH GRANT OPTION;"
-                f"FLUSH PRIVILEGES;"], capture_output=True)
-            with open(sso_pass_file, 'w') as f:
-                f.write(sso_pass)
-            os.chmod(sso_pass_file, 0o600)
-        mysql_user = sso_user
-        mysql_pass = sso_pass
+            _sp.run(['mysql', '-u', 'root', '-e', sql], capture_output=True)
+        with open(sso_pass_file, 'w') as f:
+            f.write(sso_pass)
+        os.chmod(sso_pass_file, 0o600)
+    mysql_user = sso_user
+    mysql_pass = sso_pass
 
     # Write user:password to token file
     with open(token_file, 'w') as f:
