@@ -38,6 +38,12 @@ if not app.secret_key:
     logging.warning("No FLASK_SECRET_KEY set in environment. Using a random key. Sessions will invalidate on restart.")
     app.secret_key = os.urandom(24)
 
+from flask_sock import Sock
+sock = Sock(app)
+
+from terminal_mgr import register_terminal_websocket
+register_terminal_websocket(sock)
+
 # --- Auto-Updater ---
 import threading
 import time
@@ -372,6 +378,11 @@ def nextjs():
 
     nextjs_apps = get_nextjs_apps()
     return render_template('nextjs.html', nextjs_apps=nextjs_apps)
+
+@app.route('/terminal')
+@login_required
+def terminal():
+    return render_template('terminal.html')
 
 @app.route('/domains/logs/<domain>')
 @login_required
