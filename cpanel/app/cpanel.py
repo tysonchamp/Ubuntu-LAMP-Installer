@@ -295,6 +295,84 @@ def domains():
     vhosts = get_virtual_hosts()
     return render_template('domains.html', vhosts=vhosts)
 
+from nextjs_mgr import get_nextjs_apps, add_nextjs_app, toggle_nextjs_app, delete_nextjs_app
+
+@app.route('/nextjs', methods=['GET', 'POST'])
+@login_required
+def nextjs():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'add':
+            domain = request.form.get('domain')
+            port = request.form.get('port')
+            
+            # SECURITY: Domain regex validation
+            v, e = validate_input(domain, 'domain')
+            if not v:
+                flash(f"Validation failed: {e}", "danger")
+                return redirect(url_for('nextjs'))
+
+            if not port or not port.isdigit():
+                flash("Invalid port number.", "danger")
+                return redirect(url_for('nextjs'))
+
+            success, message = add_nextjs_app(domain, port)
+            if success:
+                flash(message, 'success')
+            else:
+                flash(message, 'danger')
+
+        elif action == 'toggle':
+            domain = request.form.get('domain')
+            enable_str = request.form.get('enable')
+            enable = enable_str.lower() == 'true'
+
+            success, message = toggle_nextjs_app(domain, enable)
+            if success:
+                flash(message, 'success')
+            else:
+                flash(message, 'danger')
+
+        elif action == 'delete':
+            domain = request.form.get('domain')
+            success, message = delete_nextjs_app(domain)
+            if success:
+                flash(message, 'success')
+            else:
+                flash(message, 'danger')
+
+        elif action == 'ssl_generate':
+            domain = request.form.get('domain')
+            servers = request.form.get('servers', '')
+            import subprocess
+            try:
+                plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
+                cmd = ['certbot', plugin, '-d', domain, '-d', f'www.{domain}', '--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    flash(f"SSL Certificate generated successfully for {domain}!", 'success')
+                else:
+                    flash(f"SSL Generation failed: {result.stderr}", 'danger')
+            except Exception as e:
+                flash(f"Error during SSL setup: {str(e)}", 'danger')
+
+        elif action == 'ssl_renew':
+            import subprocess
+            try:
+                result = subprocess.run(['certbot', 'renew', '--non-interactive'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    flash("Certificates renewed successfully. " + result.stdout, 'success')
+                else:
+                    flash(f"Renewal issue: {result.stderr}", 'danger')
+            except Exception as e:
+                flash(f"Error during renewal: {str(e)}", 'danger')
+
+        return redirect(url_for('nextjs'))
+
+    nextjs_apps = get_nextjs_apps()
+    return render_template('nextjs.html', nextjs_apps=nextjs_apps)
+
 @app.route('/domains/logs/<domain>')
 @login_required
 def domain_logs(domain):
