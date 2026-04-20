@@ -92,6 +92,14 @@
                                         <!-- Logs -->
                                         <a href="{{ url_for('domain_logs', domain=app.domain) }}" class="btn btn-sm btn-outline-info" title="Logs"><i class="fas fa-file-alt"></i></a>
 
+                                        <!-- Edit Configs -->
+                                        {% for server, path in app.config_paths.items() %}
+                                        <a href="{{ url_for('edit_vhost', filepath=path, source='nextjs') }}" class="btn btn-sm btn-outline-secondary" title="Edit {{ server }} Config">
+                                            <i class="fas fa-edit"></i>
+                                            <small style="font-size: 0.6rem; vertical-align: top;">{{ server[0] }}</small>
+                                        </a>
+                                        {% endfor %}
+
                                         <!-- SSL Actions -->
                                         <form method="POST" action="{{ url_for('nextjs') }}" class="mb-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

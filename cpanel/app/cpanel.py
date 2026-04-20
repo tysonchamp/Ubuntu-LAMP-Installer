@@ -847,15 +847,19 @@ def edit_vhost():
         flash("No file specified.", "danger")
         return redirect(url_for('domains'))
 
+    source = request.args.get('source', 'domains')
+    back_url = url_for('nextjs') if source == 'nextjs' else url_for('domains')
+    back_label = 'Back to Next.js Apps' if source == 'nextjs' else 'Back to Domains'
+
     # SECURITY: Only allow files inside the vhost directories — hard security boundary
     if not is_safe_path(filepath):
         flash("Access denied: that file is not in an allowed directory.", "danger")
-        return redirect(url_for('domains'))
+        return redirect(back_url)
 
     import os
     if not os.path.exists(filepath):
         flash(f"File not found: {filepath}", "danger")
-        return redirect(url_for('domains'))
+        return redirect(back_url)
 
     if request.method == 'POST' if False else False:
         pass  # see edit_vhost_save below
@@ -865,11 +869,11 @@ def edit_vhost():
             content = f.read()
     except Exception as e:
         flash(str(e), "danger")
-        return redirect(url_for('domains'))
+        return redirect(back_url)
 
     return render_template('edit_config.html', filepath=filepath, content=content,
-                           back_url=url_for('domains'), back_label='Back to Domains',
-                           save_url=url_for('save_vhost'))
+                           back_url=back_url, back_label=back_label,
+                           save_url=url_for('save_vhost', source=source))
 
 @app.route('/domains/save-vhost', methods=['POST'])
 @login_required
@@ -879,10 +883,13 @@ def save_vhost():
     filepath = request.form.get('filepath', '')
     content  = request.form.get('content', '')
 
+    source = request.args.get('source', 'domains')
+    back_url = url_for('nextjs') if source == 'nextjs' else url_for('domains')
+
     # SECURITY: Only allow files inside the vhost directories — hard security boundary
     if not is_safe_path(filepath):
         flash("Access denied: cannot save to that directory.", "danger")
-        return redirect(url_for('domains'))
+        return redirect(back_url)
 
     try:
         with open(filepath, 'w') as f:
@@ -896,7 +903,7 @@ def save_vhost():
     except Exception as e:
         flash(str(e), "danger")
 
-    return redirect(url_for('domains'))
+    return redirect(back_url)
 
 from wordpress_mgr import get_installed_wordpress
 

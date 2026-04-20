@@ -12,14 +12,6 @@ def get_virtual_hosts():
     if os.path.exists(nginx_dir):
         for f in os.listdir(nginx_dir):
             if f not in ['default', 'default-modsecurity.conf']:
-                filepath = os.path.join(nginx_dir, f)
-                try:
-                    with open(filepath, 'r') as file:
-                        if '# NEXTJS_APP' in file.read():
-                            continue
-                except Exception:
-                    pass
-                
                 enabled = os.path.exists(f'/etc/nginx/sites-enabled/{f}')
                 domain = f
                 if domain not in grouped_vhosts:
@@ -39,14 +31,6 @@ def get_virtual_hosts():
     if os.path.exists(apache_dir):
         for f in os.listdir(apache_dir):
             if f not in ['000-default.conf', 'default-ssl.conf', 'default-modsecurity.conf']:
-                filepath = os.path.join(apache_dir, f)
-                try:
-                    with open(filepath, 'r') as file:
-                        if '# NEXTJS_APP' in file.read():
-                            continue
-                except Exception:
-                    pass
-                
                 domain = f.replace('.conf', '')
                 enabled = os.path.exists(f'/etc/apache2/sites-enabled/{f}')
                 if domain not in grouped_vhosts:
@@ -65,6 +49,22 @@ def get_virtual_hosts():
     for domain in grouped_vhosts:
         if os.path.exists(f'/etc/letsencrypt/live/{domain}/fullchain.pem'):
             grouped_vhosts[domain]['has_ssl'] = True
+
+    # Next.js App Filtering
+    # Remove any domains that contain the '# NEXTJS_APP' marker in any of their configs.
+    domains_to_remove = []
+    for domain, data in grouped_vhosts.items():
+        for server, path in data['config_paths'].items():
+            try:
+                with open(path, 'r') as f:
+                    if '# NEXTJS_APP' in f.read():
+                        domains_to_remove.append(domain)
+                        break
+            except Exception:
+                pass
+                
+    for domain in domains_to_remove:
+        del grouped_vhosts[domain]
 
     return list(grouped_vhosts.values())
 
