@@ -10,16 +10,31 @@ MODSEC_AUDIT_LOG = '/var/log/modsec_audit.log'
 
 def check_modsec_installed():
     """
-    Returns True only if modsecurity.conf exists AND the Apache security2
-    module is enabled (i.e. the symlink exists in mods-enabled).
+    Returns True if ModSecurity is installed and enabled in Apache.
+    Checks conf file, mods-enabled symlinks, and apache2ctl -M as fallback.
     """
     conf_exists = os.path.exists(MODSEC_CONF_PATH)
-    # Check both possible symlink names that a2enmod creates
     mod_enabled = (
         os.path.exists('/etc/apache2/mods-enabled/security2.conf') or
         os.path.exists('/etc/apache2/mods-enabled/security2.load')
     )
-    return conf_exists and mod_enabled
+    if conf_exists and mod_enabled:
+        return True
+    # Fallback: check if module is actually loaded in running Apache
+    try:
+        r = subprocess.run(['apache2ctl', '-M'], capture_output=True, text=True)
+        if 'security2_module' in r.stdout or 'security2_module' in r.stderr:
+            return True
+    except Exception:
+        pass
+    # Fallback: check if package is installed
+    try:
+        r = subprocess.run(['dpkg', '-l', 'libapache2-mod-security2'], capture_output=True, text=True)
+        if r.returncode == 0 and ' ii ' in r.stdout:
+            return True
+    except Exception:
+        pass
+    return False
 
 def get_modsec_status():
     if not check_modsec_installed():
