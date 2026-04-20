@@ -817,12 +817,7 @@ def phpmyadmin_login():
     with open(token_file, 'w') as f:
         f.write(f'{mysql_user}:{mysql_pass}')
 
-    try:
-        www_data_gid = grp.getgrnam('www-data').gr_gid
-        os.chown(token_file, -1, www_data_gid)
-        os.chmod(token_file, 0o640)
-    except KeyError:
-        os.chmod(token_file, 0o644) # fallback
+    os.chmod(token_file, 0o644)
 
     # Redirect to the phpMyAdmin login handler we created (at the correct alias)
     host = request.host.split(':')[0]
