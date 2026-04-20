@@ -287,7 +287,7 @@ After=network.target mongod.service
 
 [Service]
 Type=simple
-ExecStart={node_bin} {me_app_js} -c {MONGO_EXPRESS_CONFIG}
+ExecStart={node_bin} {me_app_js}
 Restart=on-failure
 RestartSec=5
 Environment=NODE_ENV=production
@@ -335,6 +335,18 @@ def _setup_apache_proxy():
 def restart_mongo_express():
     """Restart the mongo-express systemd service."""
     try:
+        # Hotfix: remove the invalid '-c' argument from old service files if present
+        service_file = f'/etc/systemd/system/{MONGO_EXPRESS_SERVICE}.service'
+        import os
+        if os.path.exists(service_file):
+            with open(service_file, 'r') as f:
+                content = f.read()
+            if '-c /etc/mongo-express.config.js' in content:
+                content = content.replace(' -c /etc/mongo-express.config.js', '')
+                with open(service_file, 'w') as f:
+                    f.write(content)
+                subprocess.run(['systemctl', 'daemon-reload'], check=True)
+                
         subprocess.run(['systemctl', 'restart', MONGO_EXPRESS_SERVICE], check=True)
         return True, "Mongo Express restarted successfully."
     except Exception as e:
