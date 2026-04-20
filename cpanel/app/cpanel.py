@@ -117,6 +117,9 @@ def logout():
 @login_required
 def dashboard():
 
+    import platform
+    import socket
+    
     # Get basic system stats
     cpu_usage = psutil.cpu_percent(interval=1)
     ram = psutil.virtual_memory()
@@ -131,8 +134,34 @@ def dashboard():
         'disk_used': round(disk.used / (1024**3), 2),
         'disk_percent': disk.percent
     }
+    
+    hostname = platform.node()
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip_address = s.getsockname()[0]
+        s.close()
+    except Exception:
+        ip_address = "Unknown"
+        
+    try:
+        with open('/proc/cpuinfo', 'r') as f:
+            for line in f:
+                if 'model name' in line:
+                    processor = line.split(':')[1].strip()
+                    break
+            else:
+                processor = platform.processor()
+    except Exception:
+        processor = platform.processor()
 
-    return render_template('dashboard.html', stats=stats)
+    server_info = {
+        'hostname': hostname,
+        'ip_address': ip_address,
+        'processor': processor
+    }
+
+    return render_template('dashboard.html', stats=stats, server_info=server_info)
 
 @app.route('/api/sysinfo')
 @login_required

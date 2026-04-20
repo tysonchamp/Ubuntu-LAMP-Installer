@@ -249,8 +249,30 @@
                 fetchSysinfo();
                 fetchServices();
             </script>
+            
+            <!-- Server Information Section -->
+            <div class="row g-4 mt-2 mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-bottom">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Server Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-2"><strong>Hostname:</strong> <span class="text-muted">{{ server_info.hostname }}</span></div>
+                                <div class="col-md-4 mb-2"><strong>IP Address:</strong> <span class="text-muted">{{ server_info.ip_address }}</span></div>
+                                <div class="col-md-4 mb-2"><strong>Processor:</strong> <span class="text-muted">{{ server_info.processor }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             {% endblock %}
         </div>
+
+        <footer class="mt-5 mb-3 text-center text-muted small">
+            &copy; 2026 <a href="https://github.com/tysonchamp/Lite-cPanel" target="_blank" class="text-decoration-none text-secondary fw-bold">Lite cPanel</a>. All rights reserved.
+        </footer>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
