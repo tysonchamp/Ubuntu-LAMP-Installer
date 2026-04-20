@@ -94,7 +94,7 @@ User=root
 Group=root
 WorkingDirectory=$CPANEL_DIR/app
 Environment="PATH=$CPANEL_DIR/venv/bin"
-ExecStart=$CPANEL_DIR/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:2083 cpanel:app
+ExecStart=$CPANEL_DIR/venv/bin/gunicorn --worker-class gthread --threads 10 --timeout 3600 --workers 3 --bind 0.0.0.0:2083 cpanel:app
 
 [Install]
 WantedBy=multi-user.target

@@ -178,7 +178,7 @@ pip install -r requirements.txt
 echo "FLASK_SECRET_KEY=$(openssl rand -hex 32)" > app/.env
 
 # Run with Gunicorn (production)
-gunicorn --workers 3 --bind 0.0.0.0:2083 app.cpanel:app
+gunicorn --worker-class gthread --threads 10 --timeout 3600 --workers 3 --bind 0.0.0.0:2083 app.cpanel:app
 
 # Or for development only
 python3 app/cpanel.py
