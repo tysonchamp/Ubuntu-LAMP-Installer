@@ -201,16 +201,16 @@ which node
 npm root -g
 """
         res_paths = subprocess.run(['bash', '-c', get_paths_script], capture_output=True, text=True)
-        paths = res_paths.stdout.strip().split('\\n')
+        paths = [p for p in res_paths.stdout.strip().split('\n') if p.strip()]
         if len(paths) >= 2:
             node_bin = paths[-2].strip()
             npm_root = paths[-1].strip()
         else:
-            return False, "Failed to resolve node/npm paths after installation."
+            return False, f"Failed to resolve node/npm paths. STDOUT: '{res_paths.stdout}' STDERR: '{res_paths.stderr}'"
 
         me_app_js = os.path.join(npm_root, 'mongo-express', 'app.js')
         if not os.path.exists(me_app_js):
-            return False, f"mongo-express app.js not found at {me_app_js}."
+            return False, f"mongo-express app.js not found at {me_app_js}. STDOUT was: {res_paths.stdout}"
 
         # 3. Create config file
         import secrets
