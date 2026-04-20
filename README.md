@@ -234,9 +234,9 @@ Please follow [Conventional Commits](https://www.conventionalcommits.org/) for c
 - [ ] Email server management (Postfix/Dovecot)
 - [ ] Automated backups (scheduled tar/mysqldump with remote upload)
 - [ ] Multi-user support with role-based access control
-- [ ] Let's Encrypt auto-renewal via cron
+- [x] Let's Encrypt auto-renewal via cron
 - [ ] Docker containerization support
-- [ ] Web-based terminal (xterm.js integration)
+- [x] Web-based terminal (xterm.js integration)
 
 ---
 

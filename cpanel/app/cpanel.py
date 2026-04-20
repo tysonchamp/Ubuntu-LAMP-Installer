@@ -384,6 +384,34 @@ def nextjs():
 def terminal():
     return render_template('terminal.html')
 
+from cron_mgr import get_cron_jobs, add_cron_job, delete_cron_job, enable_ssl_renewal
+
+@app.route('/cron', methods=['GET', 'POST'])
+@login_required
+def cron():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add':
+            schedule = request.form.get('schedule', '')
+            command = request.form.get('command', '')
+            success, msg = add_cron_job(schedule, command)
+            flash(msg, "success" if success else "danger")
+            
+        elif action == 'delete':
+            index = request.form.get('index')
+            success, msg = delete_cron_job(index)
+            flash(msg, "success" if success else "danger")
+            
+        elif action == 'setup_ssl':
+            success, msg = enable_ssl_renewal()
+            flash(msg, "success" if success else "warning")
+            
+        return redirect(url_for('cron'))
+
+    cron_jobs = get_cron_jobs()
+    return render_template('cron.html', cron_jobs=cron_jobs)
+
 @app.route('/domains/logs/<domain>')
 @login_required
 def domain_logs(domain):
