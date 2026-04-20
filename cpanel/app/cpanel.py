@@ -1146,6 +1146,104 @@ def wordpress():
     wp_installs = get_installed_wordpress(domains)
     return render_template('wordpress.html', domains=domains, wp_installs=wp_installs)
 
+# --- File Manager ---
+import datetime as _dt
+
+@app.template_filter('datetimeformat')
+def _datetimeformat(ts):
+    try:
+        return _dt.datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d %H:%M')
+    except Exception:
+        return ''
+
+from filemanager_mgr import list_dir, read_file, write_file, create_folder, rename_entry, delete_entry, save_upload, compress_entries, decompress_entry, is_archive
+
+@app.route('/filemanager', methods=['GET', 'POST'])
+@login_required
+def filemanager_route():
+    path = request.args.get('path', '/var/www/html')
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        redirect_path = request.form.get('redirect_path', path)
+
+        if action == 'mkdir':
+            ok, msg = create_folder(request.form.get('path', path), request.form.get('name', ''))
+            flash(msg, 'success' if ok else 'danger')
+            return redirect(url_for('filemanager_route') + f'?path={request.form.get("path", path)}')
+
+        elif action == 'upload':
+            upload_path = request.form.get('path', path)
+            files = request.files.getlist('file')
+            for f in files:
+                ok, msg = save_upload(upload_path, f)
+                flash(msg, 'success' if ok else 'danger')
+            return redirect(url_for('filemanager_route') + f'?path={upload_path}')
+
+        elif action == 'compress':
+            names = request.form.getlist('names')
+            archive_name = request.form.get('archive_name', 'archive')
+            fmt = request.form.get('fmt', 'zip')
+            ok, msg = compress_entries(path, names, archive_name, fmt)
+            flash(msg, 'success' if ok else 'danger')
+            return redirect(url_for('filemanager_route') + f'?path={path}')
+
+        elif action == 'extract':
+            ok, msg = decompress_entry(request.form.get('path', ''), os.path.dirname(request.form.get('path', '')))
+            flash(msg, 'success' if ok else 'danger')
+            return redirect(url_for('filemanager_route') + f'?path={redirect_path}')
+
+        elif action == 'rename':
+            ok, msg = rename_entry(request.form.get('path', ''), request.form.get('new_name', ''))
+            flash(msg, 'success' if ok else 'danger')
+            return redirect(url_for('filemanager_route') + f'?path={redirect_path}')
+
+        elif action == 'delete':
+            ok, msg = delete_entry(request.form.get('path', ''))
+            flash(msg, 'success' if ok else 'danger')
+            return redirect(url_for('filemanager_route') + f'?path={redirect_path}')
+
+        elif action == 'save':
+            ok, msg = write_file(request.form.get('path', ''), request.form.get('content', ''))
+            flash(msg, 'success' if ok else 'danger')
+            return redirect(url_for('filemanager_route') + f'?path={redirect_path}')
+
+    data, err = list_dir(path)
+    if err:
+        flash(err, 'danger')
+        data = {'path': '/var/www/html', 'entries': [], 'parent': '/'}
+
+    for e in data['entries']:
+        e['is_archive'] = not e['is_dir'] and is_archive(e['name'])
+
+    return render_template('filemanager.html',
+                           current_path=data['path'],
+                           parent_path=data['parent'],
+                           entries=data['entries'])
+
+@app.route('/filemanager/read')
+@login_required
+def filemanager_read():
+    from flask import jsonify
+    path = request.args.get('path', '')
+    content, err = read_file(path)
+    if err:
+        return jsonify({'error': err})
+    return jsonify({'content': content})
+
+@app.route('/filemanager/download')
+@login_required
+def filemanager_download():
+    from flask import send_file
+    import os
+    from filemanager_mgr import _safe_path
+    path = request.args.get('path', '')
+    safe = _safe_path(path)
+    if not safe or not os.path.isfile(safe):
+        flash('File not found.', 'danger')
+        return redirect(url_for('filemanager_route'))
+    return send_file(safe, as_attachment=True)
+
 if __name__ == '__main__':
     # Run on all interfaces, port 2083
     app.run(host='0.0.0.0', port=2083, debug=True)

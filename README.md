@@ -38,7 +38,7 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 ### 🖥️ Dashboard
 - Real-time **CPU, RAM, and Disk** usage meters
 - **Live Process View** — auto-refreshing top-10 process table with CPU/Memory percentages and 1/5/15-min load averages
-- **System Services Monitor** — live status badges (Active / Inactive / Failed / Uninstalled) for Apache, Nginx, PHP-FPM, MySQL, CSF Firewall, ModSecurity, and Lite cPanel itself
+- **System Services Monitor** — live status badges (Active / Inactive / Failed / Uninstalled) for Apache, Nginx, PHP-FPM, MySQL, MongoDB, Mongo Express, CSF Firewall, ModSecurity, and Lite cPanel itself
 - One-click **Restart** button for each service directly from the dashboard
 
 ### 🌐 Domain Manager
@@ -58,6 +58,22 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - Create and delete Pure-FTPd virtual FTP users
 - Change FTP user passwords
 - Bind FTP users to specific web root directories with path traversal prevention
+
+### 🍃 MongoDB Manager
+- **One-click installer** — installs MongoDB 8.x directly from the official repository
+- Create MongoDB databases with a dedicated user and strong password
+- Drop databases and automatically clean up associated users
+- Change database user passwords from the panel
+- **Mongo Express** — install, start, restart, and access the web-based MongoDB admin UI (`/mongo-express`) with auto-generated credentials and Apache reverse proxy
+
+### 📂 File Manager
+- Browse the full server filesystem from the browser with breadcrumb navigation
+- Upload files (multiple at once) and download any file
+- Create folders, rename and delete files/folders
+- Edit text files, configs, and code directly in-browser with a full-height editor
+- **Compress** — select multiple files/folders and archive them as `.zip`, `.tar.gz`, `.tar.bz2`, or `.tar.xz`
+- **Extract** — decompress any archive (`.zip`, `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.tar`, `.gz`, `.bz2`, `.xz`) in one click
+- Path traversal and forbidden directory protection (`/proc`, `/sys`, `/dev`, etc.)
 
 ### 🛡️ Firewall (CSF)
 - Start, Stop, and Restart ConfigServer Security & Firewall (CSF)
@@ -118,6 +134,7 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - Session-based login with configurable secret key
 - phpMyAdmin SSO via secure time-limited token files (`/var/lib/cpanel_tokens/`)
 - Credential-free panel — database passwords for web apps are stored only inside `wp-config.php`, never in shared password files
+- File Manager path boundary enforcement — all operations validated against forbidden system paths
 
 ---
 
@@ -229,8 +246,10 @@ Lite-cPanel/
 │       ├── cron_mgr.py         # Cron job scheduling
 │       ├── database_mgr.py     # MySQL management
 │       ├── domains_mgr.py      # Virtual host management
+│       ├── filemanager_mgr.py  # File Manager (browse, edit, upload, compress, extract)
 │       ├── ftp_mgr.py          # Pure-FTPd user management
 │       ├── modsec_mgr.py       # ModSecurity management & installer
+│       ├── mongodb_mgr.py      # MongoDB & Mongo Express management
 │       ├── nextjs_mgr.py       # Next.js Apps Manager (PM2 + proxy)
 │       ├── run_backup.py       # Automated backup execution script
 │       ├── security_mgr.py     # CSF Firewall management
@@ -242,6 +261,21 @@ Lite-cPanel/
 │       │   ├── logo.png        # Lite cPanel logo
 │       │   └── favicon.png     # Browser favicon
 │       └── templates/          # Jinja2 HTML templates
+│           ├── dashboard.html
+│           ├── domains.html
+│           ├── databases.html
+│           ├── mongodb.html
+│           ├── filemanager.html
+│           ├── ftp.html
+│           ├── firewall.html
+│           ├── modsecurity.html
+│           ├── wordpress.html
+│           ├── nextjs.html
+│           ├── terminal.html
+│           ├── cron.html
+│           ├── backups.html
+│           ├── settings.html
+│           └── login.html
 ├── screenshot.png
 └── README.md
 ```
@@ -270,6 +304,8 @@ Please follow [Conventional Commits](https://www.conventionalcommits.org/) for c
 - [x] Let's Encrypt auto-renewal via cron
 - [ ] Docker containerization support
 - [x] Web-based terminal (xterm.js integration)
+- [x] MongoDB & Mongo Express management
+- [x] File Manager with compress/extract support
 
 ---
 
