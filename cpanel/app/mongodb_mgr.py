@@ -48,22 +48,30 @@ def get_databases():
     try:
         db_names = client.list_database_names()
         result = []
-        for db in db_names:
-            if db in ('admin', 'config', 'local'):
+        for db_name in db_names:
+            if db_name in ('admin', 'config', 'local'):
                 continue
             
-            db_obj = client[db]
-            users_info = db_obj.command("usersInfo")
-            users = [{'User': u['user']} for u in users_info.get('users', [])]
-            
-            stats = db_obj.command("dbStats")
-            size_mb = round(stats.get('dataSize', 0) / (1024 * 1024), 2)
-            
-            result.append({
-                'name': db,
-                'users': users,
-                'size_mb': size_mb
-            })
+            try:
+                db_obj = client[db_name]
+                users_info = db_obj.command("usersInfo")
+                users = [{'User': u['user']} for u in users_info.get('users', [])]
+                
+                stats = db_obj.command("dbStats")
+                size_mb = round(stats.get('dataSize', 0) / (1024 * 1024), 2)
+                
+                result.append({
+                    'name': db_name,
+                    'users': users,
+                    'size_mb': size_mb
+                })
+            except Exception:
+                # Still show the DB even if we can't get details
+                result.append({
+                    'name': db_name,
+                    'users': [],
+                    'size_mb': 0
+                })
         return result
     except Exception:
         return []
@@ -74,6 +82,9 @@ def create_database(db_name, db_user, db_pass):
     try:
         db = client[db_name]
         db.command("createUser", db_user, pwd=db_pass, roles=["dbOwner"])
+        # Insert a metadata doc so the database actually materializes
+        # (MongoDB won't show a DB in list_database_names until it has data)
+        db['_init'].insert_one({'_created_by': 'lite-cpanel', 'info': 'initial collection'})
         return True, "Database and user created successfully."
     except Exception as e:
         return False, f"Error: {str(e)}"
