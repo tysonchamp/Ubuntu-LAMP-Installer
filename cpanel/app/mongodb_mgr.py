@@ -206,18 +206,14 @@ def get_mongo_express_status():
     """Returns 'active', 'inactive', or 'not_installed'."""
     if not check_mongo_express_installed():
         return 'not_installed'
-    if not os.path.exists(_ME_PID_FILE):
-        return 'inactive'
+    # Check port 8081 directly — most reliable regardless of PID file staleness
     try:
-        with open(_ME_PID_FILE) as f:
-            pid = int(f.read().strip())
-        try:
-            os.kill(pid, 0)
-        except PermissionError:
-            pass  # process exists but owned by another user (e.g. root)
-        return 'active'
-    except (ValueError, ProcessLookupError):
-        return 'inactive'
+        r = subprocess.run(['ss', '-tlnp'], capture_output=True, text=True)
+        if f':{MONGO_EXPRESS_PORT}' in r.stdout:
+            return 'active'
+    except Exception:
+        pass
+    return 'inactive'
 
 def install_mongo_express():
     """Install mongo-express via nvm/npm, write config, and start the process."""
