@@ -44,20 +44,36 @@ def get_version_info():
     """Returns local hash, remote hash, and update availability."""
     success_local, local_hash = run_git(['rev-parse', 'HEAD'])
     
-    # Try to fetch without blocking too long
+    # Fetch remote to get latest refs
     run_git(['fetch', '--quiet', 'origin'])
     
-    # Get current branch
-    _, branch = run_git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    # Get the remote default branch (HEAD points to it)
+    _, remote_default = run_git(['symbolic-ref', 'refs/remotes/origin/HEAD'])
+    if remote_default:
+        # Extract branch name from refs/remotes/origin/3.0 -> 3.0
+        default_branch = remote_default.replace('refs/remotes/origin/', '').strip()
+    else:
+        # Fallback: try common names
+        for candidate in ['3.0', 'main', 'master']:
+            ok, _ = run_git(['rev-parse', f'origin/{candidate}'])
+            if ok:
+                default_branch = candidate
+                break
+        else:
+            default_branch = 'main'
     
-    success_remote, remote_hash = run_git(['rev-parse', f'origin/{branch}'])
+    # Get current local branch
+    _, local_branch = run_git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    
+    success_remote, remote_hash = run_git(['rev-parse', f'origin/{default_branch}'])
     
     if not success_local or not success_remote:
         return {
             "local": local_hash if success_local else "Error",
             "remote": remote_hash if success_remote else "Error",
             "update_available": False,
-            "branch": branch
+            "branch": local_branch,
+            "default_branch": default_branch
         }
         
     return {
@@ -66,22 +82,49 @@ def get_version_info():
         "full_local": local_hash,
         "full_remote": remote_hash,
         "update_available": local_hash != remote_hash,
-        "branch": branch
+        "branch": local_branch,
+        "default_branch": default_branch
     }
 
 def perform_update():
-    """Performs git pull on the current branch after stashing local changes."""
-    # First, get the current branch name
-    success_br, branch = run_git(['rev-parse', '--abbrev-ref', 'HEAD'])
-    if not success_br:
-        return False, f"Could not detect current branch: {branch}"
+    """Performs git pull from the remote default branch, switching if necessary."""
+    # Get the remote default branch
+    run_git(['fetch', '--quiet', 'origin'])
+    _, remote_default = run_git(['symbolic-ref', 'refs/remotes/origin/HEAD'])
+    if remote_default:
+        default_branch = remote_default.replace('refs/remotes/origin/', '').strip()
+    else:
+        # Fallback
+        for candidate in ['3.0', 'main', 'master']:
+            ok, _ = run_git(['rev-parse', f'origin/{candidate}'])
+            if ok:
+                default_branch = candidate
+                break
+        else:
+            return False, "Could not determine remote default branch."
     
-    # Stash any local changes to avoid merge conflicts
-    run_git(['stash'])
-        
-    success, output = run_git(['pull', 'origin', branch])
+    # Stash tracked changes and remove untracked files that would block merge
+    run_git(['stash', '--include-untracked'])
+    run_git(['clean', '-fd'])
+    
+    # Get current local branch
+    _, local_branch = run_git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    
+    # If we're not on the default branch, switch to it
+    if local_branch != default_branch:
+        # Check if local branch exists
+        ok, _ = run_git(['rev-parse', '--verify', default_branch])
+        if ok:
+            # Local branch exists, checkout and pull
+            run_git(['checkout', default_branch])
+        else:
+            # Create and track the remote branch
+            run_git(['checkout', '-b', default_branch, f'origin/{default_branch}'])
+    
+    # Pull latest from the default branch
+    success, output = run_git(['pull', 'origin', default_branch])
     if success:
-        return True, f"Update pulled successfully for branch '{branch}'."
+        return True, f"Updated to latest from '{default_branch}' branch."
     return False, f"Pull failed: {output}"
 
 def restart_service():
