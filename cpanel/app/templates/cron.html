@@ -32,19 +32,88 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="add">
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label">Schedule (e.g. <code>* * * * *</code>)</label>
-                            <input type="text" class="form-control" name="schedule" placeholder="Minute Hour Day Month Weekday" required>
-                            <small class="text-muted"><a href="https://crontab.guru/" target="_blank">Crontab format help</a></small>
+                        <div class="col-md-6">
+                            <label class="form-label">Schedule</label>
+                            <div class="input-group input-group-sm">
+                                <select class="form-select" id="cron_minute">
+                                    <option value="*">Minute (*)</option>
+                                    <option value="*/5">Every 5m</option>
+                                    <option value="*/15">Every 15m</option>
+                                    <option value="*/30">Every 30m</option>
+                                    <option value="0">Top of Hour (0)</option>
+                                </select>
+                                <select class="form-select" id="cron_hour">
+                                    <option value="*">Hour (*)</option>
+                                    <option value="*/2">Every 2h</option>
+                                    <option value="*/12">Every 12h</option>
+                                    <option value="0">Midnight (0)</option>
+                                </select>
+                                <select class="form-select" id="cron_day">
+                                    <option value="*">Day (*)</option>
+                                    <option value="1">1st of Month</option>
+                                    <option value="15">15th of Month</option>
+                                </select>
+                                <select class="form-select" id="cron_month">
+                                    <option value="*">Month (*)</option>
+                                    <option value="1">Jan (1)</option>
+                                    <option value="6">Jun (6)</option>
+                                </select>
+                                <select class="form-select" id="cron_weekday">
+                                    <option value="*">Weekday (*)</option>
+                                    <option value="0">Sunday (0)</option>
+                                    <option value="1">Monday (1)</option>
+                                    <option value="5">Friday (5)</option>
+                                </select>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Selected: <code id="cron_preview">* * * * *</code> | 
+                                <a href="javascript:void(0)" onclick="toggleCustomCron()">Switch to Custom Input</a>
+                            </small>
+                            <input type="text" class="form-control form-control-sm mt-2 d-none" id="custom_schedule" name="schedule" value="* * * * *">
                         </div>
-                        <div class="col-md-7">
+                        <div class="col-md-4">
                             <label class="form-label">Command</label>
-                            <input type="text" class="form-control" name="command" placeholder="/path/to/command arg1 arg2" required>
+                            <input type="text" class="form-control form-control-sm" name="command" placeholder="/path/to/command arg1" required>
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-success w-100"><i class="fas fa-plus me-2"></i> Add Job</button>
+                            <button type="submit" class="btn btn-success btn-sm w-100 mb-1"><i class="fas fa-plus me-2"></i> Add Job</button>
                         </div>
                     </div>
+                    
+                    <script>
+                    function updatePreview() {
+                        if (!document.getElementById('custom_schedule').classList.contains('d-none')) return;
+                        
+                        const sched = [
+                            document.getElementById('cron_minute').value,
+                            document.getElementById('cron_hour').value,
+                            document.getElementById('cron_day').value,
+                            document.getElementById('cron_month').value,
+                            document.getElementById('cron_weekday').value
+                        ].join(' ');
+                        
+                        document.getElementById('cron_preview').textContent = sched;
+                        document.getElementById('custom_schedule').value = sched;
+                    }
+
+                    function toggleCustomCron() {
+                        const custom = document.getElementById('custom_schedule');
+                        const selects = document.querySelectorAll('.input-group select');
+                        if (custom.classList.contains('d-none')) {
+                            custom.classList.remove('d-none');
+                            selects.forEach(s => s.disabled = true);
+                            document.getElementById('cron_preview').textContent = 'Custom';
+                        } else {
+                            custom.classList.add('d-none');
+                            selects.forEach(s => s.disabled = false);
+                            updatePreview();
+                        }
+                    }
+
+                    document.querySelectorAll('.input-group select').forEach(s => {
+                        s.addEventListener('change', updatePreview);
+                    });
+                    </script>
                 </form>
             </div>
         </div>
