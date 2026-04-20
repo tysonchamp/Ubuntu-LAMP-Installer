@@ -793,23 +793,64 @@ def phpmyadmin_login():
                     mysql_pass = line.split(':', 1)[1].strip()
 
     # Always create and use pma_sso user for SSO
+    import secrets as _sec
+    import subprocess as _sp
+    
     sso_user = 'pma_sso'
     sso_pass_file = '/var/lib/lite-cpanel/.pma_sso_pass'
+    sso_pass = None
+    
+    # Step 1: Try to load existing password from file
     if os.path.exists(sso_pass_file):
-        with open(sso_pass_file) as f:
-            sso_pass = f.read().strip()
-    else:
-        import secrets as _sec
+        try:
+            with open(sso_pass_file) as f:
+                sso_pass = f.read().strip()
+        except Exception as e:
+            print(f"Could not read password file: {e}")
+            sso_pass = None
+    
+    # Step 2: Verify user exists and password works, or create new user
+    if not sso_pass:
+        # Generate new password
         sso_pass = _sec.token_urlsafe(16)
-        sql = f"CREATE USER IF NOT EXISTS '{sso_user}'@'localhost' IDENTIFIED BY '{sso_pass}'; GRANT ALL PRIVILEGES ON *.* TO '{sso_user}'@'localhost' WITH GRANT OPTION; FLUSH PRIVILEGES;"
-        import subprocess as _sp
+    
+    # Always ensure user exists with current password
+    try:
+        # Prepare SQL commands: drop old user if exists, create new user
+        drop_sql = f"DROP USER IF EXISTS '{sso_user}'@'localhost';"
+        create_sql = f"CREATE USER '{sso_user}'@'localhost' IDENTIFIED BY '{sso_pass}'; GRANT ALL PRIVILEGES ON *.* TO '{sso_user}'@'localhost' WITH GRANT OPTION; FLUSH PRIVILEGES;"
+        
+        # Run drop and create in one command
+        sql = drop_sql + create_sql
+        
         if mysql_pass:
-            _sp.run(['mysql', '-u', 'root', '-p', '-e', sql], input=mysql_pass + '\n', text=True, capture_output=True)
+            result = _sp.run(['mysql', '-u', 'root', f'-p{mysql_pass}', '-e', sql], 
+                            capture_output=True, text=True, timeout=10)
         else:
-            _sp.run(['mysql', '-u', 'root', '-e', sql], capture_output=True)
+            result = _sp.run(['mysql', '-u', 'root', '-e', sql], 
+                            capture_output=True, text=True, timeout=10)
+        
+        if result.returncode != 0:
+            # If DROP/CREATE failed, try just CREATE in case user is in use
+            create_only_sql = f"CREATE USER IF NOT EXISTS '{sso_user}'@'localhost' IDENTIFIED BY '{sso_pass}'; GRANT ALL PRIVILEGES ON *.* TO '{sso_user}'@'localhost' WITH GRANT OPTION; FLUSH PRIVILEGES;"
+            if mysql_pass:
+                result = _sp.run(['mysql', '-u', 'root', f'-p{mysql_pass}', '-e', create_only_sql], 
+                                capture_output=True, text=True, timeout=10)
+            else:
+                result = _sp.run(['mysql', '-u', 'root', '-e', create_only_sql], 
+                                capture_output=True, text=True, timeout=10)
+            
+            if result.returncode != 0:
+                print(f"Warning: MySQL user creation/update had issues: {result.stderr}")
+        
+        # Save password only after successful creation attempt
         with open(sso_pass_file, 'w') as f:
             f.write(sso_pass)
         os.chmod(sso_pass_file, 0o600)
+        
+    except Exception as e:
+        print(f"Error with pma_sso user setup: {e}")
+    
     mysql_user = sso_user
     mysql_pass = sso_pass
 
