@@ -764,10 +764,8 @@ def phpmyadmin_login():
     import grp
     import pwd
     token = secrets.token_hex(16)
-    # Store token files inside /var/lib/phpmyadmin/tokens/ — this path is within
-    # PHP's open_basedir for the phpMyAdmin Apache alias, so file_get_contents() works.
-    # /var/lib/cpanel_tokens/ was outside open_basedir and caused silent failures.
-    token_dir = '/var/lib/phpmyadmin/tokens'
+    # Token directory — open_basedir is extended automatically by setup_phpmyadmin_signon()
+    token_dir = '/var/lib/cpanel_tokens'
     if not os.path.exists(token_dir):
         os.makedirs(token_dir, mode=0o750)
         try:

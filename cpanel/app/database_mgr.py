@@ -271,7 +271,7 @@ if (!empty($_COOKIE['pma_sso_token'])) {
 }
 
 if ($token !== '' && preg_match('/^[a-f0-9]{32}$/', $token)) {
-    $token_file = "/var/lib/phpmyadmin/tokens/pma_{$token}.txt";
+    $token_file = "/var/lib/cpanel_tokens/pma_{$token}.txt";
 
     if (file_exists($token_file)) {
         $contents = trim(file_get_contents($token_file));
@@ -297,6 +297,43 @@ echo "Invalid or expired login token.";
 
         # Ensure PHP can read the script
         os.chmod('/usr/share/phpmyadmin/phpmyadmin_login.php', 0o644)
+
+        # Fix Apache open_basedir to allow PHP to read token files.
+        # The default phpMyAdmin open_basedir excludes /var/lib/cpanel_tokens/,
+        # causing file_get_contents() to silently fail. We override it here.
+        try:
+            basedir_conf = """\
+<Directory /usr/share/phpmyadmin>
+    <IfModule mod_php.c>
+        php_admin_value open_basedir /usr/share/phpmyadmin/:/usr/share/doc/phpmyadmin/:/etc/phpmyadmin/:/var/lib/phpmyadmin/:/usr/share/php/:/usr/share/javascript/:/var/lib/cpanel_tokens/
+    </IfModule>
+    <IfModule mod_php7.c>
+        php_admin_value open_basedir /usr/share/phpmyadmin/:/usr/share/doc/phpmyadmin/:/etc/phpmyadmin/:/var/lib/phpmyadmin/:/usr/share/php/:/usr/share/javascript/:/var/lib/cpanel_tokens/
+    </IfModule>
+</Directory>
+"""
+            basedir_conf_path = '/etc/apache2/conf-available/cpanel-pma-basedir.conf'
+            with open(basedir_conf_path, 'w') as f3:
+                f3.write(basedir_conf)
+
+            import subprocess as _sp2
+            _sp2.run(['a2enconf', 'cpanel-pma-basedir'], capture_output=True)
+            _sp2.run(['systemctl', 'reload', 'apache2'], capture_output=True)
+
+            # Also ensure the token directory exists and is readable by www-data
+            token_dir = '/var/lib/cpanel_tokens'
+            if not os.path.exists(token_dir):
+                os.makedirs(token_dir, mode=0o750)
+            try:
+                import grp as _grp
+                www_data_gid = _grp.getgrnam('www-data').gr_gid
+                os.chown(token_dir, -1, www_data_gid)
+                os.chmod(token_dir, 0o750)
+            except Exception:
+                pass
+        except Exception as e_basedir:
+            # Non-fatal: log but continue; the user may already have the right open_basedir
+            print(f"[cpanel] open_basedir fix skipped: {e_basedir}")
 
         return True, "Signon configured."
     except Exception as e:
