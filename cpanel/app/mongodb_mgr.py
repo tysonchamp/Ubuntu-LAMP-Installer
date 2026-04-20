@@ -166,6 +166,9 @@ def install_mongo_express():
         # 1. Install nvm, node 24, and mongo-express
         install_script = """#!/bin/bash
 export NVM_DIR="$HOME/.nvm"
+if [ "$EUID" -eq 0 ]; then
+    export NVM_DIR="/root/.nvm"
+fi
 
 # Ensure nvm is installed
 if [ ! -s "$NVM_DIR/nvm.sh" ]; then
@@ -189,6 +192,9 @@ npm install -g mongo-express
         # 2. Get the paths to node and mongo-express app.js
         get_paths_script = """#!/bin/bash
 export NVM_DIR="$HOME/.nvm"
+if [ "$EUID" -eq 0 ]; then
+    export NVM_DIR="/root/.nvm"
+fi
 \\. "$NVM_DIR/nvm.sh"
 nvm use 24 > /dev/null 2>&1
 which node
