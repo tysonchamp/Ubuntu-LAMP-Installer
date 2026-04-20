@@ -76,6 +76,14 @@ DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 EOF
 
+    # Create dedicated phpMyAdmin SSO user
+    PMA_SSO_PASSWORD=$(generate_password)
+    mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<EOF
+CREATE USER IF NOT EXISTS 'pma_sso'@'localhost' IDENTIFIED BY '$PMA_SSO_PASSWORD';
+GRANT ALL PRIVILEGES ON *.* TO 'pma_sso'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+EOF
+
     if [ -z "$INSTALL_MONGODB" ]; then
         echo -n "Do you want to install MongoDB? (y/n): "
         read user_mongo
@@ -89,6 +97,8 @@ EOF
     cat > "$PASSWORDS_FILE" <<EOF
 MySQL Root Password: $MYSQL_ROOT_PASSWORD
 phpMyAdmin Password: $PHPMYADMIN_PASSWORD
+MySQL SSO User: pma_sso
+MySQL SSO Password: $PMA_SSO_PASSWORD
 Generated: $(date)
 EOF
     chmod 600 "$PASSWORDS_FILE"

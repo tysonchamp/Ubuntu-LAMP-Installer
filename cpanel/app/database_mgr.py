@@ -265,14 +265,15 @@ if (isset($_GET['token']) && preg_match('/^[a-f0-9]{32}$/', $_GET['token'])) {
     $token_file = "/var/lib/cpanel_tokens/pma_{$token}.txt";
 
     if (file_exists($token_file)) {
-        // Read the file content which contains the password securely
-        $db_password = trim(file_get_contents($token_file));
+        $contents = trim(file_get_contents($token_file));
+        // Format: "user:password" — password may be empty
+        $parts = explode(':', $contents, 2);
+        $db_user = isset($parts[0]) ? $parts[0] : 'root';
+        $db_pass = isset($parts[1]) ? $parts[1] : '';
 
-        // Log them in
-        $_SESSION['PMA_single_signon_user'] = 'root';
-        $_SESSION['PMA_single_signon_password'] = $db_password;
+        $_SESSION['PMA_single_signon_user'] = $db_user;
+        $_SESSION['PMA_single_signon_password'] = $db_pass;
 
-        // Invalidate token immediately
         unlink($token_file);
 
         header('Location: /phpmyadmin/index.php');

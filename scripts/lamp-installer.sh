@@ -52,10 +52,19 @@ install_lamp_stack() {
     
     # Secure MariaDB installation
     mysql -u root <<EOF || mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<EOF
+ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('$MYSQL_ROOT_PASSWORD');
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
 DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+FLUSH PRIVILEGES;
+EOF
+
+    # Create dedicated phpMyAdmin SSO user
+    PMA_SSO_PASSWORD=$(generate_password)
+    mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<EOF
+CREATE USER IF NOT EXISTS 'pma_sso'@'localhost' IDENTIFIED BY '$PMA_SSO_PASSWORD';
+GRANT ALL PRIVILEGES ON *.* TO 'pma_sso'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 EOF
 
@@ -100,6 +109,8 @@ EOF
     cat > "$PASSWORDS_FILE" <<EOF
 MySQL Root Password: $MYSQL_ROOT_PASSWORD
 phpMyAdmin Password: $PHPMYADMIN_PASSWORD
+MySQL SSO User: pma_sso
+MySQL SSO Password: $PMA_SSO_PASSWORD
 Generated on: $(date)
 EOF
     chmod 600 "$PASSWORDS_FILE"

@@ -778,6 +778,8 @@ def phpmyadmin_login():
 
     token_file = os.path.join(token_dir, f'pma_{token}.txt')
 
+    # Resolve MySQL credentials
+    mysql_user = 'root'
     mysql_pass = ''
     pass_file = '/var/lib/lite-cpanel/.passwords'
     if os.path.exists(pass_file):
@@ -785,12 +787,35 @@ def phpmyadmin_login():
             for line in f:
                 if line.startswith('MySQL Root Password:'):
                     mysql_pass = line.split(':', 1)[1].strip()
-                    break
+                elif line.startswith('MySQL SSO User:'):
+                    mysql_user = line.split(':', 1)[1].strip()
+                elif line.startswith('MySQL SSO Password:'):
+                    mysql_pass = line.split(':', 1)[1].strip()
 
-    # Write only readable by root and www-data group
-    # 0o640: rw-r-----
+    # If still no password (unix socket auth server), auto-create pma_sso user once
+    if not mysql_pass:
+        sso_user = 'pma_sso'
+        sso_pass_file = '/var/lib/lite-cpanel/.pma_sso_pass'
+        if os.path.exists(sso_pass_file):
+            with open(sso_pass_file) as f:
+                sso_pass = f.read().strip()
+        else:
+            import secrets as _sec
+            sso_pass = _sec.token_urlsafe(16)
+            import subprocess as _sp
+            _sp.run(['mysql', '-u', 'root', '-e',
+                f"CREATE USER IF NOT EXISTS '{sso_user}'@'localhost' IDENTIFIED BY '{sso_pass}';"
+                f"GRANT ALL PRIVILEGES ON *.* TO '{sso_user}'@'localhost' WITH GRANT OPTION;"
+                f"FLUSH PRIVILEGES;"], capture_output=True)
+            with open(sso_pass_file, 'w') as f:
+                f.write(sso_pass)
+            os.chmod(sso_pass_file, 0o600)
+        mysql_user = sso_user
+        mysql_pass = sso_pass
+
+    # Write user:password to token file
     with open(token_file, 'w') as f:
-        f.write(mysql_pass)
+        f.write(f'{mysql_user}:{mysql_pass}')
 
     try:
         www_data_gid = grp.getgrnam('www-data').gr_gid
