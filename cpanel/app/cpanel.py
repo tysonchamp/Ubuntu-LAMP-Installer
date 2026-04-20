@@ -862,6 +862,9 @@ def phpmyadmin_login():
 
     # Redirect to the phpMyAdmin login handler we created (at the correct alias)
     host = request.host.split(':')[0]
+    # log the url for debugging    
+    # print(f"Redirecting to phpMyAdmin with token: http://{host}/phpmyadmin/phpmyadmin_login.php?token={token}")
+    print(f"Redirecting to phpMyAdmin with token: http://{host}/phpmyadmin/phpmyadmin_login.php?token={token}")
     return redirect(f"http://{host}/phpmyadmin/phpmyadmin_login.php?token={token}")
 
 from ftp_mgr import check_pureftpd_installed, get_ftp_users, create_ftp_user, delete_ftp_user, change_ftp_password
