@@ -860,12 +860,20 @@ def phpmyadmin_login():
 
     os.chmod(token_file, 0o644)
 
-    # Redirect to the phpMyAdmin login handler we created (at the correct alias)
+    # Redirect to the phpMyAdmin login handler.
+    # We pass the token via a cookie instead of a query string to survive
+    # any intermediate Apache/phpMyAdmin redirect chains that would drop ?token=.
     host = request.host.split(':')[0]
-    # log the url for debugging    
-    # print(f"Redirecting to phpMyAdmin with token: http://{host}/phpmyadmin/phpmyadmin_login.php?token={token}")
-    print(f"Redirecting to phpMyAdmin with token: http://{host}/phpmyadmin/phpmyadmin_login.php?token={token}")
-    return redirect(f"http://{host}/phpmyadmin/phpmyadmin_login.php?token={token}")
+    response = redirect(f"http://{host}/phpmyadmin/phpmyadmin_login.php")
+    response.set_cookie(
+        'pma_sso_token',
+        value=token,
+        max_age=30,          # expires in 30 seconds — one-shot use
+        httponly=False,      # PHP needs to read it via $_COOKIE
+        samesite='Lax',
+        path='/'
+    )
+    return response
 
 from ftp_mgr import check_pureftpd_installed, get_ftp_users, create_ftp_user, delete_ftp_user, change_ftp_password
 

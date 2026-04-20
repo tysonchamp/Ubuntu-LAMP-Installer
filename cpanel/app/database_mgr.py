@@ -260,8 +260,17 @@ def setup_phpmyadmin_signon():
 session_name('PMA_Signon');
 session_start();
 
-if (isset($_GET['token']) && preg_match('/^[a-f0-9]{32}$/', $_GET['token'])) {
+// Accept token via cookie (preferred — survives redirect chains) or query string (fallback)
+$token = '';
+if (!empty($_COOKIE['pma_sso_token'])) {
+    $token = $_COOKIE['pma_sso_token'];
+    // Clear the cookie immediately
+    setcookie('pma_sso_token', '', time() - 3600, '/');
+} elseif (!empty($_GET['token'])) {
     $token = $_GET['token'];
+}
+
+if ($token !== '' && preg_match('/^[a-f0-9]{32}$/', $token)) {
     $token_file = "/var/lib/cpanel_tokens/pma_{$token}.txt";
 
     if (file_exists($token_file)) {
