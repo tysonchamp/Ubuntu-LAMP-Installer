@@ -211,9 +211,12 @@ def get_mongo_express_status():
     try:
         with open(_ME_PID_FILE) as f:
             pid = int(f.read().strip())
-        os.kill(pid, 0)   # signal 0 = just check existence
+        try:
+            os.kill(pid, 0)
+        except PermissionError:
+            pass  # process exists but owned by another user (e.g. root)
         return 'active'
-    except (ValueError, ProcessLookupError, PermissionError):
+    except (ValueError, ProcessLookupError):
         return 'inactive'
 
 def install_mongo_express():
