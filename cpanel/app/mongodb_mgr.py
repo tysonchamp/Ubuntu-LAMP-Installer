@@ -46,19 +46,33 @@ def get_databases():
     client = get_mongo_client()
     if not client: return []
     try:
-        db_names = client.list_database_names()
+        system_dbs = ('admin', 'config', 'local')
+        
+        # Get databases that have actual data
+        listed_dbs = set(client.list_database_names()) - set(system_dbs)
+        
+        # Also discover databases that only have users but no data yet
+        # by scanning admin.system.users
+        try:
+            all_users = client['admin'].system.users.find({}, {'db': 1, 'user': 1})
+            for u in all_users:
+                if u.get('db') not in system_dbs:
+                    listed_dbs.add(u['db'])
+        except Exception:
+            pass
+        
         result = []
-        for db_name in db_names:
-            if db_name in ('admin', 'config', 'local'):
-                continue
-            
+        for db_name in sorted(listed_dbs):
             try:
                 db_obj = client[db_name]
                 users_info = db_obj.command("usersInfo")
                 users = [{'User': u['user']} for u in users_info.get('users', [])]
                 
-                stats = db_obj.command("dbStats")
-                size_mb = round(stats.get('dataSize', 0) / (1024 * 1024), 2)
+                try:
+                    stats = db_obj.command("dbStats")
+                    size_mb = round(stats.get('dataSize', 0) / (1024 * 1024), 2)
+                except Exception:
+                    size_mb = 0
                 
                 result.append({
                     'name': db_name,
@@ -66,7 +80,6 @@ def get_databases():
                     'size_mb': size_mb
                 })
             except Exception:
-                # Still show the DB even if we can't get details
                 result.append({
                     'name': db_name,
                     'users': [],
