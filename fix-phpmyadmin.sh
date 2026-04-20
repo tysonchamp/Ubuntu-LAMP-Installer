@@ -62,7 +62,7 @@ if (!empty($_COOKIE['pma_sso_token'])) {
 }
 
 if ($token !== '' && preg_match('/^[a-f0-9]{32}$/', $token)) {
-    $token_file = "/var/lib/cpanel_tokens/pma_{$token}.txt";
+    $token_file = "/var/lib/phpmyadmin/tokens/pma_{$token}.txt";
 
     if (file_exists($token_file)) {
         $contents = trim(file_get_contents($token_file));
@@ -88,9 +88,9 @@ EOF
 # Make sure it is securely readable by the webserver
 chmod 644 /usr/share/phpmyadmin/phpmyadmin_login.php
 
-# Create tokens directory for cpanel to use
-mkdir -p /var/lib/cpanel_tokens
-chown -R www-data:www-data /var/lib/cpanel_tokens
-chmod 750 /var/lib/cpanel_tokens
+# Create tokens directory inside /var/lib/phpmyadmin/ so PHP open_basedir allows access
+mkdir -p /var/lib/phpmyadmin/tokens
+chown root:www-data /var/lib/phpmyadmin/tokens
+chmod 750 /var/lib/phpmyadmin/tokens
 
 echo "phpMyAdmin Signon configuration completed successfully!"

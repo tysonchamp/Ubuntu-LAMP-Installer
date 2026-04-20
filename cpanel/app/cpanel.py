@@ -764,17 +764,17 @@ def phpmyadmin_login():
     import grp
     import pwd
     token = secrets.token_hex(16)
-
-    # Secure temporary directory for exchanging tokens
-    token_dir = '/var/lib/cpanel_tokens'
+    # Store token files inside /var/lib/phpmyadmin/tokens/ — this path is within
+    # PHP's open_basedir for the phpMyAdmin Apache alias, so file_get_contents() works.
+    # /var/lib/cpanel_tokens/ was outside open_basedir and caused silent failures.
+    token_dir = '/var/lib/phpmyadmin/tokens'
     if not os.path.exists(token_dir):
         os.makedirs(token_dir, mode=0o750)
-        # Ensure www-data can read/execute the dir
         try:
             www_data_gid = grp.getgrnam('www-data').gr_gid
             os.chown(token_dir, -1, www_data_gid)
         except KeyError:
-            pass # fallback if www-data doesn't exist
+            pass
 
     token_file = os.path.join(token_dir, f'pma_{token}.txt')
 

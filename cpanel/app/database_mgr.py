@@ -271,7 +271,7 @@ if (!empty($_COOKIE['pma_sso_token'])) {
 }
 
 if ($token !== '' && preg_match('/^[a-f0-9]{32}$/', $token)) {
-    $token_file = "/var/lib/cpanel_tokens/pma_{$token}.txt";
+    $token_file = "/var/lib/phpmyadmin/tokens/pma_{$token}.txt";
 
     if (file_exists($token_file)) {
         $contents = trim(file_get_contents($token_file));
