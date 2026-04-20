@@ -99,6 +99,15 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - **1-Click Let's Encrypt auto-renewal setup**
 - Safely parses and preserves existing cron comments and advanced macros
 
+### 💾 Backup Manager
+- Automate scheduled backups via cron or trigger manual backups instantly
+- Generates precise, individual database dumps and domain-specific archives
+- **Local Storage:** Keep backups locally with automated retention rules to save disk space
+- **Remote Storage:** Upload backups securely to external FTP servers or S3-compatible object storage (e.g., DigitalOcean Spaces, AWS S3)
+
+### 🔄 Panel Updater
+- Built-in updater to seamlessly pull the latest features and bug fixes via Git directly from the UI
+
 ### ⚙️ Settings
 - Edit core system configuration files (Apache, Nginx, MariaDB, PHP, FTP) directly in-browser with auto-reload on save
 - **System Log Viewer** — tabbed viewer for Apache Error/Access, Nginx Error/Access, Syslog, and MySQL Error logs with auto-scroll and one-click refresh
@@ -216,12 +225,18 @@ Lite-cPanel/
 │   └── app/
 │       ├── cpanel.py           # Flask application & routing
 │       ├── auth.py             # PAM authentication
+│       ├── backup_mgr.py       # Automated Backup Manager (Local, FTP, S3)
+│       ├── cron_mgr.py         # Cron job scheduling
 │       ├── database_mgr.py     # MySQL management
 │       ├── domains_mgr.py      # Virtual host management
 │       ├── ftp_mgr.py          # Pure-FTPd user management
 │       ├── modsec_mgr.py       # ModSecurity management & installer
+│       ├── nextjs_mgr.py       # Next.js Apps Manager (PM2 + proxy)
+│       ├── run_backup.py       # Automated backup execution script
 │       ├── security_mgr.py     # CSF Firewall management
 │       ├── settings_mgr.py     # Config editor & log viewer
+│       ├── terminal_mgr.py     # Web-based root terminal via WebSockets
+│       ├── updater_mgr.py      # Git-based automated panel updater
 │       ├── wordpress_mgr.py    # WordPress installer & manager
 │       ├── static/
 │       │   ├── logo.png        # Lite cPanel logo
@@ -250,7 +265,7 @@ Please follow [Conventional Commits](https://www.conventionalcommits.org/) for c
 ## Roadmap
 
 - [ ] Email server management (Postfix/Dovecot)
-- [ ] Automated backups (scheduled tar/mysqldump with remote upload)
+- [x] Automated backups (scheduled tar/mysqldump with remote upload)
 - [ ] Multi-user support with role-based access control
 - [x] Let's Encrypt auto-renewal via cron
 - [ ] Docker containerization support
