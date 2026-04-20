@@ -51,13 +51,15 @@ def get_databases():
         # Get databases that have actual data
         listed_dbs = set(client.list_database_names()) - set(system_dbs)
         
-        # Also discover databases that only have users but no data yet
-        # by scanning admin.system.users
+        # Also discover databases that have users but no collections yet
+        # Only add if the DB was explicitly created (has a user), not if it was dropped
         try:
+            existing = set(client.list_database_names())
             all_users = client['admin'].system.users.find({}, {'db': 1, 'user': 1})
             for u in all_users:
-                if u.get('db') not in system_dbs:
-                    listed_dbs.add(u['db'])
+                db_name = u.get('db')
+                if db_name not in system_dbs and db_name in existing:
+                    listed_dbs.add(db_name)
         except Exception:
             pass
         
@@ -106,6 +108,21 @@ def delete_database(db_name):
     client = get_mongo_client()
     if not client: return False, "Could not connect to MongoDB."
     try:
+        # Drop all users belonging to this DB, then drop the DB
+        try:
+            users_info = client[db_name].command("usersInfo")
+            for u in users_info.get('users', []):
+                try:
+                    client[db_name].command('dropUser', u['user'])
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # Also purge any orphaned entries directly from admin.system.users
+        try:
+            client['admin'].system.users.delete_many({'db': db_name})
+        except Exception:
+            pass
         client.drop_database(db_name)
         return True, "Database deleted successfully."
     except Exception as e:
@@ -137,16 +154,29 @@ def _find_nvm_node():
     nvm_versions = os.path.join(home, ".nvm", "versions", "node")
     if not os.path.exists(nvm_versions):
         return None, None
-    # Prefer v20 if available, otherwise pick the highest
     versions = os.listdir(nvm_versions)
-    v20_versions = sorted([v for v in versions if v.startswith('v20')], reverse=True)
-    other_versions = sorted([v for v in versions if not v.startswith('v20')], reverse=True)
-    
-    for v in v20_versions + other_versions:
+    # Prefer v20, then v22, then any other version (sorted descending)
+    def _ver_key(v):
+        try: return tuple(int(x) for x in v.lstrip('v').split('.'))
+        except: return (0,)
+    sorted_versions = sorted(versions, key=_ver_key, reverse=True)
+    preferred = [v for v in sorted_versions if v.startswith('v20')] + \
+                [v for v in sorted_versions if not v.startswith('v20')]
+    for v in preferred:
         node_bin = os.path.join(nvm_versions, v, 'bin', 'node')
         npm_root = os.path.join(nvm_versions, v, 'lib', 'node_modules')
         if os.path.exists(node_bin):
             return node_bin, npm_root
+    # Fallback: check system node
+    import shutil
+    sys_node = shutil.which('node')
+    if sys_node:
+        try:
+            r = subprocess.run(['npm', 'root', '-g'], capture_output=True, text=True)
+            if r.returncode == 0:
+                return sys_node, r.stdout.strip()
+        except Exception:
+            pass
     return None, None
 
 def _find_me_app():
@@ -201,8 +231,8 @@ fi
 if [[ ! "$(node -v 2>/dev/null)" == v20* ]]; then
     nvm install 20
 fi
-nvm use 20
-npm install -g mongo-express@0.54.0
+nvm use 20 2>/dev/null || nvm install 20
+npm install -g mongo-express@1.0.0
 """
         res = subprocess.run(['bash', '-c', install_script],
                              capture_output=True, text=True, timeout=300)
@@ -248,8 +278,7 @@ module.exports = {{
 
         # 3. Save credentials
         with open(_ME_CREDS_FILE, 'w') as f:
-            f.write(f"Mongo Express Admin Username: admin\n")
-            f.write(f"Mongo Express Admin Password: {admin_pass}\n")
+            f.write(f"Mongo Express Admin Username: admin\nMongo Express Admin Password: {admin_pass}\n")
         os.chmod(_ME_CREDS_FILE, 0o600)
 
         # 4. Setup Apache proxy (best-effort, requires root)
@@ -284,7 +313,6 @@ def _start_mongo_express():
     # Load creds
     creds = get_mongo_express_credentials()
     
-    # Map config to env vars (supported by 0.54.0+)
     env['ME_CONFIG_MONGODB_URL'] = 'mongodb://127.0.0.1:27017'
     env['ME_CONFIG_MONGODB_ENABLE_ADMIN'] = 'true'
     env['ME_CONFIG_BASICAUTH_USERNAME'] = creds.get('username', 'admin')
@@ -292,6 +320,7 @@ def _start_mongo_express():
     env['ME_CONFIG_SITE_BASEURL'] = '/mongo-express'
     env['ME_CONFIG_SITE_PORT'] = str(MONGO_EXPRESS_PORT)
     env['ME_CONFIG_SITE_COOKIESECRET'] = 'verysecret'
+    env['ME_CONFIG_SITE_HOST'] = '127.0.0.1'
     
     # Ensure the NVM node is on PATH
     nvm_bin = os.path.dirname(node_bin)
