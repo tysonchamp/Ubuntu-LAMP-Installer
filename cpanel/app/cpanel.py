@@ -210,6 +210,7 @@ def api_services():
         {'id': 'nginx', 'name': 'Nginx Engine'},
         {'id': php_fpm_id, 'name': 'PHP-FPM'}, 
         {'id': 'mariadb', 'name': 'MySQL / MariaDB'},
+        {'id': 'mongod', 'name': 'MongoDB'},
         {'id': 'csf', 'name': 'CSF Firewall'},
         {'id': 'cpanel', 'name': 'cPanel Platform'},
     ]
@@ -644,6 +645,70 @@ def databases():
 
     db_details = get_database_details()
     return render_template('databases.html', db_details=db_details)
+
+from mongodb_mgr import (check_mongodb_installed, install_mongodb, get_databases as get_mongo_dbs,
+                         create_database as create_mongo_db, delete_database as delete_mongo_db,
+                         change_user_password as change_mongo_pass)
+
+@app.route('/mongodb', methods=['GET', 'POST'])
+@login_required
+def mongodb_route():
+    is_installed = check_mongodb_installed()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'install':
+            success, msg = install_mongodb()
+            flash(msg, 'success' if success else 'danger')
+            return redirect(url_for('mongodb_route'))
+            
+        if not is_installed:
+            flash("MongoDB is not installed.", "danger")
+            return redirect(url_for('mongodb_route'))
+            
+        if action == 'create':
+            db_name = request.form.get('db_name')
+            db_user = request.form.get('db_user')
+            db_pass = request.form.get('db_pass')
+            
+            # Use same validation as mysql
+            v1, e1 = validate_input(db_name, 'db_name')
+            v2, e2 = validate_input(db_user, 'username')
+            if not v1 or not v2:
+                flash(f"Validation failed: {e1 or e2}", "danger")
+                return redirect(url_for('mongodb_route'))
+                
+            success, message = create_mongo_db(db_name, db_user, db_pass)
+            flash(message, 'success' if success else 'danger')
+            
+        elif action == 'delete':
+            db_name = request.form.get('db_name')
+            v, e = validate_input(db_name, 'db_name')
+            if not v:
+                flash(f"Validation failed: {e}", "danger")
+                return redirect(url_for('mongodb_route'))
+            success, message = delete_mongo_db(db_name)
+            flash(message, 'success' if success else 'danger')
+            
+        elif action == 'change_password':
+            db_name = request.form.get('db_name')
+            db_user = request.form.get('db_user')
+            new_pass = request.form.get('new_password')
+            
+            v1, e1 = validate_input(db_name, 'db_name')
+            v2, e2 = validate_input(db_user, 'username')
+            if not v1 or not v2:
+                flash(f"Validation failed: {e1 or e2}", "danger")
+                return redirect(url_for('mongodb_route'))
+                
+            success, message = change_mongo_pass(db_name, db_user, new_pass)
+            flash(message, 'success' if success else 'danger')
+            
+        return redirect(url_for('mongodb_route'))
+        
+    db_details = get_mongo_dbs() if is_installed else []
+    return render_template('mongodb.html', is_installed=is_installed, db_details=db_details)
 
 @app.route('/phpmyadmin-login')
 @login_required
