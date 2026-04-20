@@ -13,7 +13,8 @@ def get_system_logs():
         'Nginx Error': '/var/log/nginx/error.log',
         'Nginx Access': '/var/log/nginx/access.log',
         'Syslog': '/var/log/syslog',
-        'MySQL Error': '/var/log/mysql/error.log'
+        'MySQL Error': '/var/log/mysql/error.log',
+        'Backup Log': '/var/log/lite-cpanel-backup.log'
     }
 
     # Automatically add Apache vhost logs

@@ -48,15 +48,16 @@ def cleanup_local_backups(retention_days):
     
     log(f"Cleaning up local backups older than {retention_days} days...")
     cutoff = time.time() - (retention_days * 86400)
-    for f in os.listdir(BACKUP_DIR):
-        if f.endswith('.tar.gz') and f.startswith('lite-cpanel-backup-'):
-            filepath = os.path.join(BACKUP_DIR, f)
-            if os.stat(filepath).st_mtime < cutoff:
-                try:
-                    os.remove(filepath)
-                    log(f"Deleted old backup: {f}")
-                except Exception as e:
-                    log(f"Failed to delete {f}: {e}")
+    for root, dirs, files in os.walk(BACKUP_DIR):
+        for f in files:
+            if f.endswith('.tar.gz') or f.endswith('.sql'):
+                filepath = os.path.join(root, f)
+                if os.stat(filepath).st_mtime < cutoff:
+                    try:
+                        os.remove(filepath)
+                        log(f"Deleted old backup: {filepath}")
+                    except Exception as e:
+                        log(f"Failed to delete {filepath}: {e}")
 
 def run_backup():
     settings = get_settings()
@@ -66,49 +67,66 @@ def run_backup():
 
     # 1. Setup
     timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-    backup_filename = f"lite-cpanel-backup-{timestamp}.tar.gz"
     
     if not os.path.exists(TEMP_DIR):
         os.makedirs(TEMP_DIR, exist_ok=True)
         
-    temp_sql_file = os.path.join(TEMP_DIR, f"alldbs-{timestamp}.sql")
-    temp_tar_file = os.path.join(TEMP_DIR, backup_filename)
-    
-    # 2. Dump MySQL
-    log("Starting MySQL dump...")
     mysql_pass = get_mysql_password()
-    dump_cmd = ['mysqldump', '--all-databases']
-    if mysql_pass:
-        dump_cmd = ['mysqldump', f'-p{mysql_pass}', '--all-databases']
+    
+    # 2. Dump MySQL databases individually
+    log("Starting MySQL dumps...")
+    try:
+        mysql_cmd = ['mysql', '-u', 'root', '-N', '-B', '-e', 'SHOW DATABASES;']
+        if mysql_pass:
+            mysql_cmd.insert(3, f'-p{mysql_pass}')
+        result = subprocess.run(mysql_cmd, capture_output=True, text=True, check=True)
+        databases = [db.strip() for db in result.stdout.split('\n') if db.strip() and db.strip() not in ('information_schema', 'performance_schema', 'mysql', 'sys')]
         
-    try:
-        with open(temp_sql_file, 'w') as sql_out:
-            subprocess.run(dump_cmd, stdout=sql_out, stderr=subprocess.PIPE, check=True)
-        log("MySQL dump completed successfully.")
+        mysql_temp_dir = os.path.join(TEMP_DIR, 'mysql')
+        os.makedirs(mysql_temp_dir, exist_ok=True)
+        
+        for db in databases:
+            dump_cmd = ['mysqldump', '-u', 'root', db]
+            if mysql_pass:
+                dump_cmd.insert(3, f'-p{mysql_pass}')
+                
+            temp_sql_file = os.path.join(mysql_temp_dir, f"{db}-{timestamp}.sql")
+            with open(temp_sql_file, 'w') as sql_out:
+                subprocess.run(dump_cmd, stdout=sql_out, stderr=subprocess.PIPE, check=True)
+            log(f"Dumped database: {db}")
     except Exception as e:
-        log(f"MySQL dump failed: {e}")
-        return
+        log(f"MySQL backup failed: {e}")
 
-    # 3. Create Tar Archive
-    log("Creating compressed tar archive containing /var/www and MySQL dump...")
-    try:
-        with tarfile.open(temp_tar_file, "w:gz") as tar:
-            if os.path.exists('/var/www'):
-                tar.add('/var/www', arcname='www')
-            tar.add(temp_sql_file, arcname=f"alldbs-{timestamp}.sql")
-        log(f"Archive created: {temp_tar_file}")
-    except Exception as e:
-        log(f"Archive creation failed: {e}")
-        return
+    # 3. Create Tar Archives for each domain
+    log("Creating archives for each domain...")
+    if os.path.exists('/var/www'):
+        for domain in os.listdir('/var/www'):
+            domain_path = os.path.join('/var/www', domain)
+            if os.path.isdir(domain_path) and domain != 'html':
+                domain_temp_dir = os.path.join(TEMP_DIR, domain)
+                os.makedirs(domain_temp_dir, exist_ok=True)
+                
+                temp_tar_file = os.path.join(domain_temp_dir, f"{domain}-{timestamp}.tar.gz")
+                try:
+                    with tarfile.open(temp_tar_file, "w:gz") as tar:
+                        tar.add(domain_path, arcname=domain)
+                    log(f"Archive created for domain: {domain}")
+                except Exception as e:
+                    log(f"Archive creation failed for {domain}: {e}")
 
     # 4. Storage Handling
     if settings.get('local_enabled', True):
         log("Saving to local /backup directory...")
-        if not os.path.exists(BACKUP_DIR):
-            os.makedirs(BACKUP_DIR, exist_ok=True)
-        final_local_path = os.path.join(BACKUP_DIR, backup_filename)
-        shutil.copy2(temp_tar_file, final_local_path)
-        log(f"Local backup saved at {final_local_path}")
+        for root, dirs, files in os.walk(TEMP_DIR):
+            for f in files:
+                rel_dir = os.path.relpath(root, TEMP_DIR)
+                dest_dir = os.path.join(BACKUP_DIR, rel_dir)
+                os.makedirs(dest_dir, exist_ok=True)
+                
+                temp_file = os.path.join(root, f)
+                final_local_path = os.path.join(dest_dir, f)
+                shutil.copy2(temp_file, final_local_path)
+                log(f"Local backup saved at {final_local_path}")
         
         # Cleanup old backups
         retention = int(settings.get('retention_days', 7))
@@ -126,11 +144,29 @@ def run_backup():
             ftp = ftplib.FTP()
             ftp.connect(host, port)
             ftp.login(user, password)
-            ftp.cwd(remote_path)
             
-            with open(temp_tar_file, 'rb') as f:
-                ftp.storbinary(f'STOR {backup_filename}', f)
-                
+            for root, dirs, files in os.walk(TEMP_DIR):
+                for f in files:
+                    rel_dir = os.path.relpath(root, TEMP_DIR).replace('\\', '/')
+                    
+                    # Create remote directories
+                    current_path = remote_path
+                    if not current_path.endswith('/'):
+                        current_path += '/'
+                        
+                    ftp.cwd(current_path)
+                    
+                    if rel_dir != '.':
+                        for part in rel_dir.split('/'):
+                            try:
+                                ftp.cwd(part)
+                            except Exception:
+                                ftp.mkd(part)
+                                ftp.cwd(part)
+                    
+                    temp_file = os.path.join(root, f)
+                    with open(temp_file, 'rb') as fp:
+                        ftp.storbinary(f'STOR {f}', fp)
             ftp.quit()
             log("FTP upload completed successfully.")
         except Exception as e:
@@ -155,7 +191,12 @@ def run_backup():
                                         aws_access_key_id=access_key,
                                         aws_secret_access_key=secret_key)
                 
-                client.upload_file(temp_tar_file, bucket, backup_filename)
+                for root, dirs, files in os.walk(TEMP_DIR):
+                    for f in files:
+                        rel_dir = os.path.relpath(root, TEMP_DIR).replace('\\', '/')
+                        s3_key = f"{rel_dir}/{f}" if rel_dir != '.' else f
+                        temp_file = os.path.join(root, f)
+                        client.upload_file(temp_file, bucket, s3_key)
                 log("S3 upload completed successfully.")
             except Exception as e:
                 log(f"S3 upload failed: {e}")
@@ -163,8 +204,7 @@ def run_backup():
     # 5. Final Cleanup
     log("Cleaning up temporary files...")
     try:
-        os.remove(temp_sql_file)
-        os.remove(temp_tar_file)
+        shutil.rmtree(TEMP_DIR)
     except Exception as e:
         log(f"Cleanup failed: {e}")
         

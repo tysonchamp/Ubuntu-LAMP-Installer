@@ -85,16 +85,18 @@ def get_local_backups():
         return []
         
     backups = []
-    for f in os.listdir(BACKUP_DIR):
-        if f.endswith('.tar.gz') and f.startswith('lite-cpanel-backup-'):
-            filepath = os.path.join(BACKUP_DIR, f)
-            stat = os.stat(filepath)
-            backups.append({
-                'filename': f,
-                'path': filepath,
-                'size_mb': round(stat.st_size / (1024 * 1024), 2),
-                'date': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
-            })
+    for root, dirs, files in os.walk(BACKUP_DIR):
+        for f in files:
+            if f.endswith('.tar.gz') or f.endswith('.sql'):
+                filepath = os.path.join(root, f)
+                rel_path = os.path.relpath(filepath, BACKUP_DIR)
+                stat = os.stat(filepath)
+                backups.append({
+                    'filename': rel_path,
+                    'path': filepath,
+                    'size_mb': round(stat.st_size / (1024 * 1024), 2),
+                    'date': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                })
             
     # Sort newest first
     backups.sort(key=lambda x: x['date'], reverse=True)
@@ -102,14 +104,17 @@ def get_local_backups():
 
 def delete_local_backup(filename):
     """Deletes a local backup file safely."""
-    # Prevent directory traversal
-    safe_filename = os.path.basename(filename)
-    filepath = os.path.join(BACKUP_DIR, safe_filename)
+    # Prevent directory traversal outside BACKUP_DIR
+    safe_rel_path = os.path.normpath(filename.lstrip('/'))
+    filepath = os.path.join(BACKUP_DIR, safe_rel_path)
+    
+    if not filepath.startswith(os.path.normpath(BACKUP_DIR) + os.sep):
+        return False, "Invalid backup path."
     
     if os.path.exists(filepath):
         try:
             os.remove(filepath)
-            return True, f"Backup {safe_filename} deleted."
+            return True, f"Backup {safe_rel_path} deleted."
         except Exception as e:
             return False, f"Error deleting backup: {str(e)}"
     return False, "Backup not found."
