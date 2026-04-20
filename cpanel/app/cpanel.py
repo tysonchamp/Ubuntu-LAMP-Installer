@@ -228,9 +228,18 @@ def api_services():
         srv['status'] = status if status in ['active', 'inactive', 'failed'] else 'not_installed'
 
     try:
-        modsec_enabled = get_modsec_status() == 'On'
+        from modsec_mgr import check_modsec_installed
+        modsec_status = get_modsec_status()
+        modsec_installed = check_modsec_installed()
         apache_active = any(s['id'] == 'apache2' and s['status'] == 'active' for s in services)
-        modsec_state = 'active' if (modsec_enabled and apache_active) else ('inactive' if modsec_enabled else 'not_installed')
+        if not modsec_installed:
+            modsec_state = 'not_installed'
+        elif modsec_status == 'Off':
+            modsec_state = 'inactive'
+        elif apache_active:
+            modsec_state = 'active'
+        else:
+            modsec_state = 'inactive'
     except Exception:
         modsec_state = 'unknown'
 
