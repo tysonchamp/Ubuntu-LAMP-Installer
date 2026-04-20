@@ -120,3 +120,191 @@ def change_user_password(db_name, db_user, new_password):
         return True, f"Password updated for {db_user}."
     except Exception as e:
         return False, f"Error: {str(e)}"
+
+
+# --- Mongo Express Management ---
+
+MONGO_EXPRESS_PORT = 8081
+MONGO_EXPRESS_SERVICE = 'mongo-express'
+MONGO_EXPRESS_CONFIG = '/etc/mongo-express.config.js'
+
+def check_mongo_express_installed():
+    """Check if mongo-express is installed globally via npm."""
+    import shutil
+    return shutil.which('mongo-express') is not None
+
+def get_mongo_express_status():
+    """Returns 'active', 'inactive', or 'not_installed'."""
+    if not check_mongo_express_installed():
+        return 'not_installed'
+    try:
+        res = subprocess.run(['systemctl', 'is-active', MONGO_EXPRESS_SERVICE],
+                             capture_output=True, text=True)
+        status = res.stdout.strip()
+        return status if status in ('active', 'inactive', 'failed') else 'inactive'
+    except Exception:
+        return 'inactive'
+
+def install_mongo_express():
+    """Install mongo-express via npm, create config, systemd service, and Apache proxy."""
+    try:
+        # 1. Install via npm globally
+        res = subprocess.run(['npm', 'install', '-g', 'mongo-express'],
+                             capture_output=True, text=True, timeout=120)
+        if res.returncode != 0:
+            return False, f"npm install failed: {res.stderr}"
+
+        # 2. Find the installed path
+        which_res = subprocess.run(['which', 'mongo-express'], capture_output=True, text=True)
+        me_bin = which_res.stdout.strip()
+        if not me_bin:
+            return False, "mongo-express binary not found after install."
+
+        # 3. Create config file
+        import secrets
+        admin_pass = secrets.token_urlsafe(16)
+        config_content = f"""'use strict';
+
+var mongo = {{
+  db: 'admin',
+  host: '127.0.0.1',
+  port: 27017,
+  username: '',
+  password: '',
+  url: 'mongodb://127.0.0.1:27017',
+  ssl: false,
+  autoReconnect: true,
+  poolSize: 4,
+  admin: true,
+}};
+
+var basicAuth = {{
+  username: 'admin',
+  password: '{admin_pass}',
+}};
+
+var options = {{
+  console: true,
+  documentsPerPage: 50,
+  editorTheme: 'rubyblue',
+  maxPropSize: (100 * 1000),
+  maxRowSize: (1000 * 1000),
+  cmdType: 'eval',
+  subprocessTimeout: 300,
+  readOnly: false,
+  collapsibleJSON: true,
+  collapsibleJSONDefaultUnfold: 1,
+  noExport: false,
+  noDelete: false,
+  confirmDelete: true,
+}};
+
+var site = {{
+  baseUrl: '/mongo-express',
+  cookieKeyName: 'mongo-express',
+  cookieSecret: '{secrets.token_hex(32)}',
+  host: '127.0.0.1',
+  port: {MONGO_EXPRESS_PORT},
+  requestSizeLimit: '50mb',
+  sslEnabled: false,
+}};
+
+module.exports = {{
+  mongodb: mongo,
+  basicAuth: basicAuth,
+  options: options,
+  site: site,
+  useBasicAuth: true,
+}};
+"""
+        with open(MONGO_EXPRESS_CONFIG, 'w') as f:
+            f.write(config_content)
+        os.chmod(MONGO_EXPRESS_CONFIG, 0o600)
+
+        # Save credentials for reference
+        creds_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts/.mongo_express_creds'))
+        with open(creds_file, 'w') as f:
+            f.write(f"Mongo Express Admin Username: admin\n")
+            f.write(f"Mongo Express Admin Password: {admin_pass}\n")
+        os.chmod(creds_file, 0o600)
+
+        # 4. Create systemd service
+        # Resolve the npm global root to find the app.js
+        npm_root_res = subprocess.run(['npm', 'root', '-g'], capture_output=True, text=True)
+        npm_root = npm_root_res.stdout.strip()
+        me_app_js = os.path.join(npm_root, 'mongo-express', 'app.js')
+
+        node_bin = subprocess.run(['which', 'node'], capture_output=True, text=True).stdout.strip()
+
+        service_content = f"""[Unit]
+Description=Mongo Express Web Admin
+After=network.target mongod.service
+
+[Service]
+Type=simple
+ExecStart={node_bin} {me_app_js} -c {MONGO_EXPRESS_CONFIG}
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=ME_CONFIG_FILE={MONGO_EXPRESS_CONFIG}
+User=root
+
+[Install]
+WantedBy=multi-user.target
+"""
+        service_path = f'/etc/systemd/system/{MONGO_EXPRESS_SERVICE}.service'
+        with open(service_path, 'w') as f:
+            f.write(service_content)
+
+        subprocess.run(['systemctl', 'daemon-reload'], check=True)
+        subprocess.run(['systemctl', 'enable', MONGO_EXPRESS_SERVICE], check=True)
+        subprocess.run(['systemctl', 'start', MONGO_EXPRESS_SERVICE], check=True)
+
+        # 5. Setup Apache reverse proxy
+        _setup_apache_proxy()
+
+        return True, "Mongo Express installed and started successfully!"
+    except subprocess.TimeoutExpired:
+        return False, "Installation timed out. Please try again."
+    except Exception as e:
+        return False, f"Installation failed: {str(e)}"
+
+def _setup_apache_proxy():
+    """Add Apache ProxyPass for /mongo-express to the default site config."""
+    conf_path = '/etc/apache2/conf-available/mongo-express.conf'
+    content = f"""# Mongo Express Reverse Proxy
+<Location /mongo-express>
+    ProxyPass http://127.0.0.1:{MONGO_EXPRESS_PORT}/mongo-express
+    ProxyPassReverse http://127.0.0.1:{MONGO_EXPRESS_PORT}/mongo-express
+</Location>
+"""
+    with open(conf_path, 'w') as f:
+        f.write(content)
+
+    # Enable proxy modules and the config
+    subprocess.run(['a2enmod', 'proxy'], capture_output=True)
+    subprocess.run(['a2enmod', 'proxy_http'], capture_output=True)
+    subprocess.run(['a2enconf', 'mongo-express'], capture_output=True)
+    subprocess.run(['systemctl', 'reload', 'apache2'], capture_output=True)
+
+def restart_mongo_express():
+    """Restart the mongo-express systemd service."""
+    try:
+        subprocess.run(['systemctl', 'restart', MONGO_EXPRESS_SERVICE], check=True)
+        return True, "Mongo Express restarted successfully."
+    except Exception as e:
+        return False, f"Failed to restart: {str(e)}"
+
+def get_mongo_express_credentials():
+    """Read saved Mongo Express credentials."""
+    creds_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts/.mongo_express_creds'))
+    creds = {'username': 'admin', 'password': ''}
+    if os.path.exists(creds_file):
+        with open(creds_file, 'r') as f:
+            for line in f:
+                if 'Username:' in line:
+                    creds['username'] = line.split(':', 1)[1].strip()
+                elif 'Password:' in line:
+                    creds['password'] = line.split(':', 1)[1].strip()
+    return creds
+

@@ -211,6 +211,7 @@ def api_services():
         {'id': php_fpm_id, 'name': 'PHP-FPM'}, 
         {'id': 'mariadb', 'name': 'MySQL / MariaDB'},
         {'id': 'mongod', 'name': 'MongoDB'},
+        {'id': 'mongo-express', 'name': 'Mongo Express'},
         {'id': 'csf', 'name': 'CSF Firewall'},
         {'id': 'cpanel', 'name': 'cPanel Platform'},
     ]
@@ -648,7 +649,10 @@ def databases():
 
 from mongodb_mgr import (check_mongodb_installed, install_mongodb, get_databases as get_mongo_dbs,
                          create_database as create_mongo_db, delete_database as delete_mongo_db,
-                         change_user_password as change_mongo_pass)
+                         change_user_password as change_mongo_pass,
+                         check_mongo_express_installed, install_mongo_express,
+                         get_mongo_express_status, restart_mongo_express,
+                         get_mongo_express_credentials)
 
 @app.route('/mongodb', methods=['GET', 'POST'])
 @login_required
@@ -660,6 +664,16 @@ def mongodb_route():
         
         if action == 'install':
             success, msg = install_mongodb()
+            flash(msg, 'success' if success else 'danger')
+            return redirect(url_for('mongodb_route'))
+        
+        if action == 'install_express':
+            success, msg = install_mongo_express()
+            flash(msg, 'success' if success else 'danger')
+            return redirect(url_for('mongodb_route'))
+        
+        if action == 'restart_express':
+            success, msg = restart_mongo_express()
             flash(msg, 'success' if success else 'danger')
             return redirect(url_for('mongodb_route'))
             
@@ -708,7 +722,10 @@ def mongodb_route():
         return redirect(url_for('mongodb_route'))
         
     db_details = get_mongo_dbs() if is_installed else []
-    return render_template('mongodb.html', is_installed=is_installed, db_details=db_details)
+    me_status = get_mongo_express_status() if is_installed else 'not_installed'
+    me_creds = get_mongo_express_credentials() if me_status == 'active' else {}
+    return render_template('mongodb.html', is_installed=is_installed, db_details=db_details,
+                           me_status=me_status, me_creds=me_creds)
 
 @app.route('/phpmyadmin-login')
 @login_required
