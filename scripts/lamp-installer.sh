@@ -5,8 +5,11 @@
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/.lamp_config"
-PASSWORDS_FILE="$SCRIPT_DIR/.passwords"
+DATA_DIR="/var/lib/lite-cpanel"
+CONFIG_FILE="$DATA_DIR/.lamp_config"
+PASSWORDS_FILE="$DATA_DIR/.passwords"
+mkdir -p "$DATA_DIR"
+chmod 700 "$DATA_DIR"
 
 # Colors for output
 RED='\033[0;31m'

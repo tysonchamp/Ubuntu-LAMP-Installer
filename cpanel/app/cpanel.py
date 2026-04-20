@@ -770,7 +770,7 @@ def phpmyadmin_login():
     token_file = os.path.join(token_dir, f'pma_{token}.txt')
 
     mysql_pass = ''
-    pass_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts/.passwords'))
+    pass_file = '/var/lib/lite-cpanel/.passwords'
     if os.path.exists(pass_file):
         with open(pass_file, 'r') as f:
             for line in f:

@@ -142,11 +142,11 @@ def change_user_password(db_name, db_user, new_password):
 # --- Mongo Express Management ---
 
 MONGO_EXPRESS_PORT = 8081
-_ME_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts'))
-MONGO_EXPRESS_CONFIG = os.path.join(_ME_DIR, 'config.js')
+_ME_DIR = '/var/lib/lite-cpanel'
+MONGO_EXPRESS_CONFIG = os.path.join(_ME_DIR, 'mongo-express.config.js')
 _ME_PID_FILE  = os.path.join(_ME_DIR, '.mongo_express.pid')
 _ME_CREDS_FILE = os.path.join(_ME_DIR, '.mongo_express_creds')
-_ME_LOG_FILE  = os.path.join(_ME_DIR, 'mongo-express.log')
+_ME_LOG_FILE  = '/var/log/mongo-express.log'
 
 def _find_nvm_node():
     """Find node binary inside ~/.nvm, returns (node_bin, npm_root) or (None, None)."""

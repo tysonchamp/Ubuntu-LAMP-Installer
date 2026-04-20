@@ -10,7 +10,7 @@ def get_mysql_connection():
     It checks common locations for the root password created by the stack installer.
     """
     password = ''
-    pass_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts/.passwords'))
+    pass_file = '/var/lib/lite-cpanel/.passwords'
     if os.path.exists(pass_file):
         with open(pass_file, 'r') as f:
             for line in f:

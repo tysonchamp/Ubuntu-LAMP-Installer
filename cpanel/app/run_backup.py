@@ -15,7 +15,7 @@ except ImportError:
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, 'backup_config.json')
-PASSWORDS_FILE = os.path.abspath(os.path.join(BASE_DIR, '../../scripts/.passwords'))
+PASSWORDS_FILE = '/var/lib/lite-cpanel/.passwords'
 BACKUP_DIR = '/backup'
 TEMP_DIR = '/tmp/lite_cpanel_backups'
 
