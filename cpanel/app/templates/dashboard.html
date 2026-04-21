@@ -8,24 +8,94 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; }
-        .sidebar { width: 250px; background: #2c3e50; color: white; position: fixed; top: 0; bottom: 0; padding-top: 20px; overflow-y: auto; overflow-x: hidden; }
-        .sidebar a { display: block; padding: 12px 20px; color: #ecf0f1; text-decoration: none; border-bottom: 1px solid #34495e; font-size: 0.9rem; }
-        .sidebar a:hover { background: #34495e; }
-        .sidebar i { width: 25px; }
-        .main-content { margin-left: 250px; padding: 20px; }
-        .header { background: white; padding: 15px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
-        .stat-card { background: white; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .stat-card i { font-size: 1.8rem; margin-bottom: 10px; color: #3498db; }
-        .stat-card h3 { margin: 0; font-size: 1.2rem; color: #2c3e50; }
-        .stat-card p { margin: 5px 0 0; color: #7f8c8d; font-size: 0.9rem; }
-        .progress-bar-custom { height: 8px; border-radius: 4px; background: #ecf0f1; margin-top: 10px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: #3498db; transition: width 0.5s; }
+        body { font-family: 'Inter', 'Segoe UI', sans-serif; background-color: #f0f2f5; color: #1a1a1a; }
+        .sidebar { 
+            width: 260px; 
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); 
+            color: #cbd5e1; 
+            position: fixed; 
+            top: 0; 
+            bottom: 0; 
+            padding: 20px 0; 
+            overflow-y: auto; 
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        .sidebar::-webkit-scrollbar { width: 5px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        
+        .sidebar-brand { padding: 0 25px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px; }
+        
+        .sidebar a { 
+            display: flex; 
+            align-items: center; 
+            padding: 12px 25px; 
+            color: #94a3b8; 
+            text-decoration: none; 
+            font-size: 0.88rem; 
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .sidebar a i { 
+            width: 20px; 
+            margin-right: 12px; 
+            font-size: 1.1rem; 
+            text-align: center;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+        }
+        .sidebar a:hover { 
+            background: rgba(255,255,255,0.03); 
+            color: #f8fafc; 
+            border-left-color: #3b82f6;
+        }
+        .sidebar a:hover i { opacity: 1; transform: scale(1.1); color: #3b82f6; }
+        
+        /* Active state for Jinja2 (if current page) */
+        .sidebar a.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            border-left-color: #3b82f6;
+        }
+        .sidebar a.active i { opacity: 1; color: #3b82f6; }
+
+        .main-content { margin-left: 260px; padding: 25px 35px; min-height: 100vh; }
+        .header { 
+            background: white; 
+            padding: 15px 25px; 
+            margin-bottom: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            border: 1px solid #e2e8f0;
+        }
+        .stat-card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 24px; 
+            text-align: left; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s ease;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card i { font-size: 1.5rem; margin-bottom: 15px; color: #3b82f6; display: block; }
+        .stat-card h3 { margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; }
+        .stat-card p { margin: 8px 0 0; color: #1e293b; font-size: 1.4rem; font-weight: 800; }
+        .progress-bar-custom { height: 6px; border-radius: 3px; background: #f1f5f9; margin-top: 15px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        
+        .card { border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .card-header { padding: 15px 20px; font-weight: 600; font-size: 0.95rem; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <div class="text-center mb-3 px-2">
+        <div class="sidebar-brand text-center">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Lite cPanel" style="width: 130px; mix-blend-mode: screen;">
         </div>
         <a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
