@@ -155,6 +155,7 @@ def dashboard():
     except Exception:
         ip_address = "Unknown"
         
+    # Detailed CPU info
     try:
         with open('/proc/cpuinfo', 'r') as f:
             for line in f:
@@ -166,10 +167,94 @@ def dashboard():
     except Exception:
         processor = platform.processor()
 
+    # OS Info helper
+    def get_os_name():
+        try:
+            with open("/etc/os-release") as f:
+                d = {}
+                for line in f:
+                    if "=" in line:
+                        k, v = line.rstrip().split("=", 1)
+                        d[k] = v.strip('"')
+                return d.get("PRETTY_NAME", "Linux")
+        except:
+            return platform.system()
+
+    import datetime
+    import sys
+    
+    boot_time = datetime.datetime.fromtimestamp(psutil.boot_time())
+    uptime_delta = datetime.datetime.now() - boot_time
+    # Simple formatting: X days, HH:MM
+    days = uptime_delta.days
+    hours, remainder = divmod(uptime_delta.seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    uptime_str = f"{days}d {hours}h {minutes}m"
+
+    import urllib.request
+    try:
+        public_ip = urllib.request.urlopen('https://ident.me', timeout=3).read().decode('utf-8')
+    except:
+        public_ip = "Unknown"
+
+    # Listening ports
+    ports = []
+    try:
+        for conn in psutil.net_connections(kind='inet'):
+            if conn.status == 'LISTEN':
+                ports.append(conn.laddr.port)
+        ports = sorted(list(set(ports)))
+    except:
+        ports = []
+
+    # Recent SSH Logins (Last 5)
+    ssh_logins = []
+    auth_log = '/var/log/auth.log'
+    if not os.path.exists(auth_log): auth_log = '/var/log/secure' # CentOS fallback
+    
+    if os.path.exists(auth_log):
+        try:
+            # We use tail -n 100 to avoid reading massive files
+            res = subprocess.run(['tail', '-n', '200', auth_log], capture_output=True, text=True)
+            lines = res.stdout.strip().split('\n')
+            for line in reversed(lines):
+                if 'sshd' in line and ('Accepted' in line or 'Failed' in line):
+                    # Clean up the line for display
+                    # Oct 21 08:37:18 vmi sshd[42238]: Accepted password for root from 1.2.3.4 ...
+                    parts = line.split('sshd[')[1].split(']: ')[1] if 'sshd[' in line else line
+                    ssh_logins.append({
+                        'time': ' '.join(line.split()[:3]),
+                        'msg': parts
+                    })
+                    if len(ssh_logins) >= 5: break
+        except:
+            pass
+
+    # Last Backup
+    last_backup = "Never"
+    backup_flag = '/var/lib/lite-cpanel/.last_backup'
+    if os.path.exists(backup_flag):
+        try:
+            with open(backup_flag, 'r') as f:
+                last_backup = f.read().strip()
+        except:
+            pass
+
     server_info = {
         'hostname': hostname,
         'ip_address': ip_address,
-        'processor': processor
+        'public_ip': public_ip,
+        'processor': processor,
+        'cpu_cores': psutil.cpu_count(logical=True),
+        'cpu_physical': psutil.cpu_count(logical=False),
+        'os': get_os_name(),
+        'kernel': platform.release(),
+        'uptime': uptime_str,
+        'python_version': sys.version.split()[0],
+        'server_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'listening_ports': ports,
+        'ssh_logins': ssh_logins,
+        'last_backup': last_backup
     }
 
     return render_template('dashboard.html', stats=stats, server_info=server_info)

@@ -274,11 +274,134 @@
                             <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Server Information</h5>
                         </div>
                         <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-4 mb-2"><strong>Hostname:</strong> <span class="text-muted">{{ server_info.hostname }}</span></div>
-                                <div class="col-md-4 mb-2"><strong>IP Address:</strong> <span class="text-muted">{{ server_info.ip_address }}</span></div>
-                                <div class="col-md-4 mb-2"><strong>Processor:</strong> <span class="text-muted">{{ server_info.processor }}</span></div>
+                            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-desktop text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Hostname</small><span>{{ server_info.hostname }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-network-wired text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">IP Address</small><span>{{ server_info.ip_address }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fab fa-linux text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Operating System</small><span>{{ server_info.os }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-microchip text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">CPU Cores</small><span>{{ server_info.cpu_cores }} Threads / {{ server_info.cpu_physical }} Physical</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-fingerprint text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Kernel Version</small><span>{{ server_info.kernel }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-clock text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Uptime</small><span>{{ server_info.uptime }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fab fa-python text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Python Version</small><span>{{ server_info.python_version }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-calendar-alt text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Server Time</small><span>{{ server_info.server_time }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-globe text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Public IP</small><span>{{ server_info.public_ip }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-undo text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Last Backup</small><span>{{ server_info.last_backup }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-cog text-muted me-2" style="width: 20px;"></i>
+                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Processor</small><span>{{ server_info.processor }}</span></div>
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security & Network Section -->
+            <div class="row g-4 mt-2 mb-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom">
+                            <h5 class="mb-0 text-danger"><i class="fas fa-shield-alt me-2"></i>Security Audit (Recent SSH Logins)</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0" style="font-size: 12px;">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th class="ps-3">Time</th>
+                                            <th>Security Event</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if server_info.ssh_logins %}
+                                            {% for login in server_info.ssh_logins %}
+                                            <tr>
+                                                <td class="ps-3 text-muted" style="white-space: nowrap;">{{ login.time }}</td>
+                                                <td>
+                                                    {% if 'Accepted' in login.msg %}
+                                                        <span class="text-success"><i class="fas fa-check-circle me-1"></i>{{ login.msg }}</span>
+                                                    {% else %}
+                                                        <span class="text-danger"><i class="fas fa-times-circle me-1"></i>{{ login.msg }}</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr><td colspan="2" class="text-center py-3 text-muted">No SSH events found or log access denied.</td></tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom">
+                            <h5 class="mb-0 text-success"><i class="fas fa-door-open me-2"></i>Active Network Ports (Listening)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for port in server_info.listening_ports %}
+                                    <span class="badge rounded-pill bg-light text-dark border p-2" style="min-width: 50px;">
+                                        <i class="fas fa-plug text-primary me-1"></i> {{ port }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                            <p class="small text-muted mt-3 mb-0">
+                                <i class="fas fa-info-circle me-1"></i> These ports are currently open and listening for incoming connections.
+                            </p>
                         </div>
                     </div>
                 </div>
