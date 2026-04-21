@@ -788,6 +788,45 @@ def phpmyadmin_login():
 
 from ftp_mgr import check_pureftpd_installed, get_ftp_users, create_ftp_user, delete_ftp_user, change_ftp_password
 
+from process_mgr import (is_pm2_installed, install_pm2, list_processes, 
+                         manage_process, start_nextjs_app, get_process_logs)
+
+@app.route('/processes', methods=['GET', 'POST'])
+@login_required
+def process_manager():
+    pm2_ready = is_pm2_installed()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'install_pm2':
+            success, msg = install_pm2()
+            flash(msg, 'success' if success else 'danger')
+        
+        elif action == 'add_app':
+            name = request.form.get('name')
+            path = request.form.get('path')
+            port = request.form.get('port')
+            success, msg = start_nextjs_app(path, name, port)
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action in ['stop', 'restart', 'delete', 'start']:
+            name = request.form.get('name')
+            success, msg = manage_process(action, name)
+            flash(msg, 'success' if success else 'danger')
+            
+        return redirect(url_for('process_manager'))
+
+    processes = list_processes()
+    return render_template('processes.html', pm2_ready=pm2_ready, processes=processes)
+
+@app.route('/api/processes/logs/<name>')
+@login_required
+def api_process_logs(name):
+    from flask import jsonify
+    logs = get_process_logs(name)
+    return jsonify({'logs': logs})
+
 @app.route('/ftp', methods=['GET', 'POST'])
 @login_required
 def ftp():
