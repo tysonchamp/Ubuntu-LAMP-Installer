@@ -295,33 +295,56 @@ def dashboard():
     def get_domain_traffic(domain, log_file):
         if not os.path.exists(log_file): return None
         try:
-            # Run goaccess in JSON mode for the specific log
-            # --no-global-config avoids issues if config is missing
-            # --log-format=COMBINED is standard for nginx/apache
-            cmd = ['goaccess', log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'json']
+            # Use absolute path to ensure binary is found on all systems
+            goaccess_path = '/usr/bin/goaccess'
+            if not os.path.exists(goaccess_path):
+                goaccess_path = 'goaccess' # Fallback to PATH
+
+            # Run goaccess in JSON mode
+            cmd = [goaccess_path, log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'json']
             res = subprocess.run(cmd, capture_output=True, text=True)
-            if res.returncode == 0:
-                data = json.loads(res.stdout)
-                general = data.get('general', {})
-                return {
-                    'domain': domain,
-                    'hits': general.get('total_requests', 0),
-                    'bandwidth': general.get('bandwidth', 0), # In bytes
-                    'visitors': general.get('unique_visitors', 0)
-                }
-        except: pass
-        return None
+            
+            if res.returncode != 0:
+                logging.error(f"GoAccess failed for {domain} ({log_file}): {res.stderr}")
+                return None
+                
+            data = json.loads(res.stdout)
+            general = data.get('general', {})
+            return {
+                'domain': domain,
+                'hits': general.get('total_requests', 0),
+                'bandwidth': general.get('bandwidth', 0), # In bytes
+                'visitors': general.get('unique_visitors', 0)
+            }
+        except Exception as e:
+            logging.error(f"Error parsing traffic for {domain}: {str(e)}")
+            return None
 
     from nextjs_mgr import get_nextjs_apps
-    all_apps = get_nextjs_apps()
-    for app in all_apps:
-        domain = app['domain']
-        # Check Nginx log
-        nginx_log = f"/var/log/nginx/{domain}_access.log"
-        # Check Apache log
-        apache_log = f"/var/log/apache2/{domain}_access.log"
+    from domains_mgr import get_virtual_hosts
+    
+    # Collect all domains from both Next.js apps and standard virtual hosts
+    all_domains = set()
+    for app in get_nextjs_apps():
+        all_domains.add(app['domain'])
+    for host in get_virtual_hosts():
+        all_domains.add(host['domain'])
+
+    for domain in all_domains:
+        # Check standard Nginx/Apache log patterns
+        log_candidates = [
+            f"/var/log/nginx/{domain}_access.log",
+            f"/var/log/apache2/{domain}_access.log",
+            f"/var/log/nginx/{domain}.access.log",
+            f"/var/log/apache2/{domain}.access.log"
+        ]
         
-        stats = get_domain_traffic(domain, nginx_log) or get_domain_traffic(domain, apache_log)
+        stats = None
+        for log_file in log_candidates:
+            if os.path.exists(log_file):
+                stats = get_domain_traffic(domain, log_file)
+                if stats: break
+        
         if stats:
             traffic_stats.append(stats)
 
