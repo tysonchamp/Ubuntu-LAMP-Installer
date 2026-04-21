@@ -448,17 +448,6 @@ def traffic_monitor():
 
     traffic_stats = sorted(traffic_stats, key=lambda x: x['bandwidth'], reverse=True)
     return render_template('traffic.html', traffic_stats=traffic_stats)
-                        'bandwidth': general.get('bandwidth', 0),
-                        'visitors': general.get('unique_visitors', 0)
-                    }
-            except: pass
-            return None
-            
-        stats = get_domain_traffic(domain, nginx_log) or get_domain_traffic(domain, apache_log)
-        if stats:
-            traffic_stats.append(stats)
-            
-    return render_template('traffic.html', traffic_stats=traffic_stats)
 
 @app.route('/traffic/report/<domain>')
 @login_required
@@ -471,15 +460,27 @@ def traffic_report(domain):
         return "Log file not found for this domain.", 404
         
     try:
-        # Generate full HTML report from GoAccess
-        cmd = ['goaccess', log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'html']
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        if res.returncode == 0:
-            return res.stdout # Return raw HTML report
-    except Exception as e:
-        return f"Error generating report: {str(e)}", 500
+        goaccess_path = '/usr/bin/goaccess'
+        if not os.path.exists(goaccess_path): goaccess_path = 'goaccess'
         
-    return "Failed to generate report.", 500
+        # Try generating with COMBINED first
+        cmd = [goaccess_path, log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'html']
+        res = subprocess.run(cmd, capture_output=True) # Binary mode to avoid codec errors
+        
+        if res.returncode != 0:
+            # Fallback to VCOMMON
+            cmd = [goaccess_path, log_file, '--log-format=VCOMMON', '--no-global-config', '-o', 'html']
+            res = subprocess.run(cmd, capture_output=True)
+            
+        if res.returncode == 0:
+            from flask import make_response
+            response = make_response(res.stdout)
+            response.headers['Content-Type'] = 'text/html'
+            return response
+        else:
+            return f"GoAccess Error: {res.stderr.decode('utf-8', errors='ignore')}", 500
+    except Exception as e:
+        return f"System Error: {str(e)}", 500
 
 @app.route('/api/sysinfo')
 @login_required
