@@ -28,6 +28,7 @@ if nvm_node_paths:
 os.environ["PATH"] = ":".join(paths) + ":" + os.environ.get("PATH", "")
 
 import psutil
+import subprocess
 from auth import check_system_password, login_required
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect

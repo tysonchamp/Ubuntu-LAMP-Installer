@@ -2,6 +2,7 @@ import subprocess
 import json
 import os
 import shutil
+import subprocess
 
 PM2_BIN = "/root/.nvm/versions/node/v24.15.0/bin/pm2"
 PM2_HOME = "/root/.pm2"
