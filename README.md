@@ -335,7 +335,6 @@ See the [LICENSE](LICENSE) file for full details.
 
 ## Author
 
-**Tyson Champ**  
+**Tyson**  
 📧 tyson.granger181@gmail.com  
-🌐 [gbyteinfotech.com](https://www.gbyteinfotech.com)  
 🐙 [github.com/tysonchamp](https://github.com/tysonchamp)
