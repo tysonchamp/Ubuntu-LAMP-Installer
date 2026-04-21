@@ -50,7 +50,7 @@ if not app.secret_key:
 
 from flask_sock import Sock
 sock = Sock(app)
-app.config['MAX_CONTENT_LENGTH'] = 512 * 1024 * 1024  # 512MB limit
+app.config['MAX_CONTENT_LENGTH'] = 1000 * 1024 * 1024  # 1GB limit
 
 from terminal_mgr import register_terminal_websocket
 register_terminal_websocket(sock)
