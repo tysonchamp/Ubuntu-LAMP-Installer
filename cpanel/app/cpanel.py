@@ -27,6 +27,17 @@ if nvm_node_paths:
 
 os.environ["PATH"] = ":".join(paths) + ":" + os.environ.get("PATH", "")
 
+# Auto-Resurrect PM2 processes on startup to ensure persistence
+try:
+    from process_mgr import get_pm2_cmd, PM2_HOME
+    env = os.environ.copy()
+    env["PM2_HOME"] = PM2_HOME
+    subprocess.run([get_pm2_cmd(), 'resurrect'], capture_output=True, text=True, env=env)
+except Exception:
+    pass
+
+import psutil
+
 import psutil
 import subprocess
 from auth import check_system_password, login_required
