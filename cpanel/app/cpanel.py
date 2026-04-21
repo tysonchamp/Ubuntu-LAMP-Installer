@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import os
 import glob
+import json
 from urllib.parse import quote
 
 import glob
@@ -397,25 +398,56 @@ def dashboard():
 def traffic_monitor():
     traffic_stats = []
     from nextjs_mgr import get_nextjs_apps
-    all_apps = get_nextjs_apps()
-    for app in all_apps:
-        domain = app['domain']
-        nginx_log = f"/var/log/nginx/{domain}_access.log"
-        apache_log = f"/var/log/apache2/{domain}_access.log"
-        
-        # Helper logic already exists in dashboard route, I'll extract it or reuse
-        # For now, I'll redefine it to keep it simple and isolated
-        def get_domain_traffic(domain, log_file):
-            if not os.path.exists(log_file): return None
-            try:
-                cmd = ['goaccess', log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'json']
+    from domains_mgr import get_virtual_hosts
+    
+    # Use the helper we defined or redefine here for isolation
+    def get_domain_traffic_helper(domain, log_file):
+        if not os.path.exists(log_file): return None
+        try:
+            goaccess_path = '/usr/bin/goaccess'
+            if not os.path.exists(goaccess_path): goaccess_path = 'goaccess'
+            
+            cmd = [goaccess_path, log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'json']
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode != 0:
+                # Try VCOMMON fallback
+                cmd = [goaccess_path, log_file, '--log-format=VCOMMON', '--no-global-config', '-o', 'json']
                 res = subprocess.run(cmd, capture_output=True, text=True)
-                if res.returncode == 0:
-                    data = json.loads(res.stdout)
-                    general = data.get('general', {})
-                    return {
-                        'domain': domain,
-                        'hits': general.get('total_requests', 0),
+            
+            if res.returncode == 0:
+                data = json.loads(res.stdout)
+                general = data.get('general', {})
+                return {
+                    'domain': domain,
+                    'hits': general.get('total_requests', 0),
+                    'bandwidth': general.get('bandwidth', 0),
+                    'visitors': general.get('unique_visitors', 0)
+                }
+        except: pass
+        return None
+
+    all_domains = set()
+    for app in get_nextjs_apps(): all_domains.add(app['domain'])
+    for host in get_virtual_hosts(): all_domains.add(host['domain'])
+
+    for domain in all_domains:
+        domain_lower = domain.lower()
+        log_candidates = [
+            f"/var/log/nginx/{domain_lower}_access.log",
+            f"/var/log/apache2/{domain_lower}_access.log",
+            f"/var/log/nginx/{domain_lower}.access.log",
+            f"/var/log/apache2/{domain_lower}.access.log",
+            f"/var/log/nginx/access.log"
+        ]
+        for log_file in log_candidates:
+            if os.path.exists(log_file):
+                stats = get_domain_traffic_helper(domain, log_file)
+                if stats and stats['hits'] > 0:
+                    traffic_stats.append(stats)
+                    break
+
+    traffic_stats = sorted(traffic_stats, key=lambda x: x['bandwidth'], reverse=True)
+    return render_template('traffic.html', traffic_stats=traffic_stats)
                         'bandwidth': general.get('bandwidth', 0),
                         'visitors': general.get('unique_visitors', 0)
                     }
