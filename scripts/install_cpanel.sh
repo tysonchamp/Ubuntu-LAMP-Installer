@@ -18,12 +18,16 @@ apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config \
 
 # Ensure Pure-FTPd is setup for virtual users
 echo "Configuring Pure-FTPd..."
-groupadd -g 2001 ftpgroup || true
-useradd -u 2001 -s /bin/false -d /bin/null -c "pureftpd user" -g ftpgroup ftpuser || true
+# We use www-data (UID 33) for FTP users so they can manage web files directly
+echo "33" > /etc/pure-ftpd/conf/MinUID
 echo "yes" > /etc/pure-ftpd/conf/ChrootEveryone
 echo "yes" > /etc/pure-ftpd/conf/CreateHomeDir
-echo "puredb" > /etc/pure-ftpd/auth/50pure
-ln -sf /etc/pure-ftpd/conf/PureDB /etc/pure-ftpd/auth/50pure 2>/dev/null
+echo "no" > /etc/pure-ftpd/conf/NoAnonymous
+# Enable PureDB authentication
+ln -sf /etc/pure-ftpd/conf/PureDB /etc/pure-ftpd/auth/60puredb 2>/dev/null
+# Initialize an empty DB to prevent service startup failure on fresh installs
+touch /etc/pure-ftpd/pureftpd.pdb
+pure-pw mkdb /etc/pure-ftpd/pureftpd.pdb
 systemctl restart pure-ftpd
 
 # Install CSF Firewall
