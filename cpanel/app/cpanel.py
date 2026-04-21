@@ -201,7 +201,23 @@ def api_sysinfo():
                 'name': cmd
             })
             
+    # Global stats
+    cpu_percent = psutil.cpu_percent(interval=None)
+    mem = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+
     return jsonify({
+        'cpu_percent': cpu_percent,
+        'ram': {
+            'used': round(mem.used / (1024**3), 2),
+            'total': round(mem.total / (1024**3), 2),
+            'percent': mem.percent
+        },
+        'disk': {
+            'used': round(disk.used / (1024**3), 2),
+            'total': round(disk.total / (1024**3), 2),
+            'percent': disk.percent
+        },
         'load': [round(load1, 2), round(load5, 2), round(load15, 2)],
         'processes': processes
     })

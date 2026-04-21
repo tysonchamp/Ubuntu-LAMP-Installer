@@ -72,9 +72,9 @@
                     <div class="stat-card">
                         <i class="fas fa-microchip"></i>
                         <h3>CPU Usage</h3>
-                        <p>{{ stats.cpu }}%</p>
+                        <p id="cpuStat">{{ stats.cpu }}%</p>
                         <div class="progress-bar-custom">
-                            <div class="progress-bar-fill" style="width: {{ stats.cpu }}%;"></div>
+                            <div id="cpuProgress" class="progress-bar-fill" style="width: {{ stats.cpu }}%;"></div>
                         </div>
                     </div>
                 </div>
@@ -82,9 +82,9 @@
                     <div class="stat-card">
                         <i class="fas fa-memory"></i>
                         <h3>RAM Usage</h3>
-                        <p>{{ stats.ram_used }} GB / {{ stats.ram_total }} GB ({{ stats.ram_percent }}%)</p>
+                        <p id="ramStat">{{ stats.ram_used }} GB / {{ stats.ram_total }} GB ({{ stats.ram_percent }}%)</p>
                         <div class="progress-bar-custom">
-                            <div class="progress-bar-fill" style="width: {{ stats.ram_percent }}%;"></div>
+                            <div id="ramProgress" class="progress-bar-fill" style="width: {{ stats.ram_percent }}%;"></div>
                         </div>
                     </div>
                 </div>
@@ -92,9 +92,9 @@
                     <div class="stat-card">
                         <i class="fas fa-hdd"></i>
                         <h3>Disk Usage</h3>
-                        <p>{{ stats.disk_used }} GB / {{ stats.disk_total }} GB ({{ stats.disk_percent }}%)</p>
+                        <p id="diskStat">{{ stats.disk_used }} GB / {{ stats.disk_total }} GB ({{ stats.disk_percent }}%)</p>
                         <div class="progress-bar-custom">
-                            <div class="progress-bar-fill" style="width: {{ stats.disk_percent }}%;"></div>
+                            <div id="diskProgress" class="progress-bar-fill" style="width: {{ stats.disk_percent }}%;"></div>
                         </div>
                     </div>
                 </div>
@@ -155,6 +155,16 @@
                         if (!res.ok) return;
                         const data = await res.json();
                         
+                        // Update Stat Cards
+                        document.getElementById('cpuStat').innerText = `${data.cpu_percent}%`;
+                        document.getElementById('cpuProgress').style.width = `${data.cpu_percent}%`;
+                        
+                        document.getElementById('ramStat').innerText = `${data.ram.used} GB / ${data.ram.total} GB (${data.ram.percent}%)`;
+                        document.getElementById('ramProgress').style.width = `${data.ram.percent}%`;
+                        
+                        document.getElementById('diskStat').innerText = `${data.disk.used} GB / ${data.disk.total} GB (${data.disk.percent}%)`;
+                        document.getElementById('diskProgress').style.width = `${data.disk.percent}%`;
+
                         document.getElementById('loadAverages').innerText = `Load: ${data.load.join(', ')}`;
                         
                         let html = '';
