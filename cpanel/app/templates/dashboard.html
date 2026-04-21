@@ -1,297 +1,187 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lite cPanel</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { font-family: 'Inter', 'Segoe UI', sans-serif; background-color: #f0f2f5; color: #1a1a1a; }
-        .sidebar { 
-            width: 260px; 
-            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); 
-            color: #cbd5e1; 
-            position: fixed; 
-            top: 0; 
-            bottom: 0; 
-            padding: 20px 0; 
-            overflow-y: auto; 
-            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            z-index: 1000;
-        }
-        .sidebar::-webkit-scrollbar { width: 5px; }
-        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        
-        .sidebar-brand { padding: 0 25px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px; }
-        
-        .sidebar a { 
-            display: flex; 
-            align-items: center; 
-            padding: 12px 25px; 
-            color: #94a3b8; 
-            text-decoration: none; 
-            font-size: 0.88rem; 
-            font-weight: 500;
-            transition: all 0.2s ease;
-            border-left: 3px solid transparent;
-        }
-        .sidebar a i { 
-            width: 20px; 
-            margin-right: 12px; 
-            font-size: 1.1rem; 
-            text-align: center;
-            opacity: 0.7;
-            transition: all 0.2s ease;
-        }
-        .sidebar a:hover { 
-            background: rgba(255,255,255,0.03); 
-            color: #f8fafc; 
-            border-left-color: #3b82f6;
-        }
-        .sidebar a:hover i { opacity: 1; transform: scale(1.1); color: #3b82f6; }
-        
-        /* Active state for Jinja2 (if current page) */
-        .sidebar a.active {
-            background: rgba(59, 130, 246, 0.1);
-            color: #60a5fa;
-            border-left-color: #3b82f6;
-        }
-        .sidebar a.active i { opacity: 1; color: #3b82f6; }
+{% extends "base.html" %}
 
-        .main-content { margin-left: 260px; padding: 25px 35px; min-height: 100vh; }
-        .header { 
-            background: white; 
-            padding: 15px 25px; 
-            margin-bottom: 30px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            border: 1px solid #e2e8f0;
-        }
-        .stat-card { 
-            background: white; 
-            border-radius: 12px; 
-            padding: 24px; 
-            text-align: left; 
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
-            border: 1px solid #e2e8f0;
-            transition: transform 0.2s ease;
-        }
-        .stat-card:hover { transform: translateY(-3px); }
-        .stat-card i { font-size: 1.5rem; margin-bottom: 15px; color: #3b82f6; display: block; }
-        .stat-card h3 { margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; }
-        .stat-card p { margin: 8px 0 0; color: #1e293b; font-size: 1.4rem; font-weight: 800; }
-        .progress-bar-custom { height: 6px; border-radius: 3px; background: #f1f5f9; margin-top: 15px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        
-        .card { border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
-        .card-header { padding: 15px 20px; font-weight: 600; font-size: 0.95rem; }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <div class="sidebar-brand text-center">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Lite cPanel" style="width: 130px; mix-blend-mode: screen;">
+{% block header_title %}System Dashboard{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <i class="fas fa-microchip"></i>
+            <h3>CPU Usage</h3>
+            <p id="cpuStat">{{ stats.cpu }}%</p>
+            <div class="progress-bar-custom"><div id="cpuProgress" class="progress-bar-fill" style="width: {{ stats.cpu }}%;"></div></div>
         </div>
-        <a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-        <a href="{{ url_for('traffic_monitor') }}"><i class="fas fa-chart-line text-success"></i> Traffic Monitor</a>
-        <a href="{{ url_for('domains') }}"><i class="fas fa-globe"></i> Domains</a>
-        <a href="{{ url_for('nextjs') }}"><i class="fab fa-react text-info"></i> Next.js Apps</a>
-        <a href="{{ url_for('process_manager') }}"><i class="fas fa-tasks text-warning"></i> Process Manager</a>
-        <a href="{{ url_for('databases') }}"><i class="fas fa-database"></i> Databases</a>
-        <a href="{{ url_for('mongodb_route') }}"><i class="fas fa-leaf text-success"></i> MongoDB</a>
-        <a href="{{ url_for('ftp') }}"><i class="fas fa-folder-open"></i> FTP</a>
-        <a href="{{ url_for('filemanager_route') }}"><i class="fas fa-folder-tree"></i> File Manager</a>
-        <a href="{{ url_for('backups') }}"><i class="fas fa-cloud-upload-alt"></i> Backups</a>
-        <a href="{{ url_for('firewall') }}"><i class="fas fa-shield-alt"></i> Firewall</a>
-        <a href="{{ url_for('modsecurity') }}"><i class="fas fa-user-shield"></i> ModSecurity</a>
-        <a href="{{ url_for('terminal') }}"><i class="fas fa-terminal"></i> Terminal</a>
-        <a href="{{ url_for('cron') }}"><i class="fas fa-clock"></i> Cron Jobs</a>
-        <a href="{{ url_for('wordpress') }}"><i class="fab fa-wordpress"></i> WordPress</a>
-        <a href="{{ url_for('settings') }}"><i class="fas fa-cogs"></i> Settings</a>
-        <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
-
-    <div class="main-content">
-        <div class="header">
-            <h4 class="m-0">{% block header_title %}Dashboard{% endblock %}</h4>
-            <div class="small">User: <strong>{{ session['username'] }}</strong></div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <i class="fas fa-memory"></i>
+            <h3>RAM Usage</h3>
+            <p id="ramStat">{{ stats.ram_used }} GB / {{ stats.ram_total }} GB</p>
+            <div class="progress-bar-custom"><div id="ramProgress" class="progress-bar-fill" style="width: {{ stats.ram_percent }}%;"></div></div>
         </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }} py-2 small">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <div id="content-area">
-            {% block content %}
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="stat-card">
-                        <i class="fas fa-microchip"></i>
-                        <h3>CPU Usage</h3>
-                        <p id="cpuStat">{{ stats.cpu }}%</p>
-                        <div class="progress-bar-custom"><div id="cpuProgress" class="progress-bar-fill" style="width: {{ stats.cpu }}%;"></div></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-card">
-                        <i class="fas fa-memory"></i>
-                        <h3>RAM Usage</h3>
-                        <p id="ramStat" style="font-size: 0.8rem;">{{ stats.ram_used }} GB / {{ stats.ram_total }} GB</p>
-                        <div class="progress-bar-custom"><div id="ramProgress" class="progress-bar-fill" style="width: {{ stats.ram_percent }}%;"></div></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="stat-card">
-                        <i class="fas fa-hdd"></i>
-                        <h3>Disk Usage</h3>
-                        <p id="diskStat" style="font-size: 0.8rem;">{{ stats.disk_used }} GB / {{ stats.disk_total }} GB</p>
-                        <div class="progress-bar-custom"><div id="diskProgress" class="progress-bar-fill" style="width: {{ stats.disk_percent }}%;"></div></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-4 mt-2">
-                <div class="col-md-8">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 fw-bold"><i class="fas fa-server me-2 text-primary"></i>Live Processes</h6>
-                            <span id="loadAverages" class="badge bg-light text-dark border small">Load: --, --, --</span>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-sm mb-0" style="font-size: 11px;">
-                                    <thead class="bg-light">
-                                        <tr>
-                                            <th class="ps-3">PID</th>
-                                            <th>User</th>
-                                            <th>Command</th>
-                                            <th class="text-end">CPU</th>
-                                            <th class="text-end pe-3">Mem</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="processTableBody">
-                                        <tr><td colspan="5" class="text-center py-4">Loading...</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 fw-bold"><i class="fas fa-cogs me-2 text-primary"></i>Services</h6>
-                            <button class="btn btn-sm" onclick="fetchServices()"><i class="fas fa-sync-alt"></i></button>
-                        </div>
-                        <div class="card-body p-0" id="serviceList">
-                            <div class="text-center py-4">Loading...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-4 mt-2">
-                <div class="col-md-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 fw-bold"><i class="fas fa-chart-line me-2 text-success"></i>Web Traffic</h6>
-                            <a href="/traffic" class="btn btn-sm btn-link p-0 text-decoration-none">More</a>
-                        </div>
-                        <div class="card-body p-0">
-                            <table class="table table-sm table-hover mb-0" style="font-size: 11px;">
-                                <tbody>
-                                    {% for t in traffic_stats[:5] %}
-                                    <tr>
-                                        <td class="ps-3 fw-bold">{{ t.domain }}</td>
-                                        <td class="text-end">{{ t.hits }} hits</td>
-                                        <td class="text-end pe-3">{{ (t.bandwidth/1024/1024)|round(1) }} MB</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h6 class="mb-0 fw-bold text-danger"><i class="fas fa-shield-alt me-2"></i>Security Log</h6>
-                        </div>
-                        <div class="card-body p-0">
-                            <table class="table table-sm mb-0" style="font-size: 10px;">
-                                <tbody>
-                                    {% for login in server_info.ssh_logins %}
-                                    <tr>
-                                        <td class="ps-3 text-muted" style="width: 80px;">{{ login.time }}</td>
-                                        <td class="{{ 'text-success' if 'Accepted' in login.msg else 'text-danger' }}">{{ login.msg[:50] }}...</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <script>
-                async function fetchSysinfo() {
-                    try {
-                        const res = await fetch("{{ url_for('api_sysinfo') }}");
-                        const data = await res.json();
-                        document.getElementById('cpuStat').innerText = `${data.cpu_percent}%`;
-                        document.getElementById('cpuProgress').style.width = `${data.cpu_percent}%`;
-                        document.getElementById('ramStat').innerText = `${data.ram.used} / ${data.ram.total} GB (${data.ram.percent}%)`;
-                        document.getElementById('ramProgress').style.width = `${data.ram.percent}%`;
-                        document.getElementById('diskStat').innerText = `${data.disk.used} / ${data.disk.total} GB (${data.disk.percent}%)`;
-                        document.getElementById('diskProgress').style.width = `${data.disk.percent}%`;
-                        document.getElementById('loadAverages').innerText = `Load: ${data.load.join(', ')}`;
-                        let html = '';
-                        for (let p of data.processes) {
-                            html += `<tr>
-                                <td class="ps-3 font-monospace">${p.pid}</td>
-                                <td>${p.user}</td>
-                                <td class="text-truncate" style="max-width: 150px;">${p.name}</td>
-                                <td class="text-end">${p.cpu}%</td>
-                                <td class="text-end pe-3">${p.mem}%</td>
-                            </tr>`;
-                        }
-                        document.getElementById('processTableBody').innerHTML = html;
-                    } catch (e) {}
-                }
-                async function fetchServices() {
-                    try {
-                        const res = await fetch("{{ url_for('api_services') }}");
-                        const data = await res.json();
-                        let html = '<ul class="list-group list-group-flush">';
-                        for (let s of data.services) {
-                            let badge = s.status === 'active' ? 'bg-success' : 'bg-danger';
-                            html += `<li class="list-group-item d-flex justify-content-between align-items-center py-1 px-3">
-                                <div class="small fw-bold">${s.name}</div>
-                                <span class="badge ${badge}" style="font-size: 8px;">${s.status}</span>
-                            </li>`;
-                        }
-                        html += '</ul>';
-                        document.getElementById('serviceList').innerHTML = html;
-                    } catch (e) {}
-                }
-                setInterval(fetchSysinfo, 3000);
-                fetchSysinfo();
-                fetchServices();
-            </script>
-            {% endblock %}
-        </div>
-        <footer class="mt-4 text-center text-muted x-small">&copy; 2026 Lite cPanel</footer>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <i class="fas fa-hdd"></i>
+            <h3>Disk Usage</h3>
+            <p id="diskStat">{{ stats.disk_used }} GB / {{ stats.disk_total }} GB</p>
+            <div class="progress-bar-custom"><div id="diskProgress" class="progress-bar-fill" style="width: {{ stats.disk_percent }}%;"></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="fas fa-server me-2 text-primary"></i>Live Processes</h6>
+                <span id="loadAverages" class="badge bg-light text-dark border small font-monospace">Load: --, --, --</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0" style="font-size: 11px;">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-3">PID</th>
+                                <th>User</th>
+                                <th>Command</th>
+                                <th class="text-end">CPU</th>
+                                <th class="text-end pe-3">Mem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="processTableBody">
+                            <tr><td colspan="5" class="text-center py-4">Loading processes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="fas fa-cogs me-2 text-primary"></i>Services</h6>
+                <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="fetchServices()" style="font-size: 10px;"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div class="card-body p-0" id="serviceList">
+                <div class="text-center py-4 text-muted small">Loading services...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-success"><i class="fas fa-chart-line me-2"></i>Web Traffic</h6>
+                <a href="/traffic" class="btn btn-sm btn-link text-decoration-none small p-0">Detailed View</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" style="font-size: 11px;">
+                        <tbody>
+                            {% for t in traffic_stats[:5] %}
+                            <tr>
+                                <td class="ps-3 fw-bold">{{ t.domain }}</td>
+                                <td class="text-end">{{ t.hits }} hits</td>
+                                <td class="text-end pe-3 text-muted">{{ (t.bandwidth/1024/1024)|round(1) }} MB</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if not traffic_stats %}
+                <div class="text-center py-4 text-muted small">No traffic logs detected.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0 fw-bold text-danger"><i class="fas fa-shield-alt me-2"></i>Recent Security Events</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0" style="font-size: 10px;">
+                        <tbody>
+                            {% for login in server_info.ssh_logins %}
+                            <tr>
+                                <td class="ps-3 text-muted" style="width: 85px;">{{ login.time }}</td>
+                                <td class="{{ 'text-success' if 'Accepted' in login.msg else 'text-danger' }}">{{ login.msg[:60] }}...</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0 fw-bold"><i class="fas fa-network-wired me-2"></i>Active Network Ports</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-1">
+                    {% for port in server_info.listening_ports %}
+                        <span class="badge rounded-pill bg-light text-dark border px-2 py-1" style="font-size: 10px;">{{ port }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function fetchSysinfo() {
+        try {
+            const res = await fetch("{{ url_for('api_sysinfo') }}");
+            const data = await res.json();
+            document.getElementById('cpuStat').innerText = `${data.cpu_percent}%`;
+            document.getElementById('cpuProgress').style.width = `${data.cpu_percent}%`;
+            document.getElementById('ramStat').innerText = `${data.ram.used} / ${data.ram.total} GB (${data.ram.percent}%)`;
+            document.getElementById('ramProgress').style.width = `${data.ram.percent}%`;
+            document.getElementById('diskStat').innerText = `${data.disk.used} / ${data.disk.total} GB (${data.disk.percent}%)`;
+            document.getElementById('diskProgress').style.width = `${data.disk.percent}%`;
+            document.getElementById('loadAverages').innerText = `Load: ${data.load.join(', ')}`;
+            let html = '';
+            for (let p of data.processes) {
+                html += `<tr>
+                    <td class="ps-3 font-monospace">${p.pid}</td>
+                    <td><span class="badge bg-light text-dark border" style="font-size: 9px;">${p.user}</span></td>
+                    <td class="text-truncate" style="max-width: 150px;">${p.name}</td>
+                    <td class="text-end"><span class="badge bg-${p.cpu > 50 ? 'danger' : (p.cpu > 20 ? 'warning' : 'success')}" style="font-size: 9px;">${p.cpu}%</span></td>
+                    <td class="text-end pe-3"><span class="badge bg-secondary" style="font-size: 9px;">${p.mem}%</span></td>
+                </tr>`;
+            }
+            document.getElementById('processTableBody').innerHTML = html;
+        } catch (e) {}
+    }
+    async function fetchServices() {
+        try {
+            const res = await fetch("{{ url_for('api_services') }}");
+            const data = await res.json();
+            let html = '<ul class="list-group list-group-flush">';
+            for (let s of data.services) {
+                let badge = s.status === 'active' ? 'bg-success' : 'bg-danger';
+                html += `<li class="list-group-item d-flex justify-content-between align-items-center py-1 px-3">
+                    <div class="small fw-bold">${s.name}</div>
+                    <span class="badge ${badge}" style="font-size: 8px;">${s.status.toUpperCase()}</span>
+                </li>`;
+            }
+            html += '</ul>';
+            document.getElementById('serviceList').innerHTML = html;
+        } catch (e) {}
+    }
+    setInterval(fetchSysinfo, 3000);
+    fetchSysinfo();
+    fetchServices();
+</script>
+{% endblock %}

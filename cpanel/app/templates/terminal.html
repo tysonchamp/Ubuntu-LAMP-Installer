@@ -1,4 +1,4 @@
-{% extends 'dashboard.html' %}
+{% extends 'base.html' %}
 
 {% block header_title %}System Terminal{% endblock %}
 
@@ -10,13 +10,29 @@
         width: 100%;
         background-color: #000;
         padding: 10px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         overflow: hidden;
+        border: 1px solid #334155;
     }
     #terminal {
         height: 100%;
         width: 100%;
+    }
+    /* Slick Scrollbar for Xterm */
+    .xterm-viewport::-webkit-scrollbar {
+        width: 10px;
+    }
+    .xterm-viewport::-webkit-scrollbar-track {
+        background: #0f172a;
+    }
+    .xterm-viewport::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 10px;
+        border: 2px solid #0f172a;
+    }
+    .xterm-viewport::-webkit-scrollbar-thumb:hover {
+        background: #475569;
     }
 </style>
 
