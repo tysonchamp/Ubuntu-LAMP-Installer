@@ -102,6 +102,9 @@ MySQL SSO Password: $PMA_SSO_PASSWORD
 Generated: $(date)
 EOF
     chmod 600 "$PASSWORDS_FILE"
+    
+    echo -e "${GREEN}Database setup complete!${NC}"
+    echo -e "${YELLOW}MySQL Root Password: $MYSQL_ROOT_PASSWORD${NC}"
 }
 
 install_mongodb() {

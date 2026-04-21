@@ -120,6 +120,7 @@ EOF
     echo "INSTALL_DATE=$(date)" >> "$CONFIG_FILE"
     
     echo -e "${GREEN}LAMP Stack installed successfully!${NC}"
+    echo -e "${YELLOW}MySQL Root Password: $MYSQL_ROOT_PASSWORD${NC}"
     echo -e "${YELLOW}Passwords saved in: $PASSWORDS_FILE${NC}"
 }
 

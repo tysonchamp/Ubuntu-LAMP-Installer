@@ -232,109 +232,33 @@ def delete_database(db_name):
 
 def setup_phpmyadmin_signon():
     """
-    Modifies phpMyAdmin config to allow signon.
-    Returns the auto-login URL.
+    Cleans up any previous phpMyAdmin signon configuration to allow manual login.
     """
-    conf_d_dir = '/etc/phpmyadmin/conf.d'
-    if not os.path.exists('/etc/phpmyadmin'):
-        return False, "phpMyAdmin is not installed."
-
-    if not os.path.exists(conf_d_dir):
-        try:
-            os.makedirs(conf_d_dir)
-        except Exception:
-            pass
-
     try:
-        signon_conf = "<?php\n"
-        signon_conf += "$cfg['Servers'][1]['auth_type'] = 'signon';\n"
-        signon_conf += "$cfg['Servers'][1]['SignonSession'] = 'PMA_Signon';\n"
-        signon_conf += "$cfg['Servers'][1]['SignonURL'] = '/phpmyadmin/phpmyadmin_login.php';\n"
-        signon_conf += "$cfg['Servers'][1]['LogoutURL'] = '/';\n"
-        signon_conf += "?>\n"
+        # Cleanup SSO config file
+        sso_config = '/etc/phpmyadmin/conf.d/cpanel_signon.php'
+        if os.path.exists(sso_config):
+            os.remove(sso_config)
         
-        with open(os.path.join(conf_d_dir, 'cpanel_signon.php'), 'w') as f:
-            f.write(signon_conf)
-
-        pma_login_script = """<?php
-session_name('PMA_Signon');
-session_start();
-
-// Accept token via cookie (preferred — survives redirect chains) or query string (fallback)
-$token = '';
-if (!empty($_COOKIE['pma_sso_token'])) {
-    $token = $_COOKIE['pma_sso_token'];
-    // Clear the cookie immediately
-    setcookie('pma_sso_token', '', time() - 3600, '/');
-} elseif (!empty($_GET['token'])) {
-    $token = $_GET['token'];
-}
-
-if ($token !== '' && preg_match('/^[a-f0-9]{32}$/', $token)) {
-    $token_file = "/var/lib/cpanel_tokens/pma_{$token}.txt";
-
-    if (file_exists($token_file)) {
-        $contents = trim(file_get_contents($token_file));
-        // Format: "user:password" — password may be empty
-        $parts = explode(':', $contents, 2);
-        $db_user = isset($parts[0]) ? $parts[0] : 'root';
-        $db_pass = isset($parts[1]) ? $parts[1] : '';
-
-        $_SESSION['PMA_single_signon_user'] = $db_user;
-        $_SESSION['PMA_single_signon_password'] = $db_pass;
-
-        unlink($token_file);
-
-        header('Location: /phpmyadmin/index.php');
-        die();
-    }
-}
-
-echo "Invalid or expired login token.";
-?>"""
-        with open('/usr/share/phpmyadmin/phpmyadmin_login.php', 'w') as f2:
-            f2.write(pma_login_script)
-
-        # Ensure PHP can read the script
-        os.chmod('/usr/share/phpmyadmin/phpmyadmin_login.php', 0o644)
-
-        # Fix Apache open_basedir to allow PHP to read token files.
-        # The default phpMyAdmin open_basedir excludes /var/lib/cpanel_tokens/,
-        # causing file_get_contents() to silently fail. We override it here.
-        try:
-            basedir_conf = """\
-<Directory /usr/share/phpmyadmin>
-    <IfModule mod_php.c>
-        php_admin_value open_basedir /usr/share/phpmyadmin/:/usr/share/doc/phpmyadmin/:/etc/phpmyadmin/:/var/lib/phpmyadmin/:/usr/share/php/:/usr/share/javascript/:/var/lib/cpanel_tokens/
-    </IfModule>
-    <IfModule mod_php7.c>
-        php_admin_value open_basedir /usr/share/phpmyadmin/:/usr/share/doc/phpmyadmin/:/etc/phpmyadmin/:/var/lib/phpmyadmin/:/usr/share/php/:/usr/share/javascript/:/var/lib/cpanel_tokens/
-    </IfModule>
-</Directory>
-"""
-            basedir_conf_path = '/etc/apache2/conf-available/cpanel-pma-basedir.conf'
-            with open(basedir_conf_path, 'w') as f3:
-                f3.write(basedir_conf)
-
-            import subprocess as _sp2
-            _sp2.run(['a2enconf', 'cpanel-pma-basedir'], capture_output=True)
-            _sp2.run(['systemctl', 'reload', 'apache2'], capture_output=True)
-
-            # Also ensure the token directory exists and is readable by www-data
-            token_dir = '/var/lib/cpanel_tokens'
-            if not os.path.exists(token_dir):
-                os.makedirs(token_dir, mode=0o750)
-            try:
-                import grp as _grp
-                www_data_gid = _grp.getgrnam('www-data').gr_gid
-                os.chown(token_dir, -1, www_data_gid)
-                os.chmod(token_dir, 0o750)
-            except Exception:
-                pass
-        except Exception as e_basedir:
-            # Non-fatal: log but continue; the user may already have the right open_basedir
-            print(f"[cpanel] open_basedir fix skipped: {e_basedir}")
-
-        return True, "Signon configured."
+        # Cleanup basedir override
+        basedir_conf = '/etc/apache2/conf-available/cpanel-pma-basedir.conf'
+        if os.path.exists(basedir_conf):
+            import subprocess as _sp
+            _sp.run(['a2disconf', 'cpanel-pma-basedir'], capture_output=True)
+            os.remove(basedir_conf)
+            _sp.run(['systemctl', 'reload', 'apache2'], capture_output=True)
+            
+        # Cleanup login script
+        login_script = '/usr/share/phpmyadmin/phpmyadmin_login.php'
+        if os.path.exists(login_script):
+            os.remove(login_script)
+            
+        # Cleanup token directory
+        import shutil
+        token_dir = '/var/lib/cpanel_tokens'
+        if os.path.exists(token_dir):
+            shutil.rmtree(token_dir)
+            
+        return True, "Signon features removed."
     except Exception as e:
-        return False, f"Error configuring phpMyAdmin: {str(e)}"
+        return False, f"Error during cleanup: {str(e)}"

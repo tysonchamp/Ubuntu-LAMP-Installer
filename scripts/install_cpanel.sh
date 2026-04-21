@@ -106,13 +106,18 @@ systemctl daemon-reload
 systemctl enable cpanel
 systemctl restart cpanel
 
-# Configure phpMyAdmin Signon auto-login
-echo "Configuring phpMyAdmin auto login..."
+# Cleanup any previous phpMyAdmin Signon auto-login
+echo "Cleaning up phpMyAdmin auto login..."
 cd $CPANEL_DIR/app
 $CPANEL_DIR/venv/bin/python3 -c "import sys; sys.path.append('$CPANEL_DIR/app'); from database_mgr import setup_phpmyadmin_signon; setup_phpmyadmin_signon()"
+
+# Get MySQL root password for display
+MYSQL_ROOT_PASS=$(grep "MySQL Root Password:" /var/lib/lite-cpanel/.passwords | cut -d: -f2- | sed 's/^ *//')
 
 echo "======================================"
 echo "cPanel installed and running on port 2083"
 echo "Access it via: http://<your-server-ip>:2083"
 echo "Log in using your system root credentials."
+echo ""
+echo "MySQL Root Password: $MYSQL_ROOT_PASS"
 echo "======================================"
