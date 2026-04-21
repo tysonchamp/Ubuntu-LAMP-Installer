@@ -130,3 +130,34 @@ def toggle_virtual_host(domain, enable):
         return True, f"Domain {domain} {'enabled' if enable else 'disabled'} successfully on: {', '.join(successes)}."
     else:
         return False, "Configuration not found for any web server."
+
+def get_port80_webserver(domain):
+    """
+    Checks the configuration files for a domain to see which webserver is serving port 80.
+    Returns 'nginx', 'apache', or None.
+    """
+    # Check Nginx first (usually the frontend in hybrid stacks)
+    nginx_conf = f'/etc/nginx/sites-available/{domain}'
+    if os.path.exists(nginx_conf):
+        try:
+            with open(nginx_conf, 'r') as f:
+                content = f.read()
+                # Look for listen 80 or listen [::]:80
+                if 'listen 80' in content or 'listen [::]:80' in content:
+                    return 'nginx'
+        except Exception:
+            pass
+
+    # Check Apache
+    apache_conf = f'/etc/apache2/sites-available/{domain}.conf'
+    if os.path.exists(apache_conf):
+        try:
+            with open(apache_conf, 'r') as f:
+                content = f.read()
+                # Look for <VirtualHost *:80>
+                if '<VirtualHost *:80>' in content or '<VirtualHost _default_:80>' in content:
+                    return 'apache'
+        except Exception:
+            pass
+
+    return None

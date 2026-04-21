@@ -285,7 +285,7 @@ def api_service_restart():
     else:
         return jsonify({'success': False, 'message': f'Crash/Timeout: {res.stderr}'})
 
-from domains_mgr import get_virtual_hosts, add_virtual_host, toggle_virtual_host
+from domains_mgr import get_virtual_hosts, add_virtual_host, toggle_virtual_host, get_port80_webserver
 
 @app.route('/domains', methods=['GET', 'POST'])
 @login_required
@@ -324,8 +324,17 @@ def domains():
             servers = request.form.get('servers', '')
             import subprocess
             try:
-                # Automatically choose plugin based on active servers
-                plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
+                # Automatically choose plugin based on which webserver is on port 80
+                detected = get_port80_webserver(domain)
+                if detected == 'nginx':
+                    plugin = '--nginx'
+                elif detected == 'apache':
+                    plugin = '--apache'
+                else:
+                    # Fallback to existing heuristic if config inspection fails
+                    plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
+                
+                logging.info(f"Generating SSL for {domain} using {plugin} (detected: {detected})")
                 cmd = ['certbot', plugin, '-d', domain, '-d', f'www.{domain}', '--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode == 0:
@@ -403,7 +412,16 @@ def nextjs():
             servers = request.form.get('servers', '')
             import subprocess
             try:
-                plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
+                # Automatically choose plugin based on which webserver is on port 80
+                detected = get_port80_webserver(domain)
+                if detected == 'nginx':
+                    plugin = '--nginx'
+                elif detected == 'apache':
+                    plugin = '--apache'
+                else:
+                    plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
+                
+                logging.info(f"Generating SSL (Next.js) for {domain} using {plugin} (detected: {detected})")
                 cmd = ['certbot', plugin, '-d', domain, '-d', f'www.{domain}', '--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode == 0:
