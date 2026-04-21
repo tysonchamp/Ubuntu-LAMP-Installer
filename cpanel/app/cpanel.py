@@ -1092,6 +1092,9 @@ def api_process_logs(name):
     logs = get_process_logs(name)
     return jsonify({'logs': logs})
 
+from ftp_mgr import (check_pureftpd_installed, create_ftp_user, delete_ftp_user, 
+                     change_ftp_password, get_ftp_users)
+
 @app.route('/ftp', methods=['GET', 'POST'])
 @login_required
 def ftp():
