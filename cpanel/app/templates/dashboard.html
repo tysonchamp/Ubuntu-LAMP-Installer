@@ -120,16 +120,92 @@
     </div>
 </div>
 
+<!-- Detailed Server Information Section -->
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-primary"></i>Server Specifications</h6>
+            </div>
+            <div class="card-body py-4">
+                <div class="row g-4">
+                    <!-- Left Column: System Info -->
+                    <div class="col-md-6 border-end">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Hostname</small>
+                                <span class="fw-medium">{{ server_info.hostname }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Distro Name</small>
+                                <span class="fw-medium">{{ server_info.os }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Kernel Version</small>
+                                <span class="fw-medium font-monospace small">{{ server_info.kernel }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Platform</small>
+                                <span class="fw-medium">{{ server_info.platform }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Uptime</small>
+                                <span class="fw-medium">{{ server_info.uptime }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Server Time</small>
+                                <span class="fw-medium small">{{ server_info.server_time }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: Hardware & Network -->
+                    <div class="col-md-6">
+                        <div class="row g-3">
+                            <div class="col-12 mb-2">
+                                <div class="d-flex align-items-center p-2 bg-light rounded border">
+                                    <i class="fas fa-microchip text-primary me-3 fa-lg"></i>
+                                    <div>
+                                        <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 9px;">CPU Model</small>
+                                        <span class="fw-bold d-block" style="font-size: 13px;">{{ server_info.processor }}</span>
+                                        <small class="text-muted">{{ server_info.cpu_cores }} Cores ({{ server_info.cpu_freq }})</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Private IP</small>
+                                <span class="fw-medium">{{ server_info.ip_address }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Public IP</small>
+                                <span class="fw-medium badge bg-primary">{{ server_info.public_ip }}</span>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <small class="text-uppercase text-muted d-block fw-bold mb-1" style="font-size: 10px;">Active Network Ports</small>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for port in server_info.listening_ports %}
+                                        <span class="badge rounded-pill bg-white text-dark border px-2 py-1" style="font-size: 9px;">{{ port }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-4 mt-2 mb-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-network-wired me-2"></i>Active Network Ports</h6>
+                <h6 class="mb-0 fw-bold"><i class="fas fa-plug me-2 text-warning"></i>Active Network Ports</h6>
             </div>
             <div class="card-body">
                 <div class="d-flex flex-wrap gap-1">
                     {% for port in server_info.listening_ports %}
-                        <span class="badge rounded-pill bg-light text-dark border px-2 py-1" style="font-size: 10px;">{{ port }}</span>
+                        <span class="badge rounded-pill bg-white text-dark border px-2 py-1" style="font-size: 10px;">{{ port }}</span>
                     {% endfor %}
                 </div>
             </div>
@@ -164,22 +240,58 @@
             document.getElementById('processTableBody').innerHTML = html;
         } catch (e) {}
     }
+
     async function fetchServices() {
         try {
             const res = await fetch("{{ url_for('api_services') }}");
             const data = await res.json();
             let html = '<ul class="list-group list-group-flush">';
             for (let s of data.services) {
-                let badge = s.status === 'active' ? 'bg-success' : 'bg-danger';
-                html += `<li class="list-group-item d-flex justify-content-between align-items-center py-1 px-3">
-                    <div class="small fw-bold">${s.name}</div>
-                    <span class="badge ${badge}" style="font-size: 8px;">${s.status.toUpperCase()}</span>
+                let badge = s.status === 'active' ? 'bg-success' : (s.status === 'inactive' ? 'bg-warning text-dark' : 'bg-danger');
+                html += `<li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                    <div>
+                        <div class="small fw-bold">${s.name}</div>
+                        <span class="badge ${badge}" style="font-size: 8px;">${s.status.toUpperCase()}</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary py-0 px-1" onclick="restartService('${s.id}', '${s.name}', this)" title="Restart Service">
+                        <i class="fas fa-redo fa-xs"></i>
+                    </button>
                 </li>`;
             }
             html += '</ul>';
             document.getElementById('serviceList').innerHTML = html;
         } catch (e) {}
     }
+
+    async function restartService(id, name, btn) {
+        if (!confirm(`Restart ${name}?`)) return;
+        const icon = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin fa-xs"></i>';
+        btn.disabled = true;
+        
+        try {
+            const formData = new FormData();
+            formData.append('service_id', id);
+            formData.append('csrf_token', '{{ csrf_token() }}');
+
+            const res = await fetch("{{ url_for('api_service_restart') }}", {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                setTimeout(fetchServices, 2000);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch (e) {
+            alert('Connection failed.');
+        } finally {
+            btn.innerHTML = icon;
+            btn.disabled = false;
+        }
+    }
+
     setInterval(fetchSysinfo, 3000);
     fetchSysinfo();
     fetchServices();
