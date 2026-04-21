@@ -48,24 +48,31 @@ def start_nextjs_app(app_path, app_name, port):
         return False, f"Path does not exist: {app_path}"
     
     try:
-        # Check if it's a standard next.js app (has package.json)
-        pkg_json = os.path.join(app_path, 'package.json')
-        if not os.path.exists(pkg_json):
-            return False, "No package.json found in the specified path."
-
-        # Command to start: npm start -- -p PORT
-        # We run it from the app directory
-        cmd = [
-            'pm2', 'start', 'npm', 
-            '--name', app_name, 
-            '--', 'start', '--', '-p', str(port)
-        ]
+        # Check for ecosystem.config.js (Prioritize)
+        ecosystem_path = os.path.join(app_path, 'ecosystem.config.js')
+        if os.path.exists(ecosystem_path):
+            cmd = ['pm2', 'start', 'ecosystem.config.js', '--name', app_name]
+        else:
+            # Check if it's a standard next.js app (has package.json)
+            pkg_json = os.path.join(app_path, 'package.json')
+            if not os.path.exists(pkg_json):
+                return False, "No package.json or ecosystem.config.js found in the specified path."
+            
+            # Command to start: npm start -- -p PORT
+            if not port:
+                return False, "Port is required when no ecosystem.config.js is found."
+            
+            cmd = [
+                'pm2', 'start', 'npm', 
+                '--name', app_name, 
+                '--', 'start', '--', '-p', str(port)
+            ]
         
         subprocess.run(cmd, cwd=app_path, check=True, capture_output=True, text=True)
         # Save to ensure it persists across reboots
         subprocess.run(['pm2', 'save'], check=True)
         
-        return True, f"Application '{app_name}' started on port {port}."
+        return True, f"Application '{app_name}' started successfully."
     except subprocess.CalledProcessError as e:
         return False, f"Failed to start app: {e.stderr.strip()}"
 

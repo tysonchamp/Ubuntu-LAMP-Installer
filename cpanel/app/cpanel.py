@@ -930,7 +930,7 @@ def process_manager():
         elif action == 'add_app':
             name = request.form.get('name')
             path = request.form.get('path')
-            port = request.form.get('port')
+            port = request.form.get('port') or None
             success, msg = start_nextjs_app(path, name, port)
             flash(msg, 'success' if success else 'danger')
             
