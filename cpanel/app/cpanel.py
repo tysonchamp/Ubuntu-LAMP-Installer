@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import os
+import glob
+from urllib.parse import quote
 
 import glob
 
@@ -1209,7 +1211,7 @@ def filemanager_route():
         if action == 'mkdir':
             ok, msg = create_folder(request.form.get('path', path), request.form.get('name', ''))
             flash(msg, 'success' if ok else 'danger')
-            return redirect(url_for('filemanager_route') + f'?path={request.form.get("path", path)}')
+            return redirect(url_for('filemanager_route') + f'?path={quote(request.form.get("path", path))}')
 
         elif action == 'upload':
             upload_path = request.form.get('path', path)
@@ -1217,7 +1219,12 @@ def filemanager_route():
             for f in files:
                 ok, msg = save_upload(upload_path, f)
                 flash(msg, 'success' if ok else 'danger')
-            return redirect(url_for('filemanager_route') + f'?path={upload_path}')
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from flask import jsonify
+                return jsonify({'success': True, 'redirect': url_for('filemanager_route') + f'?path={quote(upload_path)}'})
+                
+            return redirect(url_for('filemanager_route') + f'?path={quote(upload_path)}')
 
         elif action == 'compress':
             names = request.form.getlist('names')
@@ -1225,27 +1232,27 @@ def filemanager_route():
             fmt = request.form.get('fmt', 'zip')
             ok, msg = compress_entries(path, names, archive_name, fmt)
             flash(msg, 'success' if ok else 'danger')
-            return redirect(url_for('filemanager_route') + f'?path={path}')
+            return redirect(url_for('filemanager_route') + f'?path={quote(path)}')
 
         elif action == 'extract':
             ok, msg = decompress_entry(request.form.get('path', ''), os.path.dirname(request.form.get('path', '')))
             flash(msg, 'success' if ok else 'danger')
-            return redirect(url_for('filemanager_route') + f'?path={redirect_path}')
+            return redirect(url_for('filemanager_route') + f'?path={quote(redirect_path)}')
 
         elif action == 'rename':
             ok, msg = rename_entry(request.form.get('path', ''), request.form.get('new_name', ''))
             flash(msg, 'success' if ok else 'danger')
-            return redirect(url_for('filemanager_route') + f'?path={redirect_path}')
+            return redirect(url_for('filemanager_route') + f'?path={quote(redirect_path)}')
 
         elif action == 'delete':
             ok, msg = delete_entry(request.form.get('path', ''))
             flash(msg, 'success' if ok else 'danger')
-            return redirect(url_for('filemanager_route') + f'?path={redirect_path}')
+            return redirect(url_for('filemanager_route') + f'?path={quote(redirect_path)}')
 
         elif action == 'save':
             ok, msg = write_file(request.form.get('path', ''), request.form.get('content', ''))
             flash(msg, 'success' if ok else 'danger')
-            return redirect(url_for('filemanager_route') + f'?path={redirect_path}')
+            return redirect(url_for('filemanager_route') + f'?path={quote(redirect_path)}')
 
     data, err = list_dir(path)
     if err:

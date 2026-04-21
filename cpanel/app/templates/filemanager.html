@@ -376,7 +376,13 @@
 
     xhr.addEventListener('load', function () {
       if (xhr.status >= 200 && xhr.status < 400) {
-        // Success: Refresh to show new files and flash messages
+        try {
+          const resp = JSON.parse(xhr.responseText);
+          if (resp.redirect) {
+            window.location.href = resp.redirect;
+            return;
+          }
+        } catch (e) {}
         window.location.reload();
       } else {
         alert('Upload failed with status: ' + xhr.status);
@@ -400,6 +406,7 @@
     }
 
     xhr.open('POST', form.action || window.location.href);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
     xhr.send(formData);
   });
 </script>
