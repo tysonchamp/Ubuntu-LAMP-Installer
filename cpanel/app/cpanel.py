@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
 
 load_dotenv()
-from security_mgr import validate_input, is_safe_path, python_grep
+from security_mgr import validate_input, is_safe_path, python_grep, check_dns_resolution
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -335,7 +335,15 @@ def domains():
                     plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
                 
                 logging.info(f"Generating SSL for {domain} using {plugin} (detected: {detected})")
-                cmd = ['certbot', plugin, '-d', domain, '-d', f'www.{domain}', '--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
+                
+                # Build domain list - only include www if it actually resolves
+                domain_args = ['-d', domain]
+                if check_dns_resolution(f"www.{domain}"):
+                    domain_args.extend(['-d', f'www.{domain}'])
+                else:
+                    logging.info(f"Skipping www.{domain} as it does not resolve in DNS.")
+
+                cmd = ['certbot', plugin] + domain_args + ['--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode == 0:
                     flash(f"SSL Certificate generated successfully for {domain}!", 'success')
@@ -422,7 +430,13 @@ def nextjs():
                     plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
                 
                 logging.info(f"Generating SSL (Next.js) for {domain} using {plugin} (detected: {detected})")
-                cmd = ['certbot', plugin, '-d', domain, '-d', f'www.{domain}', '--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
+                
+                # Build domain list - only include www if it actually resolves
+                domain_args = ['-d', domain]
+                if check_dns_resolution(f"www.{domain}"):
+                    domain_args.extend(['-d', f'www.{domain}'])
+                
+                cmd = ['certbot', plugin] + domain_args + ['--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode == 0:
                     flash(f"SSL Certificate generated successfully for {domain}!", 'success')

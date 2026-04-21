@@ -119,7 +119,12 @@ install_apache_stack() {
     echo -e "${GREEN}Installing Apache LAMP Stack...${NC}"
     
     apt-get update && apt-get upgrade -y
-    apt-get install apache2 php php-gd php-common php-curl php-gmp php-mysql php-mongodb libapache2-mod-php openssl sendmail certbot python3-certbot-apache -y
+    apt-get install apache2 php php-gd php-common php-curl php-gmp php-mysql php-mongodb libapache2-mod-php openssl sendmail -y
+    
+    # Install Certbot via Snap
+    if ! command -v snap &> /dev/null; then apt-get install snapd -y; fi
+    snap install --classic certbot
+    ln -sf /snap/bin/certbot /usr/bin/certbot
     
     install_database
     
@@ -143,7 +148,12 @@ install_nginx_stack() {
     echo -e "${GREEN}Installing NGINX Stack...${NC}"
     
     apt-get update && apt-get upgrade -y
-    apt-get install nginx php-fpm php-gd php-common php-curl php-gmp php-mysql php-mongodb openssl sendmail certbot python3-certbot-nginx -y
+    apt-get install nginx php-fpm php-gd php-common php-curl php-gmp php-mysql php-mongodb openssl sendmail -y
+    
+    # Install Certbot via Snap
+    if ! command -v snap &> /dev/null; then apt-get install snapd -y; fi
+    snap install --classic certbot
+    ln -sf /snap/bin/certbot /usr/bin/certbot
     
     install_database
     
@@ -173,7 +183,12 @@ install_hybrid_stack() {
     echo -e "${GREEN}Installing NGINX + Apache + PHP-FPM Stack...${NC}"
     
     apt-get update && apt-get upgrade -y
-    apt-get install nginx apache2 php-fpm php-gd php-common php-curl php-gmp php-mysql php-mongodb openssl sendmail certbot python3-certbot-nginx -y
+    apt-get install nginx apache2 php-fpm php-gd php-common php-curl php-gmp php-mysql php-mongodb openssl sendmail -y
+    
+    # Install Certbot via Snap
+    if ! command -v snap &> /dev/null; then apt-get install snapd -y; fi
+    snap install --classic certbot
+    ln -sf /snap/bin/certbot /usr/bin/certbot
     
     install_database
     

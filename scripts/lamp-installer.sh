@@ -77,7 +77,14 @@ EOF
     apt-get install phpmyadmin -y
     
     # Install additional packages
-    apt-get install openssl sendmail certbot python3-certbot-apache -y
+    apt-get install openssl sendmail -y
+    
+    # Install Certbot via Snap (Official recommendation)
+    if ! command -v snap &> /dev/null; then
+        apt-get install snapd -y
+    fi
+    snap install --classic certbot
+    ln -sf /snap/bin/certbot /usr/bin/certbot
     
     # Install MongoDB
     if [ -z "$INSTALL_MONGODB" ]; then

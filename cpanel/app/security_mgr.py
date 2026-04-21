@@ -1,5 +1,17 @@
 import re
 import os
+import socket
+
+def check_dns_resolution(domain):
+    """
+    Checks if a domain resolves to an IP address.
+    """
+    try:
+        # We use a short timeout to avoid blocking the UI
+        socket.gethostbyname(domain)
+        return True
+    except socket.gaierror:
+        return False
 
 # --- Input Validation Patterns ---
 PATTERNS = {
