@@ -1,4 +1,13 @@
 # Updates:
+21.04.2026
+
+1. Implemented a full **Node.js Process Manager** powered by PM2, allowing live monitoring and control of background applications.
+2. Updated **Certbot** installation to the official Snap-based method for improved reliability on Ubuntu 22.04 and 24.04.
+3. Enhanced **SSL Generation** with smart webserver detection (Apache vs Nginx) and automated DNS verification for subdomains to prevent NXDOMAIN failures.
+4. Improved **System Health** dashboard with a persistent log viewer in Settings that ensures core log tabs are always accessible.
+5. Added NVM path auto-detection to ensure `npm` and `node` are always available to the panel even when installed via version managers.
+6. Established strict **Project Guidelines** to ensure production-ready standards for future developments.
+
 
 13.04.2026
 

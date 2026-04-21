@@ -97,7 +97,19 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - Detect existing and partial/broken WordPress installations
 - One-click **Uninstall** — drops the WordPress database/user and removes all WordPress-specific files
 
-### 🚀 Next.js Apps Manager
+### 🚀 Next.js & Node.js Manager
+- **Node.js Process Manager** — Full graphical interface for **PM2**
+- **Live Monitoring** — Real-time CPU, Memory, and Uptime tracking for background Node.js applications
+- **Lifecycle Controls** — Start, Stop, Restart, and Delete processes with one click
+- **Integrated Log Viewer** — View stdout/stderr logs in a beautiful modal for instant debugging
+- **One-Click Startup** — Quickly launch Next.js apps on custom ports with automatic persistence
+- **NVM Awareness** — Automatically detects and supports Node.js versions installed via NVM
+
+### 🌐 Domain & SSL Manager
+- **Smart SSL Generation** — Automatically detects which webserver (Apache/Nginx) is serving port 80 to choose the correct Certbot plugin
+- **DNS Verification** — Automatically verifies DNS resolution for the `www` subdomain before including it in the SSL request, preventing validation failures
+- **Snap Certbot** — Uses the official, more robust Snap-based Certbot installation method
+- **Domain-Specific Logs** — Enhanced per-domain log viewer with live tailing and fallback support
 - Manage Next.js applications running via PM2
 - Automatically generate Nginx/Apache reverse proxy configurations pointing to local ports
 - Visually isolated from standard domains to prevent clutter
