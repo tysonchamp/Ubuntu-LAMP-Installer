@@ -5,67 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lite cPanel</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-    <!-- Add basic styling or link to Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; }
         .sidebar { width: 250px; background: #2c3e50; color: white; position: fixed; top: 0; bottom: 0; padding-top: 20px; overflow-y: auto; overflow-x: hidden; }
-        .sidebar::-webkit-scrollbar { width: 4px; }
-        .sidebar::-webkit-scrollbar-track { background: #2c3e50; }
-        .sidebar::-webkit-scrollbar-thumb { background: #4a6278; border-radius: 2px; }
-        .sidebar a { display: block; padding: 15px 20px; color: #ecf0f1; text-decoration: none; border-bottom: 1px solid #34495e; }
+        .sidebar a { display: block; padding: 12px 20px; color: #ecf0f1; text-decoration: none; border-bottom: 1px solid #34495e; font-size: 0.9rem; }
         .sidebar a:hover { background: #34495e; }
+        .sidebar i { width: 25px; }
         .main-content { margin-left: 250px; padding: 20px; }
         .header { background: white; padding: 15px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
         .stat-card { background: white; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .stat-card i { font-size: 2rem; margin-bottom: 10px; color: #3498db; }
-        .stat-card h3 { margin: 0; font-size: 1.5rem; color: #2c3e50; }
-        .stat-card p { margin: 5px 0 0; color: #7f8c8d; }
-        .progress-bar-custom { height: 10px; border-radius: 5px; background: #ecf0f1; margin-top: 10px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: #3498db; }
-
-        .container-fluid { padding: 0; }
+        .stat-card i { font-size: 1.8rem; margin-bottom: 10px; color: #3498db; }
+        .stat-card h3 { margin: 0; font-size: 1.2rem; color: #2c3e50; }
+        .stat-card p { margin: 5px 0 0; color: #7f8c8d; font-size: 0.9rem; }
+        .progress-bar-custom { height: 8px; border-radius: 4px; background: #ecf0f1; margin-top: 10px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: #3498db; transition: width 0.5s; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <div class="text-center mb-3 px-2 pt-2">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Lite cPanel" style="width: 150px; mix-blend-mode: screen; opacity: 0.92;">
+        <div class="text-center mb-3 px-2">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Lite cPanel" style="width: 130px; mix-blend-mode: screen;">
         </div>
-        <a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a>
-        <a href="{{ url_for('domains') }}"><i class="fas fa-globe me-2"></i> Domains</a>
-        <a href="{{ url_for('nextjs') }}"><i class="fab fa-react me-2"></i> Next.js Apps</a>
-        <a href="{{ url_for('process_manager') }}"><i class="fas fa-tasks me-2"></i> Process Manager</a>
-        <a href="{{ url_for('databases') }}"><i class="fas fa-database me-2"></i> Databases</a>
-        <a href="{{ url_for('mongodb_route') }}"><i class="fas fa-leaf me-2 text-success"></i> MongoDB</a>
-        <a href="{{ url_for('ftp') }}"><i class="fas fa-folder-open me-2"></i> FTP</a>
-        <a href="{{ url_for('filemanager_route') }}"><i class="fas fa-folder-tree me-2"></i> File Manager</a>
-        <a href="{{ url_for('backups') }}"><i class="fas fa-cloud-upload-alt me-2"></i> Backups</a>
-        <a href="{{ url_for('firewall') }}"><i class="fas fa-shield-alt me-2"></i> Firewall</a>
-        <a href="{{ url_for('modsecurity') }}"><i class="fas fa-user-shield me-2"></i> ModSecurity</a>
-        <a href="{{ url_for('terminal') }}"><i class="fas fa-terminal me-2"></i> Terminal</a>
-        <a href="{{ url_for('cron') }}"><i class="fas fa-clock me-2"></i> Cron Jobs</a>
-        <a href="{{ url_for('wordpress') }}"><i class="fab fa-wordpress me-2"></i> WordPress</a>
-        <a href="{{ url_for('settings') }}"><i class="fas fa-cogs me-2"></i> Settings</a>
-        <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+        <a href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="{{ url_for('traffic_monitor') }}"><i class="fas fa-chart-line text-success"></i> Traffic Monitor</a>
+        <a href="{{ url_for('domains') }}"><i class="fas fa-globe"></i> Domains</a>
+        <a href="{{ url_for('nextjs') }}"><i class="fab fa-react text-info"></i> Next.js Apps</a>
+        <a href="{{ url_for('process_manager') }}"><i class="fas fa-tasks text-warning"></i> Process Manager</a>
+        <a href="{{ url_for('databases') }}"><i class="fas fa-database"></i> Databases</a>
+        <a href="{{ url_for('ftp') }}"><i class="fas fa-folder-open"></i> FTP</a>
+        <a href="{{ url_for('filemanager_route') }}"><i class="fas fa-folder-tree"></i> File Manager</a>
+        <a href="{{ url_for('backups') }}"><i class="fas fa-cloud-upload-alt"></i> Backups</a>
+        <a href="{{ url_for('firewall') }}"><i class="fas fa-shield-alt"></i> Firewall</a>
+        <a href="{{ url_for('terminal') }}"><i class="fas fa-terminal"></i> Terminal</a>
+        <a href="{{ url_for('wordpress') }}"><i class="fab fa-wordpress"></i> WordPress</a>
+        <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
 
     <div class="main-content">
         <div class="header">
-            <h2 class="m-0">{% block header_title %}Dashboard{% endblock %}</h2>
-            <div>Logged in as: <strong>{{ session['username'] }}</strong></div>
+            <h4 class="m-0">{% block header_title %}Dashboard{% endblock %}</h4>
+            <div class="small">User: <strong>{{ session['username'] }}</strong></div>
         </div>
 
-        <div class="content-wrapper">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-              {% if messages %}
-                {% for category, message in messages %}
-                  <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-              {% endif %}
-            {% endwith %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} py-2 small">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
 
+        <div id="content-area">
             {% block content %}
             <div class="row g-4">
                 <div class="col-md-4">
@@ -73,76 +65,105 @@
                         <i class="fas fa-microchip"></i>
                         <h3>CPU Usage</h3>
                         <p id="cpuStat">{{ stats.cpu }}%</p>
-                        <div class="progress-bar-custom">
-                            <div id="cpuProgress" class="progress-bar-fill" style="width: {{ stats.cpu }}%;"></div>
-                        </div>
+                        <div class="progress-bar-custom"><div id="cpuProgress" class="progress-bar-fill" style="width: {{ stats.cpu }}%;"></div></div>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="stat-card">
                         <i class="fas fa-memory"></i>
                         <h3>RAM Usage</h3>
-                        <p id="ramStat">{{ stats.ram_used }} GB / {{ stats.ram_total }} GB ({{ stats.ram_percent }}%)</p>
-                        <div class="progress-bar-custom">
-                            <div id="ramProgress" class="progress-bar-fill" style="width: {{ stats.ram_percent }}%;"></div>
-                        </div>
+                        <p id="ramStat" style="font-size: 0.8rem;">{{ stats.ram_used }} GB / {{ stats.ram_total }} GB</p>
+                        <div class="progress-bar-custom"><div id="ramProgress" class="progress-bar-fill" style="width: {{ stats.ram_percent }}%;"></div></div>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="stat-card">
                         <i class="fas fa-hdd"></i>
                         <h3>Disk Usage</h3>
-                        <p id="diskStat">{{ stats.disk_used }} GB / {{ stats.disk_total }} GB ({{ stats.disk_percent }}%)</p>
-                        <div class="progress-bar-custom">
-                            <div id="diskProgress" class="progress-bar-fill" style="width: {{ stats.disk_percent }}%;"></div>
-                        </div>
+                        <p id="diskStat" style="font-size: 0.8rem;">{{ stats.disk_used }} GB / {{ stats.disk_total }} GB</p>
+                        <div class="progress-bar-custom"><div id="diskProgress" class="progress-bar-fill" style="width: {{ stats.disk_percent }}%;"></div></div>
                     </div>
                 </div>
             </div>
-            
-            <!-- Live Process & Service Manager Section -->
-            <div class="row g-4 mt-2 mb-4">
+
+            <div class="row g-4 mt-2">
                 <div class="col-md-8">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="fas fa-server me-2 text-primary"></i>Live Process View & Load Average</h5>
-                            <span id="loadAverages" class="badge bg-light text-dark border">Load: --, --, --</span>
+                            <h6 class="mb-0 fw-bold"><i class="fas fa-server me-2 text-primary"></i>Live Processes</h6>
+                            <span id="loadAverages" class="badge bg-light text-dark border small">Load: --, --, --</span>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
-                                <table class="table table-hover table-sm mb-0">
+                                <table class="table table-hover table-sm mb-0" style="font-size: 11px;">
                                     <thead class="bg-light">
                                         <tr>
-                                            <th class="ps-3 border-bottom-0 text-muted small fw-bold">PID</th>
-                                            <th class="border-bottom-0 text-muted small fw-bold">User</th>
-                                            <th class="border-bottom-0 text-muted small fw-bold">Process Command</th>
-                                            <th class="text-end border-bottom-0 text-muted small fw-bold">CPU %</th>
-                                            <th class="text-end pe-3 border-bottom-0 text-muted small fw-bold">Mem %</th>
+                                            <th class="ps-3">PID</th>
+                                            <th>User</th>
+                                            <th>Command</th>
+                                            <th class="text-end">CPU</th>
+                                            <th class="text-end pe-3">Mem</th>
                                         </tr>
                                     </thead>
                                     <tbody id="processTableBody">
-                                        <tr>
-                                            <td colspan="5" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i> Fetching live processes...</td>
-                                        </tr>
+                                        <tr><td colspan="5" class="text-center py-4">Loading...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
                 </div>
-                
                 <div class="col-md-4">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="fas fa-cogs me-2 text-primary"></i>System Services</h5>
-                            <button id="refreshServicesBtn" class="btn btn-sm btn-outline-secondary" onclick="fetchServices()"><i class="fas fa-sync-alt"></i></button>
+                            <h6 class="mb-0 fw-bold"><i class="fas fa-cogs me-2 text-primary"></i>Services</h6>
+                            <button class="btn btn-sm" onclick="fetchServices()"><i class="fas fa-sync-alt"></i></button>
+                        </div>
+                        <div class="card-body p-0" id="serviceList">
+                            <div class="text-center py-4">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mt-2">
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 fw-bold"><i class="fas fa-chart-line me-2 text-success"></i>Web Traffic</h6>
+                            <a href="/traffic" class="btn btn-sm btn-link p-0 text-decoration-none">More</a>
                         </div>
                         <div class="card-body p-0">
-                            <ul class="list-group list-group-flush" id="serviceList">
-                                <li class="list-group-item text-center py-4 text-muted">
-                                    <i class="fas fa-spinner fa-spin me-2"></i> Loading services...
-                                </li>
-                            </ul>
+                            <table class="table table-sm table-hover mb-0" style="font-size: 11px;">
+                                <tbody>
+                                    {% for t in traffic_stats[:5] %}
+                                    <tr>
+                                        <td class="ps-3 fw-bold">{{ t.domain }}</td>
+                                        <td class="text-end">{{ t.hits }} hits</td>
+                                        <td class="text-end pe-3">{{ (t.bandwidth/1024/1024)|round(1) }} MB</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom">
+                            <h6 class="mb-0 fw-bold text-danger"><i class="fas fa-shield-alt me-2"></i>Security Log</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-sm mb-0" style="font-size: 10px;">
+                                <tbody>
+                                    {% for login in server_info.ssh_logins %}
+                                    <tr>
+                                        <td class="ps-3 text-muted" style="width: 80px;">{{ login.time }}</td>
+                                        <td class="{{ 'text-success' if 'Accepted' in login.msg else 'text-danger' }}">{{ login.msg[:50] }}...</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -152,382 +173,50 @@
                 async function fetchSysinfo() {
                     try {
                         const res = await fetch("{{ url_for('api_sysinfo') }}");
-                        if (!res.ok) return;
                         const data = await res.json();
-                        
-                        // Update Stat Cards
                         document.getElementById('cpuStat').innerText = `${data.cpu_percent}%`;
                         document.getElementById('cpuProgress').style.width = `${data.cpu_percent}%`;
-                        
-                        document.getElementById('ramStat').innerText = `${data.ram.used} GB / ${data.ram.total} GB (${data.ram.percent}%)`;
+                        document.getElementById('ramStat').innerText = `${data.ram.used} / ${data.ram.total} GB (${data.ram.percent}%)`;
                         document.getElementById('ramProgress').style.width = `${data.ram.percent}%`;
-                        
-                        document.getElementById('diskStat').innerText = `${data.disk.used} GB / ${data.disk.total} GB (${data.disk.percent}%)`;
+                        document.getElementById('diskStat').innerText = `${data.disk.used} / ${data.disk.total} GB (${data.disk.percent}%)`;
                         document.getElementById('diskProgress').style.width = `${data.disk.percent}%`;
-
                         document.getElementById('loadAverages').innerText = `Load: ${data.load.join(', ')}`;
-                        
                         let html = '';
                         for (let p of data.processes) {
                             html += `<tr>
-                                <td class="ps-3 font-monospace text-muted small">${p.pid}</td>
-                                <td><span class="badge bg-light text-dark border">${p.user}</span></td>
-                                <td class="text-truncate" style="max-width: 250px;" title="${p.name}">${p.name}</td>
-                                <td class="text-end"><span class="badge bg-${p.cpu > 50 ? 'danger' : (p.cpu > 20 ? 'warning' : 'success')}">${p.cpu}%</span></td>
-                                <td class="text-end pe-3"><span class="badge bg-secondary">${p.mem}%</span></td>
+                                <td class="ps-3 font-monospace">${p.pid}</td>
+                                <td>${p.user}</td>
+                                <td class="text-truncate" style="max-width: 150px;">${p.name}</td>
+                                <td class="text-end">${p.cpu}%</td>
+                                <td class="text-end pe-3">${p.mem}%</td>
                             </tr>`;
                         }
                         document.getElementById('processTableBody').innerHTML = html;
-                    } catch (e) {
-                        console.error('Failed to fetch sysinfo:', e);
-                    }
+                    } catch (e) {}
                 }
-
                 async function fetchServices() {
-                    const list = document.getElementById('serviceList');
-                    const btn = document.getElementById('refreshServicesBtn');
-                    if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                    
                     try {
                         const res = await fetch("{{ url_for('api_services') }}");
-                        if (!res.ok) return;
                         const data = await res.json();
-                        
-                        let html = '';
+                        let html = '<ul class="list-group list-group-flush">';
                         for (let s of data.services) {
-                            let badgeClass = 'bg-secondary';
-                            let statusText = s.status.toUpperCase();
-                            
-                            if (s.status === 'active') badgeClass = 'bg-success';
-                            else if (s.status === 'inactive') badgeClass = 'bg-warning text-dark';
-                            else if (s.status === 'failed') badgeClass = 'bg-danger';
-                            else if (s.status === 'not_installed') { badgeClass = 'bg-light text-muted border'; statusText = 'UNINSTALLED'; }
-                            
-                            html += `<li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="fw-bold text-dark">${s.name}</div>
-                                    <span class="badge ${badgeClass} small">${statusText}</span>
-                                </div>
-                                <div>
-                                    ${s.status !== 'not_installed' ? 
-                                      `<button class="btn btn-sm btn-outline-primary" onclick="restartService('${s.id}', '${s.name}', this)" title="Restart ${s.name}"><i class="fas fa-redo"></i></button>` : 
-                                      (s.id === 'modsec' ? `<a href="{{ url_for('modsecurity') }}" class="btn btn-sm btn-primary"><i class="fas fa-download me-1"></i> Install</a>` : '')}
-                                </div>
+                            let badge = s.status === 'active' ? 'bg-success' : 'bg-danger';
+                            html += `<li class="list-group-item d-flex justify-content-between align-items-center py-1 px-3">
+                                <div class="small fw-bold">${s.name}</div>
+                                <span class="badge ${badge}" style="font-size: 8px;">${s.status}</span>
                             </li>`;
                         }
-                        list.innerHTML = html;
-                    } catch (e) {
-                        list.innerHTML = `<li class="list-group-item text-danger text-center"><i class="fas fa-exclamation-triangle"></i> Error loading services</li>`;
-                    } finally {
-                        if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                    }
+                        html += '</ul>';
+                        document.getElementById('serviceList').innerHTML = html;
+                    } catch (e) {}
                 }
-
-                async function restartService(serviceId, serviceName, btnEl) {
-                    if (!confirm(`Are you sure you want to restart ${serviceName}?`)) return;
-                    
-                    const originalIcon = btnEl.innerHTML;
-                    btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                    btnEl.disabled = true;
-                    btnEl.classList.replace('btn-outline-primary', 'btn-primary');
-                    
-                    try {
-                        const formData = new FormData();
-                        formData.append('service_id', serviceId);
-                        formData.append('csrf_token', '{{ csrf_token() }}');
-
-                        const res = await fetch("{{ url_for('api_service_restart') }}", {
-                            method: 'POST',
-                            body: formData
-                        });
-                        
-                        const data = await res.json();
-                        if (data.success) {
-                            // Non intrusive alert or flash
-                            console.log(data.message);
-                        } else {
-                            alert(data.message);
-                        }
-                        
-                        setTimeout(fetchServices, 1500);
-                    } catch (e) {
-                        alert('Network/Server drops detected during restart request.');
-                        setTimeout(fetchServices, 2500);
-                    } finally {
-                        btnEl.innerHTML = originalIcon;
-                        btnEl.classList.replace('btn-primary', 'btn-outline-primary');
-                        btnEl.disabled = false;
-                    }
-                }
-
                 setInterval(fetchSysinfo, 3000);
-                
                 fetchSysinfo();
                 fetchServices();
             </script>
-                <div class="col-md-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="fas fa-chart-line me-2 text-success"></i>Web Traffic Summary</h5>
-                        </div>
-                        <div class="card-body">
-                            {% if traffic_stats %}
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0">
-                                    <thead>
-                                        <tr class="small text-muted">
-                                            <th>Domain</th>
-                                            <th class="text-end">Visitors</th>
-                                            <th class="text-end">Bandwidth</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for t in traffic_stats %}
-                                        <tr>
-                                            <td class="small fw-bold">{{ t.domain }}</td>
-                                            <td class="small text-end">{{ t.visitors }}</td>
-                                            <td class="small text-end">
-                                                {% if t.bandwidth > 1024*1024*1024 %}
-                                                    {{ (t.bandwidth / 1024 / 1024 / 1024)|round(2) }} GB
-                                                {% else %}
-                                                    {{ (t.bandwidth / 1024 / 1024)|round(1) }} MB
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            {% else %}
-                            <div class="text-center py-4 text-muted">
-                                <i class="fas fa-globe fa-2x mb-2 opacity-25"></i>
-                                <p class="small mb-0">No traffic logs detected yet.</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="mb-0"><i class="fas fa-history me-2 text-warning"></i>Backup Status</h5>
-                        </div>
-                        <div class="card-body text-center d-flex flex-column justify-content-center">
-                            <p class="mb-1 text-muted">Last Successful Backup</p>
-                            <h4 class="mb-3">{{ server_info.last_backup }}</h4>
-                            <div class="mt-2">
-
-            <!-- Server Information Section -->
-            <div class="row g-4 mt-2 mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Server Information</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-desktop text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Hostname</small><span>{{ server_info.hostname }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-network-wired text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">IP Address</small><span>{{ server_info.ip_address }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fab fa-linux text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Operating System</small><span>{{ server_info.os }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-microchip text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">CPU Cores</small><span>{{ server_info.cpu_cores }} Threads / {{ server_info.cpu_physical }} Physical</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-fingerprint text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Kernel Version</small><span>{{ server_info.kernel }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-clock text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Uptime</small><span>{{ server_info.uptime }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fab fa-python text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Python Version</small><span>{{ server_info.python_version }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-calendar-alt text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Server Time</small><span>{{ server_info.server_time }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-globe text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Public IP</small><span>{{ server_info.public_ip }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-undo text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Last Backup</small><span>{{ server_info.last_backup }}</span></div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-12">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-cog text-muted me-2" style="width: 20px;"></i>
-                                        <div><small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Processor</small><span>{{ server_info.processor }}</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Security & Network Section -->
-            <div class="row g-4 mt-2 mb-4">
-                <div class="col-md-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="mb-0 text-danger"><i class="fas fa-shield-alt me-2"></i>Security Audit (Recent SSH Logins)</h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0" style="font-size: 12px;">
-                                    <thead class="bg-light">
-                                        <tr>
-                                            <th class="ps-3">Time</th>
-                                            <th>Security Event</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% if server_info.ssh_logins %}
-                                            {% for login in server_info.ssh_logins %}
-                                            <tr>
-                                                <td class="ps-3 text-muted" style="white-space: nowrap;">{{ login.time }}</td>
-                                                <td>
-                                                    {% if 'Accepted' in login.msg %}
-                                                        <span class="text-success"><i class="fas fa-check-circle me-1"></i>{{ login.msg }}</span>
-                                                    {% else %}
-                                                        <span class="text-danger"><i class="fas fa-times-circle me-1"></i>{{ login.msg }}</span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        {% else %}
-                                            <tr><td colspan="2" class="text-center py-3 text-muted">No SSH events found or log access denied.</td></tr>
-                                        {% endif %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="mb-0 text-success"><i class="fas fa-door-open me-2"></i>Active Network Ports (Listening)</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex flex-wrap gap-2">
-                                {% for port in server_info.listening_ports %}
-                                    <span class="badge rounded-pill bg-light text-dark border p-2" style="min-width: 50px;">
-                                        <i class="fas fa-plug text-primary me-1"></i> {{ port }}
-                                    </span>
-                                {% endfor %}
-                            </div>
-                            <p class="small text-muted mt-3 mb-0">
-                                <i class="fas fa-info-circle me-1"></i> These ports are currently open and listening for incoming connections.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Traffic and Backup Summary -->
-            <div class="row g-4 mb-4">
-                <div class="col-md-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="fas fa-chart-line me-2 text-success"></i>Web Traffic Summary</h5>
-                        </div>
-                        <div class="card-body">
-                            {% if traffic_stats %}
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0">
-                                    <thead>
-                                        <tr class="small text-muted">
-                                            <th>Domain</th>
-                                            <th class="text-end">Visitors</th>
-                                            <th class="text-end">Bandwidth</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for t in traffic_stats %}
-                                        <tr>
-                                            <td class="small fw-bold">{{ t.domain }}</td>
-                                            <td class="small text-end">{{ t.visitors }}</td>
-                                            <td class="small text-end">
-                                                {% if t.bandwidth > 1024*1024*1024 %}
-                                                    {{ (t.bandwidth / 1024 / 1024 / 1024)|round(2) }} GB
-                                                {% else %}
-                                                    {{ (t.bandwidth / 1024 / 1024)|round(1) }} MB
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            {% else %}
-                            <div class="text-center py-4 text-muted">
-                                <i class="fas fa-globe fa-2x mb-2 opacity-25"></i>
-                                <p class="small mb-0">No traffic logs detected yet.</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <!-- Backup Status Card -->
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom">
-                            <h5 class="mb-0"><i class="fas fa-history me-2 text-warning"></i>Backup Status</h5>
-                        </div>
-                        <div class="card-body text-center d-flex flex-column justify-content-center">
-                            <p class="mb-1 text-muted">Last Successful Backup</p>
-                            <h4 class="mb-3">{{ server_info.last_backup }}</h4>
-                            <div class="mt-2">
-                                <a href="/backups" class="btn btn-sm btn-outline-primary">Manage Backups</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+            {% endblock %}
         </div>
-    </div>
-</div>
-{% endblock %}
-        </div>
-
-        <footer class="mt-5 mb-3 text-center text-muted small">
-            &copy; 2026 <a href="https://github.com/tysonchamp/Lite-cPanel" target="_blank" class="text-decoration-none text-secondary fw-bold">Lite cPanel</a>. All rights reserved.
-        </footer>
+        <footer class="mt-4 text-center text-muted x-small">&copy; 2026 Lite cPanel</footer>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

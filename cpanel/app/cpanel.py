@@ -347,6 +347,63 @@ def dashboard():
 
     return render_template('dashboard.html', server_info=server_info, stats=stats, traffic_stats=traffic_stats)
 
+@app.route('/traffic')
+@login_required
+def traffic_monitor():
+    traffic_stats = []
+    from nextjs_mgr import get_nextjs_apps
+    all_apps = get_nextjs_apps()
+    for app in all_apps:
+        domain = app['domain']
+        nginx_log = f"/var/log/nginx/{domain}_access.log"
+        apache_log = f"/var/log/apache2/{domain}_access.log"
+        
+        # Helper logic already exists in dashboard route, I'll extract it or reuse
+        # For now, I'll redefine it to keep it simple and isolated
+        def get_domain_traffic(domain, log_file):
+            if not os.path.exists(log_file): return None
+            try:
+                cmd = ['goaccess', log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'json']
+                res = subprocess.run(cmd, capture_output=True, text=True)
+                if res.returncode == 0:
+                    data = json.loads(res.stdout)
+                    general = data.get('general', {})
+                    return {
+                        'domain': domain,
+                        'hits': general.get('total_requests', 0),
+                        'bandwidth': general.get('bandwidth', 0),
+                        'visitors': general.get('unique_visitors', 0)
+                    }
+            except: pass
+            return None
+            
+        stats = get_domain_traffic(domain, nginx_log) or get_domain_traffic(domain, apache_log)
+        if stats:
+            traffic_stats.append(stats)
+            
+    return render_template('traffic.html', traffic_stats=traffic_stats)
+
+@app.route('/traffic/report/<domain>')
+@login_required
+def traffic_report(domain):
+    nginx_log = f"/var/log/nginx/{domain}_access.log"
+    apache_log = f"/var/log/apache2/{domain}_access.log"
+    log_file = nginx_log if os.path.exists(nginx_log) else (apache_log if os.path.exists(apache_log) else None)
+    
+    if not log_file:
+        return "Log file not found for this domain.", 404
+        
+    try:
+        # Generate full HTML report from GoAccess
+        cmd = ['goaccess', log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'html']
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode == 0:
+            return res.stdout # Return raw HTML report
+    except Exception as e:
+        return f"Error generating report: {str(e)}", 500
+        
+    return "Failed to generate report.", 500
+
 @app.route('/api/sysinfo')
 @login_required
 def api_sysinfo():
