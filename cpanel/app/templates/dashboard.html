@@ -173,7 +173,7 @@
                                 </div>
                             </div>
                             <div class="col-6">
-                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Private IP</small>
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Server IP</small>
                                 <span class="fw-medium">{{ server_info.ip_address }}</span>
                             </div>
                             <div class="col-6">
@@ -196,22 +196,6 @@
     </div>
 </div>
 
-<div class="row g-4 mt-2 mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-plug me-2 text-warning"></i>Active Network Ports</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-flex flex-wrap gap-1">
-                    {% for port in server_info.listening_ports %}
-                        <span class="badge rounded-pill bg-white text-dark border px-2 py-1" style="font-size: 10px;">{{ port }}</span>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_scripts %}
