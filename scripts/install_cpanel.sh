@@ -14,7 +14,7 @@ echo "======================================"
 apt-get update
 apt-get install -y zip unzip curl
 apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config \
-    pure-ftpd libwww-perl sendmail iptables wget tar
+    pure-ftpd libwww-perl sendmail iptables wget tar goaccess
 
 # Ensure Pure-FTPd is setup for virtual users
 echo "Configuring Pure-FTPd..."
