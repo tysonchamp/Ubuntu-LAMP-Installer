@@ -19,6 +19,11 @@ def get_system_logs():
         'Letsencrypt': '/var/log/letsencrypt/letsencrypt.log'
     }
 
+    # Alternative paths for some services
+    alt_paths = {
+        'MySQL Error': ['/var/log/mariadb/mariadb.log', '/var/log/mysql/mariadb.log']
+    }
+
     # Automatically add Apache vhost logs
     for log_path in glob.glob('/var/log/apache2/*-error.log'):
         name = os.path.basename(log_path).replace('-error.log', ' (Apache Error)')
@@ -34,17 +39,42 @@ def get_system_logs():
         logs[name] = log_path
 
     results = {}
+    core_log_names = ['Apache Error', 'Apache Access', 'Nginx Error', 'Nginx Access', 'Syslog', 'MySQL Error', 'Backup Log', 'Mongo Express', 'Letsencrypt']
+
     for name, path in logs.items():
-        if os.path.exists(path):
+        actual_path = path
+        exists = os.path.exists(path)
+        
+        # Try alternatives if not found
+        if not exists and name in alt_paths:
+            for alt in alt_paths[name]:
+                if os.path.exists(alt):
+                    actual_path = alt
+                    exists = True
+                    break
+        
+        if exists:
             try:
                 # Get last 100 lines
-                result = subprocess.run(['tail', '-n', '100', path], capture_output=True, text=True)
-                results[name] = {
-                    'path': path,
-                    'content': result.stdout
-                }
+                result = subprocess.run(['tail', '-n', '100', actual_path], capture_output=True, text=True)
+                if result.returncode == 0:
+                    results[name] = {
+                        'path': actual_path,
+                        'content': result.stdout if result.stdout else "(Log file is empty)"
+                    }
+                else:
+                    results[name] = {
+                        'path': actual_path,
+                        'content': f"Error reading log: {result.stderr}"
+                    }
             except Exception as e:
-                results[name] = {'path': path, 'content': f"Error reading log: {str(e)}"}
+                results[name] = {'path': actual_path, 'content': f"Error reading log: {str(e)}"}
+        elif name in core_log_names:
+            # Always show core logs even if missing
+            results[name] = {
+                'path': actual_path,
+                'content': "Log file does not exist yet. This service may not have generated any logs, or the feature is not in use."
+            }
 
     return results
 
