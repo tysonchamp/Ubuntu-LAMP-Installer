@@ -13,7 +13,8 @@
             <form method="POST" action="{{ url_for('process_manager') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="install_pm2">
-                <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-download me-2"></i> Install PM2 Globally</button>
+                <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-download me-2"></i> Install PM2
+                    Globally</button>
             </form>
         </div>
     </div>
@@ -27,14 +28,18 @@
                 <h5 class="mb-0">Run New Next.js App</h5>
                 {% if configured_apps %}
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown">
                         <i class="fas fa-magic me-1"></i> Quick-Add from Proxies
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow">
-                        <li><h6 class="dropdown-header">Detected Apps (Configured Proxies)</h6></li>
+                        <li>
+                            <h6 class="dropdown-header">Detected Apps (Configured Proxies)</h6>
+                        </li>
                         {% for app in configured_apps %}
                         <li>
-                            <button type="button" class="dropdown-item" onclick="quickFill('{{ app.domain }}', '{{ app.port }}')">
+                            <button type="button" class="dropdown-item"
+                                onclick="quickFill('{{ app.domain }}', '{{ app.port }}')">
                                 <strong>{{ app.domain }}</strong> (Port: {{ app.port }})
                             </button>
                         </li>
@@ -55,28 +60,33 @@
                         <label class="form-label small fw-bold">App Directory Path</label>
                         <div class="input-group">
                             <span class="input-group-text">/var/www/</span>
-                            <input type="text" id="appPath" class="form-control" name="path" value="" placeholder="my-domain.com" required oninput="updateFullResult()">
+                            <input type="text" id="appPath" class="form-control" name="path" value=""
+                                placeholder="my-domain.com" required oninput="updateFullResult()">
                         </div>
                         <input type="hidden" name="full_path" id="fullPath">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small fw-bold">Port</label>
-                        <div class="form-text mt-1" style="font-size: 0.65rem;">Optional if using ecosystem.config.js</div>
+                        <div class="form-text" style="font-size: 0.65rem;">Optional if using ecosystem.config.js</div>
                         <input type="number" id="appPort" class="form-control" name="port" placeholder="3000">
                     </div>
                     <div class="col-md-2">
                         <div class="d-flex gap-1">
-                            <button type="submit" class="btn btn-success flex-grow-1"><i class="fas fa-play me-1"></i> Start</button>
+                            <button type="submit" class="btn btn-success flex-grow-1"><i class="fas fa-play me-1"></i>
+                                Start</button>
                             <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"></button>
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown"></button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow">
                                     <li>
-                                        <button type="button" class="dropdown-item" onclick="submitNpmAction('npm_install')">
+                                        <button type="button" class="dropdown-item"
+                                            onclick="submitNpmAction('npm_install')">
                                             <i class="fas fa-box-open me-2 text-primary"></i> NPM Install
                                         </button>
                                     </li>
                                     <li>
-                                        <button type="button" class="dropdown-item" onclick="submitNpmAction('npm_build')">
+                                        <button type="button" class="dropdown-item"
+                                            onclick="submitNpmAction('npm_build')">
                                             <i class="fas fa-hammer me-2 text-warning"></i> NPM Build
                                         </button>
                                     </li>
@@ -91,72 +101,72 @@
 </div>
 
 <script>
-function quickFill(domain, port) {
-    document.getElementById('appName').value = domain.split('.')[0];
-    document.getElementById('appPath').value = domain;
-    document.getElementById('appPort').value = port;
-    updateFullResult();
-}
-
-function updateFullResult() {
-    const relative = document.getElementById('appPath').value;
-    // If it starts with / already, don't prepend /var/www/
-    if (relative.startsWith('/')) {
-        document.getElementById('fullPath').value = relative;
-    } else {
-        document.getElementById('fullPath').value = '/var/www/' + relative;
+    function quickFill(domain, port) {
+        document.getElementById('appName').value = domain.split('.')[0];
+        document.getElementById('appPath').value = domain;
+        document.getElementById('appPort').value = port;
+        updateFullResult();
     }
-}
 
-// Ensure fullPath is updated on load and submit
-document.addEventListener('DOMContentLoaded', updateFullResult);
-
-function submitNpmAction(action) {
-    updateFullResult();
-    const path = document.getElementById('fullPath').value;
-    if (!path || path === '/var/www/') {
-        alert('Please enter the app directory path first.');
-        return;
+    function updateFullResult() {
+        const relative = document.getElementById('appPath').value;
+        // If it starts with / already, don't prepend /var/www/
+        if (relative.startsWith('/')) {
+            document.getElementById('fullPath').value = relative;
+        } else {
+            document.getElementById('fullPath').value = '/var/www/' + relative;
+        }
     }
-    
-    // Create a temporary form to submit the action
-    const tempForm = document.createElement('form');
-    tempForm.method = 'POST';
-    tempForm.action = '{{ url_for("process_manager") }}';
-    
-    const fields = {
-        'csrf_token': '{{ csrf_token() }}',
-        'action': action,
-        'path': path
+
+    // Ensure fullPath is updated on load and submit
+    document.addEventListener('DOMContentLoaded', updateFullResult);
+
+    function submitNpmAction(action) {
+        updateFullResult();
+        const path = document.getElementById('fullPath').value;
+        if (!path || path === '/var/www/') {
+            alert('Please enter the app directory path first.');
+            return;
+        }
+
+        // Create a temporary form to submit the action
+        const tempForm = document.createElement('form');
+        tempForm.method = 'POST';
+        tempForm.action = '{{ url_for("process_manager") }}';
+
+        const fields = {
+            'csrf_token': '{{ csrf_token() }}',
+            'action': action,
+            'path': path
+        };
+
+        for (const [key, value] of Object.entries(fields)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            tempForm.appendChild(input);
+        }
+
+        document.body.appendChild(tempForm);
+
+        // Show a loading state
+        const btn = event.target.closest('button');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Running...';
+            btn.disabled = true;
+        }
+
+        tempForm.submit();
+    }
+
+    // Override the main form submit to use fullPath
+    document.querySelector('form[action="{{ url_for("process_manager") }}"]').onsubmit = function () {
+        updateFullResult();
+        const pathInput = this.querySelector('input[name="path"]');
+        pathInput.value = document.getElementById('fullPath').value;
+        return true;
     };
-    
-    for (const [key, value] of Object.entries(fields)) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value;
-        tempForm.appendChild(input);
-    }
-    
-    document.body.appendChild(tempForm);
-    
-    // Show a loading state
-    const btn = event.target.closest('button');
-    if (btn) {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Running...';
-        btn.disabled = true;
-    }
-    
-    tempForm.submit();
-}
-
-// Override the main form submit to use fullPath
-document.querySelector('form[action="{{ url_for("process_manager") }}"]').onsubmit = function() {
-    updateFullResult();
-    const pathInput = this.querySelector('input[name="path"]');
-    pathInput.value = document.getElementById('fullPath').value;
-    return true;
-};
 </script>
 
 <div class="row">
@@ -164,7 +174,8 @@ document.querySelector('form[action="{{ url_for("process_manager") }}"]').onsubm
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Managed Processes</h5>
-                <a href="{{ url_for('process_manager') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-sync-alt"></i> Refresh</a>
+                <a href="{{ url_for('process_manager') }}" class="btn btn-sm btn-outline-secondary"><i
+                        class="fas fa-sync-alt"></i> Refresh</a>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -184,11 +195,13 @@ document.querySelector('form[action="{{ url_for("process_manager") }}"]').onsubm
                             <tr>
                                 <td class="align-middle">
                                     <span class="fw-bold">{{ p.name }}</span><br>
-                                    <small class="text-muted font-monospace" style="font-size: 0.7rem;">PID: {{ p.pid }} | ID: {{ p.pm_id }}</small>
+                                    <small class="text-muted font-monospace" style="font-size: 0.7rem;">PID: {{ p.pid }}
+                                        | ID: {{ p.pm_id }}</small>
                                 </td>
                                 <td class="align-middle">
                                     {% if p.pm2_env.status == 'online' %}
-                                    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> Online</span>
+                                    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>
+                                        Online</span>
                                     {% elif p.pm2_env.status == 'stopped' %}
                                     <span class="badge bg-danger"><i class="fas fa-stop-circle me-1"></i> Stopped</span>
                                     {% else %}
@@ -197,7 +210,8 @@ document.querySelector('form[action="{{ url_for("process_manager") }}"]').onsubm
                                 </td>
                                 <td class="align-middle">{{ p.monit.cpu }}%</td>
                                 <td class="align-middle">{{ (p.monit.memory / 1024 / 1024)|round(1) }} MB</td>
-                                <td class="align-middle text-muted small">{{ (p.pm2_env.pm_uptime / 1000 / 60 / 60)|round(1) }}h</td>
+                                <td class="align-middle text-muted small">{{ (p.pm2_env.pm_uptime / 1000 / 60 /
+                                    60)|round(1) }}h</td>
                                 <td class="align-middle text-end">
                                     <div class="d-flex justify-content-end gap-1">
                                         {% if p.pm2_env.status == 'online' %}
@@ -205,31 +219,37 @@ document.querySelector('form[action="{{ url_for("process_manager") }}"]').onsubm
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="action" value="stop">
                                             <input type="hidden" name="name" value="{{ p.name }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Stop"><i class="fas fa-stop"></i></button>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Stop"><i
+                                                    class="fas fa-stop"></i></button>
                                         </form>
                                         {% else %}
                                         <form method="POST" action="{{ url_for('process_manager') }}" class="d-inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="action" value="start">
                                             <input type="hidden" name="name" value="{{ p.name }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Start"><i class="fas fa-play"></i></button>
+                                            <button type="submit" class="btn btn-sm btn-outline-success"
+                                                title="Start"><i class="fas fa-play"></i></button>
                                         </form>
                                         {% endif %}
-                                        
+
                                         <form method="POST" action="{{ url_for('process_manager') }}" class="d-inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="action" value="restart">
                                             <input type="hidden" name="name" value="{{ p.name }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Restart"><i class="fas fa-sync"></i></button>
+                                            <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                title="Restart"><i class="fas fa-sync"></i></button>
                                         </form>
 
-                                        <button class="btn btn-sm btn-outline-info" onclick="viewLogs('{{ p.name }}')" title="Logs"><i class="fas fa-file-alt"></i></button>
+                                        <button class="btn btn-sm btn-outline-info" onclick="viewLogs('{{ p.name }}')"
+                                            title="Logs"><i class="fas fa-file-alt"></i></button>
 
-                                        <form method="POST" action="{{ url_for('process_manager') }}" class="d-inline" onsubmit="return confirm('Delete this process from PM2?')">
+                                        <form method="POST" action="{{ url_for('process_manager') }}" class="d-inline"
+                                            onsubmit="return confirm('Delete this process from PM2?')">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="name" value="{{ p.name }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Delete"><i class="fas fa-trash"></i></button>
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                                title="Delete"><i class="fas fa-trash"></i></button>
                                         </form>
                                     </div>
                                 </td>
@@ -259,29 +279,30 @@ document.querySelector('form[action="{{ url_for("process_manager") }}"]').onsubm
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
-                <pre id="logContent" class="p-3 m-0" style="height: 500px; overflow-y: auto; font-size: 0.85rem; color: #ced4da;"></pre>
+                <pre id="logContent" class="p-3 m-0"
+                    style="height: 500px; overflow-y: auto; font-size: 0.85rem; color: #ced4da;"></pre>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-async function viewLogs(name) {
-    const modal = new bootstrap.Modal(document.getElementById('logsModal'));
-    const content = document.getElementById('logContent');
-    content.innerText = 'Loading logs...';
-    document.getElementById('logsModalLabel').innerText = `Logs for: ${name}`;
-    modal.show();
-    
-    try {
-        const res = await fetch(`/api/processes/logs/${name}`);
-        const data = await res.json();
-        content.innerText = data.logs;
-        content.scrollTop = content.scrollHeight;
-    } catch (e) {
-        content.innerText = 'Error loading logs.';
+    async function viewLogs(name) {
+        const modal = new bootstrap.Modal(document.getElementById('logsModal'));
+        const content = document.getElementById('logContent');
+        content.innerText = 'Loading logs...';
+        document.getElementById('logsModalLabel').innerText = `Logs for: ${name}`;
+        modal.show();
+
+        try {
+            const res = await fetch(`/api/processes/logs/${name}`);
+            const data = await res.json();
+            content.innerText = data.logs;
+            content.scrollTop = content.scrollHeight;
+        } catch (e) {
+            content.innerText = 'Error loading logs.';
+        }
     }
-}
 </script>
 
 {% endif %}

@@ -3,18 +3,15 @@ import json
 import os
 import shutil
 
+PM2_BIN = "/root/.nvm/versions/node/v24.15.0/bin/pm2"
+PM2_HOME = "/root/.pm2"
+
 def is_pm2_installed():
     """Checks if PM2 is available in the system path."""
-    return shutil.which('pm2') is not None
+    return os.path.exists(PM2_BIN) or shutil.which('pm2') is not None
 
-def install_pm2():
-    """Attempts to install PM2 globally via npm."""
-    try:
-        # We assume npm is installed as part of the Node.js requirement for Next.js
-        subprocess.run(['npm', 'install', '-g', 'pm2'], check=True, capture_output=True, text=True)
-        return True, "PM2 installed successfully."
-    except Exception as e:
-        return False, f"Failed to install PM2: {str(e)}"
+def get_pm2_cmd():
+    return PM2_BIN if os.path.exists(PM2_BIN) else 'pm2'
 
 def list_processes():
     """Returns a list of running PM2 processes in JSON format."""
@@ -22,7 +19,9 @@ def list_processes():
         return []
     
     try:
-        result = subprocess.run(['pm2', 'jlist'], capture_output=True, text=True, check=True)
+        env = os.environ.copy()
+        env["PM2_HOME"] = PM2_HOME
+        result = subprocess.run([get_pm2_cmd(), 'jlist'], capture_output=True, text=True, check=True, env=env)
         return json.loads(result.stdout)
     except Exception:
         return []
@@ -35,7 +34,9 @@ def manage_process(action, name_or_id):
         return False, "Invalid action."
     
     try:
-        subprocess.run(['pm2', action, str(name_or_id)], check=True, capture_output=True, text=True)
+        env = os.environ.copy()
+        env["PM2_HOME"] = PM2_HOME
+        subprocess.run([get_pm2_cmd(), action, str(name_or_id)], check=True, capture_output=True, text=True, env=env)
         return True, f"Process {action}ed successfully."
     except subprocess.CalledProcessError as e:
         return False, f"Error: {e.stderr.strip()}"
@@ -48,10 +49,13 @@ def start_nextjs_app(app_path, app_name, port):
         return False, f"Path does not exist: {app_path}"
     
     try:
+        env = os.environ.copy()
+        env["PM2_HOME"] = PM2_HOME
+        
         # Check for ecosystem.config.js (Prioritize)
         ecosystem_path = os.path.join(app_path, 'ecosystem.config.js')
         if os.path.exists(ecosystem_path):
-            cmd = ['pm2', 'start', 'ecosystem.config.js', '--name', app_name]
+            cmd = [get_pm2_cmd(), 'start', 'ecosystem.config.js', '--name', app_name]
         else:
             # Check if it's a standard next.js app (has package.json)
             pkg_json = os.path.join(app_path, 'package.json')
@@ -63,14 +67,14 @@ def start_nextjs_app(app_path, app_name, port):
                 return False, "Port is required when no ecosystem.config.js is found."
             
             cmd = [
-                'pm2', 'start', 'npm', 
+                get_pm2_cmd(), 'start', 'npm', 
                 '--name', app_name, 
                 '--', 'start', '--', '-p', str(port)
             ]
         
-        subprocess.run(cmd, cwd=app_path, check=True, capture_output=True, text=True)
+        subprocess.run(cmd, cwd=app_path, check=True, capture_output=True, text=True, env=env)
         # Save to ensure it persists across reboots
-        subprocess.run(['pm2', 'save'], check=True)
+        subprocess.run([get_pm2_cmd(), 'save'], check=True, env=env)
         
         return True, f"Application '{app_name}' started successfully."
     except subprocess.CalledProcessError as e:
