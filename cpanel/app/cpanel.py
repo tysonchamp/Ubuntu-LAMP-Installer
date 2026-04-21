@@ -236,11 +236,23 @@ def dashboard():
     ssh_logins = []
     
     def parse_ssh_line(line):
-        # Extract timestamp (usually first 3 parts: Month Day Time)
-        parts = line.split()
-        time_str = " ".join(parts[:3])
-        # Extract message after 'sshd[PID]: '
         import re
+        from datetime import datetime
+        
+        # Try ISO format (2026-04-21T14:17:03...)
+        iso_match = re.match(r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})', line)
+        if iso_match:
+            try:
+                dt = datetime.strptime(iso_match.group(1), '%Y-%m-%dT%H:%M:%S')
+                time_str = dt.strftime('%b %d %H:%M:%S')
+            except:
+                time_str = iso_match.group(1)
+        else:
+            # Fallback to Syslog format (Apr 21 14:17:03)
+            parts = line.split()
+            time_str = " ".join(parts[:3])
+
+        # Extract message after 'sshd[PID]: '
         m = re.search(r'sshd\[\d+\]: (.*)', line)
         msg = m.group(1) if m else line
         return {'time': time_str, 'msg': msg}
