@@ -110,14 +110,19 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - **DNS Verification** — Automatically verifies DNS resolution for the `www` subdomain before including it in the SSL request, preventing validation failures
 - **Snap Certbot** — Uses the official, more robust Snap-based Certbot installation method
 - **Domain-Specific Logs** — Enhanced per-domain log viewer with live tailing and fallback support
-- Manage Next.js applications running via PM2
-- Automatically generate Nginx/Apache reverse proxy configurations pointing to local ports
-- Visually isolated from standard domains to prevent clutter
-- Inline configuration editor and built-in SSL generation support
+- **Reverse Proxy** — Automatically generate Nginx/Apache reverse proxy configurations for Next.js applications
+- **Inline Editor** — Advanced configuration editor with built-in SSL generation support
+
+### 📊 Web Traffic Analytics (GoAccess)
+- **Real-time Monitoring** — Integrated GoAccess engine for live parsing of Nginx and Apache access logs
+- **Traffic Overview** — Per-domain hits, unique visitors, and bandwidth usage statistics
+- **Deep-Dive Reports** — One-click generation of full interactive HTML reports for every domain
+- **Automated Log Mapping** — Automatically detects log locations for proxy domains and Next.js applications
 
 ### 💻 Web-based Terminal
 - Fully interactive root shell directly in the browser (via xterm.js)
 - Real-time bi-directional communication over WebSockets (flask-sock)
+- **Slick Modern UI** — Custom minimalist scrollbars and improved terminal container styling
 - Automatic terminal resizing and window management
 - Run interactive console tools like `nano`, `htop`, or `top` natively
 

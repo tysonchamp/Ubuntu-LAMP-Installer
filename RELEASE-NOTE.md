@@ -1,5 +1,15 @@
 # Updates:
-21.04.2026
+21.04.2026 (Major UI & Analytics Update)
+
+1. **Slick Modern UI/UX**: Completely redesigned the dashboard and sidebar with a premium midnight-gradient aesthetic, refined typography (Inter), and glassmorphism-inspired cards.
+2. **Web Traffic Analytics**: Integrated **GoAccess** for real-time web traffic monitoring. Added a dedicated Traffic Monitor module providing per-domain hits, unique visitors, bandwidth stats, and full interactive HTML reports.
+3. **Process Manager Hardening**: Implemented **Automatic PM2 Resurrection** on system boot and hardened NVM environment paths to ensure Node.js/Next.js applications persist across system restarts.
+4. **Advanced System Metrics**: Expanded the server information module to display CPU clock frequency, platform details (Architecture/KVM), and full OS Distro names (e.g., AlmaLinux/Ubuntu).
+5. **Security Log Parsing**: Enhanced SSH login audit logs with dual-format timestamp parsing (ISO/Syslog) for clean, human-readable security event monitoring.
+6. **Terminal UX**: Upgraded the web terminal with a custom minimalist scrollbar and improved container styling for a pro-developer feel.
+7. **Infrastructure Refactoring**: Migrated to a centralized `base.html` architecture to improve panel stability and eliminate template-related Internal Server Errors.
+
+21.04.2026 (Initial Release)
 
 1. Implemented a full **Node.js Process Manager** powered by PM2, allowing live monitoring and control of background applications.
 2. Updated **Certbot** installation to the official Snap-based method for improved reliability on Ubuntu 22.04 and 24.04.
