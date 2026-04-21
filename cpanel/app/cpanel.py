@@ -910,8 +910,7 @@ def phpmyadmin_login():
     return redirect(f"http://{host}/phpmyadmin/")
 
 
-from ftp_mgr import check_pureftpd_installed, get_ftp_users, create_ftp_user, delete_ftp_user, change_ftp_password
-
+from nextjs_mgr import get_nextjs_apps
 from process_mgr import (is_pm2_installed, install_pm2, list_processes, 
                          manage_process, start_nextjs_app, get_process_logs, run_npm_command)
 
@@ -919,6 +918,7 @@ from process_mgr import (is_pm2_installed, install_pm2, list_processes,
 @login_required
 def process_manager():
     pm2_ready = is_pm2_installed()
+    configured_apps = get_nextjs_apps()
     
     if request.method == 'POST':
         action = request.form.get('action')
@@ -952,7 +952,7 @@ def process_manager():
         return redirect(url_for('process_manager'))
 
     processes = list_processes()
-    return render_template('processes.html', pm2_ready=pm2_ready, processes=processes)
+    return render_template('processes.html', pm2_ready=pm2_ready, processes=processes, configured_apps=configured_apps)
 
 @app.route('/api/processes/logs/<name>')
 @login_required
