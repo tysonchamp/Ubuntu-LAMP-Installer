@@ -57,6 +57,29 @@ if [ ! -f /etc/modsecurity/modsecurity.conf ] && [ -f /etc/modsecurity/modsecuri
     cp /etc/modsecurity/modsecurity.conf-recommended /etc/modsecurity/modsecurity.conf
 fi
 
+
+# Install Node.js
+install_nodejs() {
+    echo -e "${GREEN}Installing Node.js via NVM...${NC}"
+    export NVM_DIR="$HOME/.nvm"
+    
+    # Ensure NVM is installed
+    if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+    fi
+    
+    \\. "$NVM_DIR/nvm.sh"
+    
+    # Ensure Node 24 is installed
+    if [[ ! "$(node -v 2>/dev/null)" == v24* ]]; then
+        nvm install 24
+    fi
+    nvm use 24
+}
+# Install Node.js
+install_nodejs
+
+
 # Get absolute path of the directory
 # This handles the case where the script is executed with `sh` or `dash` instead of `bash`
 SCRIPT_PATH=$(readlink -f "$0")

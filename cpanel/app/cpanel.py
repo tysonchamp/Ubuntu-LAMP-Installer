@@ -1,8 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import os
 
-# Ensure standard bin directories are available in the PATH for all subprocess calls
-os.environ["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" + os.environ.get("PATH", "")
+import glob
+
+# Detect NVM paths for node/npm and ensure standard bin directories are available
+paths = ["/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"]
+nvm_node_paths = glob.glob(os.path.expanduser("~/.nvm/versions/node/*/bin"))
+if nvm_node_paths:
+    nvm_node_paths.sort(reverse=True)
+    paths = nvm_node_paths + paths
+
+os.environ["PATH"] = ":".join(paths) + ":" + os.environ.get("PATH", "")
 
 import psutil
 from auth import check_system_password, login_required
