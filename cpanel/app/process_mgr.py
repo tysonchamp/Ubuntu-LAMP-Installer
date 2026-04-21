@@ -76,6 +76,26 @@ def start_nextjs_app(app_path, app_name, port):
     except subprocess.CalledProcessError as e:
         return False, f"Failed to start app: {e.stderr.strip()}"
 
+def run_npm_command(app_path, command):
+    """
+    Runs an npm command (install or build) in the specified directory.
+    """
+    if command not in ['install', 'run build']:
+        return False, "Invalid npm command."
+    
+    if not os.path.exists(app_path):
+        return False, f"Path does not exist: {app_path}"
+    
+    try:
+        # We use a longer timeout for builds
+        cmd = ['npm'] + command.split()
+        result = subprocess.run(cmd, cwd=app_path, capture_output=True, text=True, check=True)
+        return True, f"npm {command} completed successfully."
+    except subprocess.CalledProcessError as e:
+        return False, f"npm {command} failed: {e.stderr.strip() or e.stdout.strip()}"
+    except Exception as e:
+        return False, f"An error occurred: {str(e)}"
+
 def get_process_logs(name, lines=100):
     """Fetches the latest logs for a specific process."""
     try:

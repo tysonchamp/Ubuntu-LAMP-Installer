@@ -913,7 +913,7 @@ def phpmyadmin_login():
 from ftp_mgr import check_pureftpd_installed, get_ftp_users, create_ftp_user, delete_ftp_user, change_ftp_password
 
 from process_mgr import (is_pm2_installed, install_pm2, list_processes, 
-                         manage_process, start_nextjs_app, get_process_logs)
+                         manage_process, start_nextjs_app, get_process_logs, run_npm_command)
 
 @app.route('/processes', methods=['GET', 'POST'])
 @login_required
@@ -939,6 +939,16 @@ def process_manager():
             success, msg = manage_process(action, name)
             flash(msg, 'success' if success else 'danger')
             
+        elif action == 'npm_install':
+            path = request.form.get('path')
+            success, msg = run_npm_command(path, 'install')
+            flash(msg, 'success' if success else 'danger')
+
+        elif action == 'npm_build':
+            path = request.form.get('path')
+            success, msg = run_npm_command(path, 'run build')
+            flash(msg, 'success' if success else 'danger')
+
         return redirect(url_for('process_manager'))
 
     processes = list_processes()
