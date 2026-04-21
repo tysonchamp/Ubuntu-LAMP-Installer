@@ -209,26 +209,38 @@ def dashboard():
 
     # Recent SSH Logins (Last 5)
     ssh_logins = []
+    
+    def parse_ssh_line(line):
+        # Extract timestamp (usually first 3 parts: Month Day Time)
+        parts = line.split()
+        time_str = " ".join(parts[:3])
+        # Extract message after 'sshd[PID]: '
+        import re
+        m = re.search(r'sshd\[\d+\]: (.*)', line)
+        msg = m.group(1) if m else line
+        return {'time': time_str, 'msg': msg}
+
     auth_log = '/var/log/auth.log'
-    if not os.path.exists(auth_log): auth_log = '/var/log/secure' # CentOS fallback
+    if not os.path.exists(auth_log): auth_log = '/var/log/secure'
     
     if os.path.exists(auth_log):
         try:
-            # We use tail -n 100 to avoid reading massive files
             res = subprocess.run(['tail', '-n', '200', auth_log], capture_output=True, text=True)
-            lines = res.stdout.strip().split('\n')
-            for line in reversed(lines):
-                if 'sshd' in line and ('Accepted' in line or 'Failed' in line):
-                    # Clean up the line for display
-                    # Oct 21 08:37:18 vmi sshd[42238]: Accepted password for root from 1.2.3.4 ...
-                    parts = line.split('sshd[')[1].split(']: ')[1] if 'sshd[' in line else line
-                    ssh_logins.append({
-                        'time': ' '.join(line.split()[:3]),
-                        'msg': parts
-                    })
+            for line in reversed(res.stdout.strip().split('\n')):
+                if 'sshd' in line and any(x in line for x in ['Accepted', 'Failed', 'Invalid']):
+                    ssh_logins.append(parse_ssh_line(line))
                     if len(ssh_logins) >= 5: break
-        except:
-            pass
+        except: pass
+
+    # Fallback to journalctl if log files are empty/inaccessible (common on newer Ubuntu versions)
+    if not ssh_logins:
+        try:
+            res = subprocess.run(['journalctl', '_COMM=sshd', '-n', '100', '--no-pager'], capture_output=True, text=True)
+            for line in reversed(res.stdout.strip().split('\n')):
+                if any(x in line for x in ['Accepted', 'Failed', 'Invalid']):
+                    ssh_logins.append(parse_ssh_line(line))
+                    if len(ssh_logins) >= 5: break
+        except: pass
 
     # Last Backup
     last_backup = "Never"
