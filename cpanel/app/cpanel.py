@@ -50,6 +50,7 @@ if not app.secret_key:
 
 from flask_sock import Sock
 sock = Sock(app)
+app.config['MAX_CONTENT_LENGTH'] = 512 * 1024 * 1024  # 512MB limit
 
 from terminal_mgr import register_terminal_websocket
 register_terminal_websocket(sock)
@@ -1199,7 +1200,7 @@ def _datetimeformat(ts):
 
 from filemanager_mgr import list_dir, read_file, write_file, create_folder, rename_entry, delete_entry, save_upload, compress_entries, decompress_entry, is_archive
 
-@app.route('/filemanager', methods=['GET', 'POST'])
+@app.route('/filemanager', methods=['GET', 'POST'], strict_slashes=False)
 @login_required
 def filemanager_route():
     path = request.args.get('path', '/var/www/html')

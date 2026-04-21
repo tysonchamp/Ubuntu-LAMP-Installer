@@ -139,7 +139,7 @@
 <div class="modal fade" id="uploadModal" tabindex="-1" data-bs-backdrop="static">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form id="uploadForm" method="POST" action="{{ url_for('filemanager_route') }}" enctype="multipart/form-data">
+      <form id="uploadForm" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="upload">
         <input type="hidden" name="path" value="{{ current_path }}">
@@ -404,8 +404,9 @@
       progressBar.style.width = '0%';
       progressBar.textContent = '0%';
     }
-
-    xhr.open('POST', form.action || window.location.href);
+    const actionAttr = form.getAttribute('action');
+    const uploadUrl = (actionAttr && typeof actionAttr === 'string') ? actionAttr : window.location.href;
+    xhr.open('POST', uploadUrl);
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
     xhr.send(formData);
   });
