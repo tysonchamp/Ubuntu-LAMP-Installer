@@ -23,7 +23,15 @@ def list_processes():
     
     try:
         result = subprocess.run(['pm2', 'jlist'], capture_output=True, text=True, check=True)
-        return json.loads(result.stdout)
+        processes = json.loads(result.stdout)
+        
+        # If list is empty, try to resurrect once (safety for lost persistence)
+        if not processes:
+            subprocess.run(['pm2', 'resurrect'], capture_output=True, text=True)
+            result = subprocess.run(['pm2', 'jlist'], capture_output=True, text=True, check=True)
+            processes = json.loads(result.stdout)
+            
+        return processes
     except Exception:
         return []
 

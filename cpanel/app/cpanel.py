@@ -5,6 +5,11 @@ from urllib.parse import quote
 
 import glob
 
+# Ensure consistent environment for PM2 and other system tools
+if os.getuid() == 0:
+    os.environ["HOME"] = "/root"
+    os.environ["PM2_HOME"] = "/root/.pm2"
+
 # Detect NVM paths for node/npm and ensure standard bin directories are available
 paths = ["/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"]
 nvm_node_paths = glob.glob(os.path.expanduser("~/.nvm/versions/node/*/bin"))
