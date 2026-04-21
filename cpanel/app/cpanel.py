@@ -10,12 +10,20 @@ if os.getuid() == 0:
     os.environ["HOME"] = "/root"
     os.environ["PM2_HOME"] = "/root/.pm2"
 
-# Detect NVM paths for node/npm and ensure standard bin directories are available
-paths = ["/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"]
+# Explicitly prioritize the user's working Node/PM2 path
+# Fallback to general detection if version changes
+paths = [
+    "/root/.nvm/versions/node/v24.15.0/bin",
+    "/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"
+]
+
+import glob
 nvm_node_paths = glob.glob(os.path.expanduser("~/.nvm/versions/node/*/bin"))
 if nvm_node_paths:
     nvm_node_paths.sort(reverse=True)
-    paths = nvm_node_paths + paths
+    for p in nvm_node_paths:
+        if p not in paths:
+            paths.append(p)
 
 os.environ["PATH"] = ":".join(paths) + ":" + os.environ.get("PATH", "")
 
