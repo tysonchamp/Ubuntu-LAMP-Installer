@@ -15,7 +15,8 @@ def get_system_logs():
         'Syslog': '/var/log/syslog',
         'MySQL Error': '/var/log/mysql/error.log',
         'Backup Log': '/var/log/lite-cpanel-backup.log',
-        'Mongo Express': '/var/log/mongo-express.log'
+        'Mongo Express': '/var/log/mongo-express.log',
+        'Letsencrypt': '/var/log/letsencrypt/letsencrypt.log'
     }
 
     # Automatically add Apache vhost logs
