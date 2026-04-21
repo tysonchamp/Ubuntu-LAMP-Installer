@@ -331,19 +331,39 @@ def dashboard():
         all_domains.add(host['domain'])
 
     for domain in all_domains:
+        domain_lower = domain.lower()
         # Check standard Nginx/Apache log patterns
         log_candidates = [
-            f"/var/log/nginx/{domain}_access.log",
-            f"/var/log/apache2/{domain}_access.log",
-            f"/var/log/nginx/{domain}.access.log",
-            f"/var/log/apache2/{domain}.access.log"
+            f"/var/log/nginx/{domain_lower}_access.log",
+            f"/var/log/apache2/{domain_lower}_access.log",
+            f"/var/log/nginx/{domain_lower}.access.log",
+            f"/var/log/apache2/{domain_lower}.access.log",
+            f"/var/log/nginx/access.log", # Global fallback
         ]
         
         stats = None
         for log_file in log_candidates:
             if os.path.exists(log_file):
+                # Try COMBINED first, then VCOMMON (often used for multiple domains in one log)
                 stats = get_domain_traffic(domain, log_file)
-                if stats: break
+                if stats and stats['hits'] > 0: break
+                
+                # Try with VCOMMON if COMBINED failed to return hits
+                cmd_vcommon = ['/usr/bin/goaccess', log_file, '--log-format=VCOMMON', '--no-global-config', '-o', 'json']
+                try:
+                    res = subprocess.run(cmd_vcommon, capture_output=True, text=True)
+                    if res.returncode == 0:
+                        data = json.loads(res.stdout)
+                        general = data.get('general', {})
+                        if general.get('total_requests', 0) > 0:
+                            stats = {
+                                'domain': domain,
+                                'hits': general.get('total_requests', 0),
+                                'bandwidth': general.get('bandwidth', 0),
+                                'visitors': general.get('unique_visitors', 0)
+                            }
+                            break
+                except: pass
         
         if stats:
             traffic_stats.append(stats)
