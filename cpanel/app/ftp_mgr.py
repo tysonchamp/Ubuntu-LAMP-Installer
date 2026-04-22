@@ -189,15 +189,25 @@ def toggle_ftp_user_status(username, enable=True):
             directory = m.group(1).strip().replace('/./', '/').rstrip('/') if m else "/var/www"
             if not user_exists:
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-                subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+                # Add to both lite_sftp (for jailing) and www-data (for file access)
+                subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp,www-data', username], check=True)
             else:
-                # Ensure they are in the group even if they existed before
+                # Ensure they are in both groups
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-                subprocess.run(['usermod', '-aG', 'lite_sftp', username], check=True)
+                subprocess.run(['usermod', '-aG', 'lite_sftp,www-data', username], check=True)
             
             # Jailing requirements: Root owned parent
             subprocess.run(['chown', 'root:root', directory], check=True)
             subprocess.run(['chmod', '755', directory], check=True)
+
+            # File Access: Ensure the CONTENTS are writable by the www-data group
+            # We use a safe find command to avoid changing the root-owned jail directory itself
+            subprocess.run(['chown', '-R', 'root:www-data', directory], check=True)
+            # Make directories 775 and files 664 so the group can write
+            subprocess.run(f"find {directory} -type d -exec chmod 775 {{}} +", shell=True, check=True)
+            subprocess.run(f"find {directory} -type f -exec chmod 664 {{}} +", shell=True, check=True)
+            # Set SGID bit so new files created in these folders belong to the www-data group
+            subprocess.run(f"find {directory} -type d -exec chmod g+s {{}} +", shell=True, check=True)
             try:
                 subprocess.run(['passwd', '-u', username], check=True)
             except:
