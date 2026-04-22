@@ -65,6 +65,60 @@
     <div class="col-12 mb-4">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0"><i class="fas fa-id-card text-warning me-2"></i> Server Hostname & Panel SSL</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <form method="POST" class="mb-0">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="update_hostname">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-muted text-uppercase">System Hostname</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="fas fa-server"></i></span>
+                                    <input type="text" name="hostname" class="form-control" value="{{ current_hostname }}" required placeholder="e.g. srv1.yourdomain.com">
+                                    <button type="submit" class="btn btn-primary" onclick="return confirm('Changing the hostname will update system files. Proceed?')">Change Hostname</button>
+                                </div>
+                                <div class="form-text">This will update /etc/hostname and /etc/hosts.</div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-md-6 border-start">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Panel Security (HTTPS)</label>
+                        <div class="d-flex gap-2 mb-3">
+                            <form method="POST" class="mb-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="generate_hostname_ssl">
+                                <input type="hidden" name="hostname" value="{{ current_hostname }}">
+                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                    <i class="fas fa-shield-alt me-1"></i> Generate Let's Encrypt SSL
+                                </button>
+                            </form>
+                            <form method="POST" class="mb-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="enable_panel_ssl">
+                                <input type="hidden" name="hostname" value="{{ current_hostname }}">
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="fas fa-lock me-1"></i> Enable Panel HTTPS
+                                </button>
+                            </form>
+                        </div>
+                        <div class="alert alert-info py-2 small mb-0">
+                            <i class="fas fa-info-circle me-1"></i> 
+                            To use HTTPS, your hostname <strong>{{ current_hostname }}</strong> must point to this server's IP address in your DNS settings.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom">
                 <h5 class="mb-0"><i class="fas fa-sync text-info me-2"></i> System Update & Version</h5>
             </div>
             <div class="card-body">

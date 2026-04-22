@@ -1404,20 +1404,41 @@ def settings():
             else:
                 flash(msg, "danger")
 
+        elif action == 'update_hostname':
+            new_hostname = request.form.get('hostname')
+            from settings_mgr import set_server_hostname
+            success, msg = set_server_hostname(new_hostname)
+            flash(msg, "success" if success else "danger")
+
+        elif action == 'generate_hostname_ssl':
+            hostname = request.form.get('hostname')
+            from settings_mgr import generate_hostname_ssl
+            success, msg = generate_hostname_ssl(hostname)
+            flash(msg, "success" if success else "danger")
+
+        elif action == 'enable_panel_ssl':
+            hostname = request.form.get('hostname')
+            from settings_mgr import enable_panel_ssl
+            success, msg = enable_panel_ssl(hostname)
+            flash(msg, "success" if success else "danger")
+
         return redirect(url_for('settings'))
 
     logs = get_system_logs()
     configs = get_editable_configs()
     
+    import socket    
     # Version info
     ver_info = get_version_info()
     updater_settings = get_settings()
+    current_hostname = socket.gethostname()
 
     return render_template('settings.html', 
                            logs=logs, 
                            configs=configs, 
                            ver_info=ver_info, 
-                           updater_settings=updater_settings)
+                           updater_settings=updater_settings,
+                           current_hostname=current_hostname)
 
 @app.route('/settings/edit-config')
 @login_required
