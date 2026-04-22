@@ -168,6 +168,14 @@ install_nginx_stack() {
     # Configure NGINX for phpMyAdmin
     configure_nginx_phpmyadmin
     
+    # Create security snippets
+    mkdir -p /etc/nginx/snippets
+    echo 'location ~ /\.(?!well-known) {
+    deny all;
+    access_log off;
+    log_not_found off;
+}' > /etc/nginx/snippets/block-dotfiles.conf
+    
     PHP_VERSION=$(get_php_version)
     systemctl enable nginx php${PHP_VERSION}-fpm
     systemctl start nginx php${PHP_VERSION}-fpm
@@ -227,6 +235,14 @@ server {
 }
 EOF
     
+    # Create security snippets
+    mkdir -p /etc/nginx/snippets
+    echo 'location ~ /\.(?!well-known) {
+    deny all;
+    access_log off;
+    log_not_found off;
+}' > /etc/nginx/snippets/block-dotfiles.conf
+
     # Configure phpMyAdmin for Apache (backend)
     debconf-set-selections <<< "phpmyadmin phpmyadmin/dbconfig-install boolean true"
     debconf-set-selections <<< "phpmyadmin phpmyadmin/app-password-confirm password $(grep 'phpMyAdmin Password:' "$PASSWORDS_FILE" | cut -d' ' -f3)"
@@ -349,6 +365,7 @@ create_hybrid_vhost() {
     ServerAlias www.$domain
     DocumentRoot $doc_root
     <Directory $doc_root>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
@@ -365,10 +382,15 @@ server {
     access_log /var/log/nginx/${domain}_access.log;
     error_log  /var/log/nginx/${domain}_error.log;
     
+    # Block .env and other hidden files
+    include snippets/block-dotfiles.conf;
+
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 EOF

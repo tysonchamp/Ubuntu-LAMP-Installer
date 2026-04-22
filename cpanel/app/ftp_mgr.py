@@ -233,6 +233,21 @@ def toggle_ftp_user_status(username, enable=True):
             subprocess.run(['chmod', '755', '/var/www'], check=True)
 
             try:
+                subprocess.run(['systemctl', 'restart', 'apache2'], check=True)
+            except: pass
+            
+            try:
+                subprocess.run(['systemctl', 'restart', 'nginx'], check=True)
+            except: pass
+            
+            # Restart PHP-FPM to pick up new group memberships
+            try:
+                php_versions = subprocess.run("ls /var/run/php/php*-fpm.sock 2>/dev/null | cut -d- -f1 | rev | cut -d/ -f1 | rev", shell=True, capture_output=True, text=True).stdout.splitlines()
+                for v in php_versions:
+                    subprocess.run(['systemctl', 'restart', f'{v}-fpm'], check=True)
+            except: pass
+            
+            try:
                 subprocess.run(['passwd', '-u', username], check=True)
             except:
                 pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
