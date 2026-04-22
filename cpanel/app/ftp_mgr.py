@@ -164,7 +164,7 @@ def toggle_sftp(enable=True):
             # Always append at the very bottom
             new_lines.append('\n# Added by Lite-cPanel for Jailed SFTP\n')
             new_lines.append('Match Group lite_sftp\n')
-            # new_lines.append('    ChrootDirectory /var/www\n')
+            new_lines.append('    ChrootDirectory /var/www\n')
             new_lines.append('    ForceCommand internal-sftp\n')
             new_lines.append('    AllowTcpForwarding no\n')
             new_lines.append('    X11Forwarding no\n')
@@ -202,11 +202,11 @@ def toggle_ftp_user_status(username, enable=True):
             if not user_exists:
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
                 # Add to both lite_sftp (for jailing) and www-data (for file access)
-                subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp,www-data', username], check=True)
+                subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp,www-data', username], check=True)
             else:
-                # Ensure they are in both groups
+                # Ensure they are in both groups and home is relative
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-                subprocess.run(['usermod', '-d', directory, '-aG', 'lite_sftp,www-data', username], check=True)
+                subprocess.run(['usermod', '-d', relative_home, '-aG', 'lite_sftp,www-data', username], check=True)
             
             # Ownership: User owns their folder, group is www-data for web server access
             subprocess.run(['chown', f'{username}:www-data', directory], check=True)
