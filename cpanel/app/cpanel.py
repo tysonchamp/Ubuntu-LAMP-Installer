@@ -127,6 +127,14 @@ def login():
         password = request.form.get('password')
 
         if check_system_password(username, password):
+            # Auto-Whitelist IP in CSF (Temporary Allow for 1 Hour)
+            try:
+                user_ip = request.remote_addr
+                # Check if csf command exists
+                import subprocess
+                subprocess.run(['csf', '-ta', user_ip, '3600', f'cPanel Login: {username}'], capture_output=True)
+            except: pass
+
             session['logged_in'] = True
             session['username'] = username
             flash('Logged in successfully!', 'success')
