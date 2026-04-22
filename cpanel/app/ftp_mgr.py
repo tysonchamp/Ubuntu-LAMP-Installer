@@ -165,7 +165,7 @@ def toggle_sftp(enable=True):
             new_lines.append('\n# Added by Lite-cPanel for Jailed SFTP\n')
             new_lines.append('Match Group lite_sftp\n')
             new_lines.append('    ChrootDirectory /var/www\n')
-            new_lines.append('    ForceCommand internal-sftp -d /%u\n')
+            new_lines.append('    ForceCommand internal-sftp\n')
             new_lines.append('    AllowTcpForwarding no\n')
             new_lines.append('    X11Forwarding no\n')
             new_lines.append('    PasswordAuthentication yes\n')
@@ -220,8 +220,9 @@ def toggle_ftp_user_status(username, enable=True):
             subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 664 {{}} +", shell=True, check=True)
             subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod g+s {{}} +", shell=True, check=True)
             
-            # Ensure the parent (/var/www) is 711 for privacy (so they can't list other folders)
-            subprocess.run(['chmod', '711', '/var/www'], check=True)
+            # Ensure the parent (/var/www) is 755 (SSH requirement for jail root)
+            subprocess.run(['chown', 'root:root', '/var/www'], check=True)
+            subprocess.run(['chmod', '755', '/var/www'], check=True)
 
             try:
                 subprocess.run(['passwd', '-u', username], check=True)
