@@ -257,6 +257,6 @@ def toggle_sftp(enable=True):
             
         # Restart SSH to apply
         subprocess.run(['systemctl', 'restart', 'ssh'], check=True)
-        return True, f"SFTP {'enabled' (internal)} successfully."
+        return True, f"SFTP {'enabled' if enable else 'disabled'} (internal) successfully."
     except Exception as e:
         return False, str(e)
