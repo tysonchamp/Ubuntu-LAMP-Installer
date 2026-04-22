@@ -74,7 +74,12 @@ def create_ftp_user(username, password, directory):
         try:
             subprocess.run(['userdel', '-r', username], capture_output=True)
             subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-            subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+            
+            # Use relative home for jailing
+            relative_home = directory.replace('/var/www', '')
+            if not relative_home: relative_home = "/"
+            
+            subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
             
             pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
             pw_proc.communicate(input=f"{username}:{password}\n")
@@ -183,18 +188,25 @@ def toggle_ftp_user_status(username, enable=True):
             user_exists = True
         except: pass
         if enable:
+            # Get directory from Pure-FTPd
             show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
             import re
             m = re.search(r'Directory\s*:\s*(.*)', show_res.stdout)
             directory = m.group(1).strip().replace('/./', '/').rstrip('/') if m else "/var/www"
+            
+            # For the system user (SFTP), the home directory in /etc/passwd must be RELATIVE to the jail root (/var/www)
+            # So if directory is /var/www/srtgroceries, the home should be /srtgroceries
+            relative_home = directory.replace('/var/www', '')
+            if not relative_home: relative_home = "/"
+
             if not user_exists:
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
                 # Add to both lite_sftp (for jailing) and www-data (for file access)
-                subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp,www-data', username], check=True)
+                subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp,www-data', username], check=True)
             else:
-                # Ensure they are in both groups
+                # Ensure they are in both groups and home is relative
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-                subprocess.run(['usermod', '-aG', 'lite_sftp,www-data', username], check=True)
+                subprocess.run(['usermod', '-d', relative_home, '-aG', 'lite_sftp,www-data', username], check=True)
             
             # Ownership: User owns their folder, group is www-data for web server access
             subprocess.run(['chown', f'{username}:www-data', directory], check=True)
