@@ -375,12 +375,12 @@ def dashboard():
             f"/var/log/nginx/access.log", # Global fallback
         ]
         
-        stats = None
+        traffic_item = None
         for log_file in log_candidates:
             if os.path.exists(log_file):
                 # Try COMBINED first, then VCOMMON (often used for multiple domains in one log)
-                stats = get_domain_traffic(domain, log_file)
-                if stats and stats['hits'] > 0: break
+                traffic_item = get_domain_traffic(domain, log_file)
+                if traffic_item and traffic_item['hits'] > 0: break
                 
                 # Try with VCOMMON if COMBINED failed to return hits
                 cmd_vcommon = ['/usr/bin/goaccess', log_file, '--log-format=VCOMMON', '--no-global-config', '-o', 'json']
@@ -390,7 +390,7 @@ def dashboard():
                         data = json.loads(res.stdout)
                         general = data.get('general', {})
                         if general.get('total_requests', 0) > 0:
-                            stats = {
+                            traffic_item = {
                                 'domain': domain,
                                 'hits': general.get('total_requests', 0),
                                 'bandwidth': general.get('bandwidth', 0),
@@ -399,8 +399,8 @@ def dashboard():
                             break
                 except: pass
         
-        if stats:
-            traffic_stats.append(stats)
+        if traffic_item:
+            traffic_stats.append(traffic_item)
 
     # Sort by bandwidth descending
     traffic_stats = sorted(traffic_stats, key=lambda x: x['bandwidth'], reverse=True)
