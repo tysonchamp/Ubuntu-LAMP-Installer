@@ -1282,6 +1282,7 @@ def firewall():
         'csf_deny_file':    get_csf_file('deny')   if csf_installed else "",
         'csf_ignore_file':  get_csf_file('ignore') if csf_installed else "",
         'csf_pignore_file': get_csf_file('pignore') if csf_installed else "",
+        'csf_regex_file':   get_csf_file('regex') if csf_installed else "",
         'csf_config_file':  get_csf_file('config') if csf_installed else "",
         'csf_temp':         get_csf_temp_entries() if csf_installed else [],
         'csf_ports':        get_open_ports()        if csf_installed else {},

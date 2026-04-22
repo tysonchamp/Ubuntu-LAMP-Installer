@@ -118,10 +118,11 @@
             <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-deny"   type="button">csf.deny</button></li>
             <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-ignore" type="button">csf.ignore</button></li>
             <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-pignore"type="button">csf.pignore</button></li>
+            <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-regex"  type="button">regex.custom.pm</button></li>
             <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-conf"   type="button"><i class="fas fa-cog me-1"></i>csf.conf (raw)</button></li>
         </ul>
         <div class="tab-content">
-            {% for file_type, content in [('allow', csf_allow_file), ('deny', csf_deny_file), ('ignore', csf_ignore_file), ('pignore', csf_pignore_file)] %}
+            {% for file_type, content in [('allow', csf_allow_file), ('deny', csf_deny_file), ('ignore', csf_ignore_file), ('pignore', csf_pignore_file), ('regex', csf_regex_file)] %}
             <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="tab-{{ file_type }}">
                 <form method="POST" action="{{ url_for('firewall') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

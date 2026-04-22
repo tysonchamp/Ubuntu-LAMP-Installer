@@ -60,7 +60,10 @@ def get_csf_file(file_type):
     files = {
         'allow': '/etc/csf/csf.allow',
         'deny': '/etc/csf/csf.deny',
-        'config': '/etc/csf/csf.conf'
+        'config': '/etc/csf/csf.conf',
+        'ignore': '/etc/csf/csf.ignore',
+        'pignore': '/etc/csf/csf.pignore',
+        'regex': '/usr/local/csf/bin/regex.custom.pm'
     }
 
     path = files.get(file_type)
@@ -76,6 +79,7 @@ def save_csf_file(file_type, content):
         'config': '/etc/csf/csf.conf',
         'ignore': '/etc/csf/csf.ignore',
         'pignore': '/etc/csf/csf.pignore',
+        'regex': '/usr/local/csf/bin/regex.custom.pm'
     }
 
     path = files.get(file_type)

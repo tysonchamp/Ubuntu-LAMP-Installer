@@ -58,6 +58,18 @@ if [ ! -d "/etc/csf" ]; then
 
     # Disable testing mode initially to make it functional (Admin should review later)
     # sed -i 's/TESTING = "1"/TESTING = "0"/' /etc/csf/csf.conf
+
+    echo "Whitelisting Lite-cPanel system processes..."
+    cat <<EOT >> /etc/csf/csf.pignore
+exe:/usr/sbin/nginx
+exe:/usr/sbin/rsyslogd
+exe:/usr/lib/systemd/systemd-timesyncd
+exe:/usr/lib/systemd/systemd-networkd
+exe:/usr/bin/htcacheclean
+exe:/usr/bin/python3.12
+user:www-data
+EOT
+
     csf -r
     systemctl enable lfd
     systemctl restart lfd
