@@ -239,10 +239,9 @@ def toggle_sftp(enable=True):
             if 'Subsystem' in line and 'sftp' in line:
                 found = True
                 if enable:
-                    # Remove comment if present
-                    new_lines.append(line.lstrip('# ').strip() + '\n')
+                    # Use internal-sftp which is much more robust for nologin users
+                    new_lines.append('Subsystem sftp internal-sftp\n')
                 else:
-                    # Add comment if not present
                     if not line.strip().startswith('#'):
                         new_lines.append('# ' + line.strip() + '\n')
                     else:
@@ -251,14 +250,13 @@ def toggle_sftp(enable=True):
                 new_lines.append(line)
         
         if not found and enable:
-            # Try to find a good place to add it or just append
-            new_lines.append('\n# Added by Lite-cPanel\nSubsystem sftp /usr/lib/openssh/sftp-server\n')
+            new_lines.append('\n# Added by Lite-cPanel\nSubsystem sftp internal-sftp\n')
             
         with open(sshd_path, 'w') as f:
             f.writelines(new_lines)
             
         # Restart SSH to apply
         subprocess.run(['systemctl', 'restart', 'ssh'], check=True)
-        return True, f"SFTP {'enabled' if enable else 'disabled'} successfully."
+        return True, f"SFTP {'enabled' (internal)} successfully."
     except Exception as e:
         return False, str(e)
