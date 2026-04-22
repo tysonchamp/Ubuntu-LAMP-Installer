@@ -62,86 +62,140 @@ def toggle_ftp_user_status(username, enable=True):
     except Exception as e:
         return False, str(e)
 
-def create_ftp_user(username, password, directory):
+def toggle_ftp_user_status(username, enable=True):
     """
-    Creates a new pure-ftpd virtual user.
+    Enables or disables an FTP user by setting an expiration date 
+    AND manages a matching system user for SFTP access.
     """
     if not check_pureftpd_installed():
         return False, "pure-ftpd is not installed."
 
     try:
-        # SECURITY: Strictly enforce /var/www boundary for FTP directories
+        # 1. Manage Pure-FTPd (Virtual User)
+        date_val = "0" if enable else "19700101"
+        subprocess.run(['pure-pw', 'usermod', username, '-X', date_val, '-m'], check=True)
+        
+        # 2. Manage System User (SFTP Bridge)
+        # Check if user exists in /etc/passwd
+        user_exists = False
+        try:
+            subprocess.run(['id', username], check=True, capture_output=True)
+            user_exists = True
+        except: pass
+
+        if enable:
+            if not user_exists:
+                # Create system user for SFTP (No shell, specific home)
+                # We need the home directory from pure-pw show
+                show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
+                import re
+                m = re.search(r'Directory\s*:\s*(.*)', show_res.stdout)
+                directory = m.group(1).strip() if m else "/var/www"
+                
+                # Create with no login shell
+                subprocess.run(['useradd', '-m', '-d', directory, '-s', '/usr/sbin/nologin', username], check=True)
+            
+            # Unlock the account (if it was locked)
+            subprocess.run(['passwd', '-u', username], check=True)
+        else:
+            if user_exists:
+                # Lock the account to disable SFTP
+                subprocess.run(['passwd', '-l', username], check=True)
+
+        return True, f"FTP & SFTP access for {username} {'enabled' if enable else 'disabled'} successfully."
+    except Exception as e:
+        return False, str(e)
+
+def create_ftp_user(username, password, directory):
+    """
+    Creates a new pure-ftpd virtual user AND a matching system user for SFTP.
+    Starts DISABLED by default.
+    """
+    if not check_pureftpd_installed():
+        return False, "pure-ftpd is not installed."
+
+    try:
         if not directory.startswith('/var/www'):
             return False, "Access denied: FTP directory must be within /var/www"
             
-        # Ensure directory exists
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-            # Safe chown
             subprocess.run(['chown', '-R', 'www-data:www-data', directory], check=True)
 
-        # pure-pw useradd <login> -u <uid> -g <gid> -d <home> -m (updates db)
-        # It reads password from stdin
+        # 1. Create Virtual User (Disabled via -X 19700101)
         process = subprocess.Popen(
-            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-m'],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-X', '19700101', '-m'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
-
-        # pure-pw expects password twice
         stdout, stderr = process.communicate(input=f"{password}\n{password}\n")
 
-        if process.returncode == 0:
-            return True, f"FTP user {username} created successfully."
-        else:
-            return False, f"Failed to create FTP user: {stderr}"
+        if process.returncode != 0:
+            return False, f"Failed to create Virtual User: {stderr}"
+
+        # 2. Create System User (Locked, No Login)
+        try:
+            # Delete if exists to ensure clean state
+            subprocess.run(['userdel', '-r', username], capture_output=True)
+            
+            # Create user
+            subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', username], check=True)
+            
+            # Set Password
+            pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+            pw_proc.communicate(input=f"{username}:{password}\n")
+            
+            # Immediately Lock (Disabled by default)
+            subprocess.run(['passwd', '-l', username], check=True)
+        except Exception as system_e:
+            return True, f"FTP created, but SFTP bridge failed: {str(system_e)}"
+
+        return True, f"FTP user {username} created (Disabled by default). Toggle to Enable."
 
     except Exception as e:
         return False, str(e)
 
 def delete_ftp_user(username):
     """
-    Deletes a pure-ftpd virtual user.
+    Deletes a pure-ftpd virtual user and the matching system user.
     """
     if not check_pureftpd_installed():
         return False, "pure-ftpd is not installed."
 
     try:
-        # pure-pw userdel <login> -m (updates db)
-        result = subprocess.run(
-            ['pure-pw', 'userdel', username, '-m'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        return True, f"FTP user {username} deleted successfully."
+        # Delete Virtual
+        subprocess.run(['pure-pw', 'userdel', username, '-m'], check=True)
+        
+        # Delete System
+        try:
+            subprocess.run(['userdel', username], capture_output=True)
+        except: pass
+        
+        return True, f"FTP/SFTP user {username} deleted successfully."
     except subprocess.CalledProcessError as e:
-        return False, f"Failed to delete FTP user: {e.stderr}"
+        return False, f"Failed to delete user: {e.stderr}"
 
 def change_ftp_password(username, new_password):
     """
-    Changes the password of a pure-ftpd virtual user.
+    Changes password for both virtual and system user.
     """
     if not check_pureftpd_installed():
         return False, "pure-ftpd is not installed."
 
     try:
+        # 1. Virtual Password
         process = subprocess.Popen(
             ['pure-pw', 'passwd', username, '-m'],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
+        process.communicate(input=f"{new_password}\n{new_password}\n")
 
-        stdout, stderr = process.communicate(input=f"{new_password}\n{new_password}\n")
+        # 2. System Password
+        try:
+            pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+            pw_proc.communicate(input=f"{username}:{new_password}\n")
+        except: pass
 
-        if process.returncode == 0:
-            return True, f"Password changed for FTP user {username}."
-        else:
-            return False, f"Failed to change password: {stderr}"
+        return True, f"Password updated for {username}."
 
     except Exception as e:
         return False, str(e)
