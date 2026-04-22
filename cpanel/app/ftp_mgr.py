@@ -159,8 +159,8 @@ def toggle_sftp(enable=True):
             # Always append at the very bottom
             new_lines.append('\n# Added by Lite-cPanel for Jailed SFTP\n')
             new_lines.append('Match Group lite_sftp\n')
-            new_lines.append('    ChrootDirectory %h\n')
-            new_lines.append('    ForceCommand internal-sftp\n')
+            new_lines.append('    ChrootDirectory /var/www\n')
+            new_lines.append('    ForceCommand internal-sftp -d /%u\n')
             new_lines.append('    AllowTcpForwarding no\n')
             new_lines.append('    X11Forwarding no\n')
             new_lines.append('    PasswordAuthentication yes\n')
@@ -196,16 +196,21 @@ def toggle_ftp_user_status(username, enable=True):
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
                 subprocess.run(['usermod', '-aG', 'lite_sftp,www-data', username], check=True)
             
-            # Jailing requirements: Root owned parent MUST be 755 and root:root
-            subprocess.run(['chown', 'root:root', directory], check=True)
-            subprocess.run(['chmod', '755', directory], check=True)
+            # Ownership: User owns their folder, group is www-data for web server access
+            subprocess.run(['chown', f'{username}:www-data', directory], check=True)
+            subprocess.run(['chmod', '775', directory], check=True)
+            subprocess.run(['chmod', 'g+s', directory], check=True) # New files inherit www-data group
 
-            # File Access: Ensure ONLY THE CONTENTS are writable by the www-data group
-            # -mindepth 1 ensures we don't touch the root directory (the jail itself)
-            subprocess.run(f"find {directory} -mindepth 1 -exec chown root:www-data {{}} +", shell=True, check=True)
+            # Recursively ensure everything inside is manageable by user and web server
+            # We use 'username' as the owner now, not 'root'
+            subprocess.run(f"find {directory} -mindepth 1 -exec chown {username}:www-data {{}} +", shell=True, check=True)
             subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod 775 {{}} +", shell=True, check=True)
             subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 664 {{}} +", shell=True, check=True)
             subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod g+s {{}} +", shell=True, check=True)
+            
+            # Ensure the parent (/var/www) is 711 for privacy (so they can't list other folders)
+            subprocess.run(['chmod', '711', '/var/www'], check=True)
+
             try:
                 subprocess.run(['passwd', '-u', username], check=True)
             except:
