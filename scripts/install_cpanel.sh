@@ -13,7 +13,7 @@ echo "======================================"
 # Install system dependencies & panel prerequisites
 apt-get update
 apt-get install -y net-tools
-apt-get install -y libcrypt-ssleay-perl libnet-ssleay-perl libio-socket-ssl-perl 
+apt-get install -y libwww-perl liblwp-protocol-https-perl libgd-graph-perl libcrypt-ssleay-perl
 apt-get install -y zip unzip curl
 apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config \
     pure-ftpd libwww-perl sendmail iptables wget tar goaccess
@@ -41,10 +41,28 @@ if [ ! -d "/etc/csf" ]; then
     tar -xzf csf.tgz
     cd csf
     sh install.sh
+
+    # 1. Detect active Network Interface
+    ETH_DEV=$(ip route show | grep default | awk '{print $5}' | head -n1)
+    
+    # 2. Update Configuration for Ubuntu/Merged-usr paths
+    echo "Applying Ubuntu-specific path fixes and interface detection..."
+    sed -i "s/ETH_DEVICE = \"\"/ETH_DEVICE = \"$ETH_DEV\"/" /etc/csf/csf.conf
+    sed -i 's|IPTABLES = "/sbin/iptables"|IPTABLES = "/usr/sbin/iptables"|' /etc/csf/csf.conf
+    sed -i 's|IPTABLES_SAVE = "/sbin/iptables-save"|IPTABLES_SAVE = "/usr/sbin/iptables-save"|' /etc/csf/csf.conf
+    sed -i 's|IPTABLES_RESTORE = "/sbin/iptables-restore"|IPTABLES_RESTORE = "/usr/sbin/iptables-restore"|' /etc/csf/csf.conf
+    sed -i 's|IP6TABLES = "/sbin/ip6tables"|IP6TABLES = "/usr/sbin/ip6tables"|' /etc/csf/csf.conf
+    sed -i 's|IP6TABLES_SAVE = "/sbin/ip6tables-save"|IP6TABLES_SAVE = "/usr/sbin/ip6tables-save"|' /etc/csf/csf.conf
+    sed -i 's|IP6TABLES_RESTORE = "/sbin/ip6tables-restore"|IP6TABLES_RESTORE = "/usr/sbin/ip6tables-restore"|' /etc/csf/csf.conf
+    sed -i 's|IFCONFIG = "/sbin/ifconfig"|IFCONFIG = "/usr/sbin/ifconfig"|' /etc/csf/csf.conf
+
     # Disable testing mode initially to make it functional (Admin should review later)
     # sed -i 's/TESTING = "1"/TESTING = "0"/' /etc/csf/csf.conf
     csf -r
+    systemctl enable lfd
+    systemctl restart lfd
     cd -
+    echo "CSF installed and auto-configured for $ETH_DEV."
 fi
 
 # Install ModSecurity depending on web server installed
