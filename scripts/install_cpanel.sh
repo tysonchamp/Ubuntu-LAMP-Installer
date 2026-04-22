@@ -12,6 +12,8 @@ echo "======================================"
 
 # Install system dependencies & panel prerequisites
 apt-get update
+apt-get install -y net-tools
+apt-get install -y libcrypt-ssleay-perl libnet-ssleay-perl libio-socket-ssl-perl 
 apt-get install -y zip unzip curl
 apt-get install -y python3-venv python3-pip libmysqlclient-dev pkg-config \
     pure-ftpd libwww-perl sendmail iptables wget tar goaccess

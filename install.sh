@@ -35,6 +35,9 @@ echo "======================================"
 echo "    Installing Web Stack...           "
 echo "======================================"
 
+apt-get update
+apt-get upgrade -y
+
 # Set auto stack choice and execute script normally to preserve stdin
 export AUTO_STACK_CHOICE=$stack_choice
 bash "$SCRIPT_DIR/scripts/web-stack-installer.sh"
