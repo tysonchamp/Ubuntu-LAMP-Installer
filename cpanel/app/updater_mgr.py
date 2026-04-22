@@ -135,3 +135,23 @@ def restart_service():
         return True, "Restarting service..."
     except Exception as e:
         return False, str(e)
+
+def auto_updater_worker():
+    """Background thread to check for and apply updates."""
+    import time
+    # Wait for the app to fully start
+    time.sleep(30)
+    while True:
+        try:
+            settings = get_settings()
+            if settings.get("auto_update"):
+                info = get_version_info()
+                if info.get("update_available"):
+                    success, msg = perform_update()
+                    if success:
+                        restart_service()
+        except Exception as e:
+            print(f"Updater error: {e}")
+        
+        # Check every 1 hour
+        time.sleep(3600)

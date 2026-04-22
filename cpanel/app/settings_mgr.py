@@ -239,3 +239,51 @@ def enable_panel_ssl(hostname):
         return True, "Panel configured for SSL. Please restart the 'cpanel' service manually to apply, then access via https."
     except Exception as e:
         return False, str(e)
+
+def handle_settings_action(request):
+    """Centralized handler for settings actions from the POST request."""
+    from updater_mgr import (get_settings as get_up_settings, save_settings as save_up_settings, 
+                             get_version_info, perform_update, restart_service)
+    
+    action = request.form.get('action')
+
+    if action == 'save_config':
+        filepath = request.form.get('filepath')
+        content = request.form.get('content')
+        return save_config_file(filepath, content)
+
+    elif action == 'update_settings':
+        auto_up = request.form.get('auto_update') == 'on'
+        s = get_up_settings()
+        s['auto_update'] = auto_up
+        ok = save_up_settings(s)
+        return ok, "Updater settings saved." if ok else "Failed to save updater settings."
+
+    elif action == 'check_update':
+        info = get_version_info()
+        if info.get('update_available'):
+            return True, f"Update available: {info['remote']}. Click 'Update Now' to apply."
+        else:
+            return True, "System is up to date."
+
+    elif action == 'apply_update':
+        success, msg = perform_update()
+        if success:
+            restart_service()
+            return True, "Update applied! Restarting Lite cPanel..."
+        else:
+            return False, msg
+
+    elif action == 'update_hostname':
+        new_hostname = request.form.get('hostname')
+        return set_server_hostname(new_hostname)
+
+    elif action == 'generate_hostname_ssl':
+        hostname = request.form.get('hostname')
+        return generate_hostname_ssl(hostname)
+
+    elif action == 'enable_panel_ssl':
+        hostname = request.form.get('hostname')
+        return enable_panel_ssl(hostname)
+    
+    return False, "Unknown action."

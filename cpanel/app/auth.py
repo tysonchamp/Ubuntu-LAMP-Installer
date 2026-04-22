@@ -34,6 +34,22 @@ def check_system_password(username, password):
 
     return False
 
+import logging
+from logging.handlers import RotatingFileHandler
+
+# --- Auth Logging Setup for CSF/LFD ---
+auth_logger = logging.getLogger('cpanel_auth')
+auth_logger.setLevel(logging.INFO)
+try:
+    log_handler = RotatingFileHandler('/var/log/cpanel_auth.log', maxBytes=1000000, backupCount=5)
+    log_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s', '%b %d %H:%M:%S'))
+    auth_logger.addHandler(log_handler)
+except Exception:
+    pass
+
+def log_auth_failure(username, ip):
+    auth_logger.info(f"Failed login attempt for user {username} from {ip}")
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
