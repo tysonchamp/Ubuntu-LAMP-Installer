@@ -85,18 +85,28 @@ def toggle_ftp_user_status(username, enable=True):
 
         if enable:
             if not user_exists:
-                # Create system user for SFTP (No shell, specific home)
-                # We need the home directory from pure-pw show
+                # Create system user for SFTP
                 show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
                 import re
                 m = re.search(r'Directory\s*:\s*(.*)', show_res.stdout)
+                # Clean path: remove trailing /./ and /
                 directory = m.group(1).strip() if m else "/var/www"
+                directory = directory.replace('/./', '/').rstrip('/')
                 
                 # Create with no login shell
-                subprocess.run(['useradd', '-m', '-d', directory, '-s', '/usr/sbin/nologin', username], check=True)
+                subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', username], check=True)
+                # Set a dummy password initially so it can be unlocked
+                pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+                pw_proc.communicate(input=f"{username}:SetPasswordInPanel123!\n")
             
-            # Unlock the account (if it was locked)
-            subprocess.run(['passwd', '-u', username], check=True)
+            # Unlock the account
+            try:
+                subprocess.run(['passwd', '-u', username], check=True)
+            except:
+                # If unlock fails, try setting a password first
+                pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+                pw_proc.communicate(input=f"{username}:SetPasswordInPanel123!\n")
+                subprocess.run(['passwd', '-u', username], check=True)
         else:
             if user_exists:
                 # Lock the account to disable SFTP
