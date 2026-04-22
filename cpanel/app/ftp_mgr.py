@@ -125,33 +125,51 @@ def get_sftp_status():
 def toggle_sftp(enable=True):
     try:
         sshd_path = '/etc/ssh/sshd_config'
+        if not os.path.exists(sshd_path):
+            return False, "SSH config not found."
+            
         subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
+            
         with open(sshd_path, 'r') as f:
             lines = f.readlines()
+        
+        # Clean up existing Lite-cPanel configurations to start fresh
         new_lines = []
-        found_sub = False
-        in_match = False
+        skip = False
         for line in lines:
+            if '# Added by Lite-cPanel' in line or 'Match Group lite_sftp' in line:
+                skip = True
+                continue
+            if skip and (line.startswith('Match') or line.startswith('# Subsystem')):
+                skip = False
+            if skip:
+                continue
+            
+            # Update subsystem line
             if 'Subsystem' in line and 'sftp' in line:
-                found_sub = True
-                new_lines.append(f"{'' if enable else '# '}Subsystem sftp internal-sftp\n")
+                if enable:
+                    new_lines.append('Subsystem sftp internal-sftp\n')
+                else:
+                    new_lines.append('# Subsystem sftp internal-sftp\n')
                 continue
-            if 'Match Group lite_sftp' in line:
-                in_match = True
-                continue
-            if in_match:
-                if line.startswith('Match') or (line.strip() == '' and not any('Chroot' in next_l for next_l in lines[lines.index(line):lines.index(line)+5])):
-                    in_match = False
-                else: continue
+                
             new_lines.append(line)
-        if not found_sub and enable:
-            new_lines.append('Subsystem sftp internal-sftp\n')
+            
         if enable:
-            new_lines.append('\nMatch Group lite_sftp\n    ChrootDirectory %h\n    ForceCommand internal-sftp\n    AllowTcpForwarding no\n')
+            # Always append at the very bottom
+            new_lines.append('\n# Added by Lite-cPanel for Jailed SFTP\n')
+            new_lines.append('Match Group lite_sftp\n')
+            new_lines.append('    ChrootDirectory %h\n')
+            new_lines.append('    ForceCommand internal-sftp\n')
+            new_lines.append('    AllowTcpForwarding no\n')
+            new_lines.append('    X11Forwarding no\n')
+            new_lines.append('    PasswordAuthentication yes\n')
+            
         with open(sshd_path, 'w') as f:
             f.writelines(new_lines)
+            
         subprocess.run(['systemctl', 'restart', 'ssh'], check=True)
-        return True, f"SFTP {'enabled (Jailed)' if enable else 'disabled'}."
+        return True, f"SFTP {'enabled (Jailed)' if enable else 'disabled'} successfully."
     except Exception as e:
         return False, str(e)
 
@@ -172,6 +190,11 @@ def toggle_ftp_user_status(username, enable=True):
             if not user_exists:
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
                 subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+            else:
+                # Ensure they are in the group even if they existed before
+                subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
+                subprocess.run(['usermod', '-aG', 'lite_sftp', username], check=True)
+            
             # Jailing requirements: Root owned parent
             subprocess.run(['chown', 'root:root', directory], check=True)
             subprocess.run(['chmod', '755', directory], check=True)
