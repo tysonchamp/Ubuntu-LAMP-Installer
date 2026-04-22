@@ -196,18 +196,16 @@ def toggle_ftp_user_status(username, enable=True):
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
                 subprocess.run(['usermod', '-aG', 'lite_sftp,www-data', username], check=True)
             
-            # Jailing requirements: Root owned parent
+            # Jailing requirements: Root owned parent MUST be 755 and root:root
             subprocess.run(['chown', 'root:root', directory], check=True)
             subprocess.run(['chmod', '755', directory], check=True)
 
-            # File Access: Ensure the CONTENTS are writable by the www-data group
-            # We use a safe find command to avoid changing the root-owned jail directory itself
-            subprocess.run(['chown', '-R', 'root:www-data', directory], check=True)
-            # Make directories 775 and files 664 so the group can write
-            subprocess.run(f"find {directory} -type d -exec chmod 775 {{}} +", shell=True, check=True)
-            subprocess.run(f"find {directory} -type f -exec chmod 664 {{}} +", shell=True, check=True)
-            # Set SGID bit so new files created in these folders belong to the www-data group
-            subprocess.run(f"find {directory} -type d -exec chmod g+s {{}} +", shell=True, check=True)
+            # File Access: Ensure ONLY THE CONTENTS are writable by the www-data group
+            # -mindepth 1 ensures we don't touch the root directory (the jail itself)
+            subprocess.run(f"find {directory} -mindepth 1 -exec chown root:www-data {{}} +", shell=True, check=True)
+            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod 775 {{}} +", shell=True, check=True)
+            subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 664 {{}} +", shell=True, check=True)
+            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod g+s {{}} +", shell=True, check=True)
             try:
                 subprocess.run(['passwd', '-u', username], check=True)
             except:
