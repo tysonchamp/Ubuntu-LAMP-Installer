@@ -209,15 +209,15 @@ def toggle_ftp_user_status(username, enable=True):
                 subprocess.run(['usermod', '-d', relative_home, '-aG', 'lite_sftp,www-data', username], check=True)
             
             # Ownership: User owns their folder, group is www-data for web server access
+            # Permission 750 ensures 'Other' (other SFTP users) cannot enter or list the folder
             subprocess.run(['chown', f'{username}:www-data', directory], check=True)
-            subprocess.run(['chmod', '775', directory], check=True)
-            subprocess.run(['chmod', 'g+s', directory], check=True) # New files inherit www-data group
+            subprocess.run(['chmod', '750', directory], check=True)
+            subprocess.run(['chmod', 'g+s', directory], check=True)
 
             # Recursively ensure everything inside is manageable by user and web server
-            # We use 'username' as the owner now, not 'root'
             subprocess.run(f"find {directory} -mindepth 1 -exec chown {username}:www-data {{}} +", shell=True, check=True)
-            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod 775 {{}} +", shell=True, check=True)
-            subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 664 {{}} +", shell=True, check=True)
+            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod 750 {{}} +", shell=True, check=True)
+            subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 640 {{}} +", shell=True, check=True)
             subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod g+s {{}} +", shell=True, check=True)
             
             # Ensure the parent (/var/www) is 755 (SSH requirement for jail root)
