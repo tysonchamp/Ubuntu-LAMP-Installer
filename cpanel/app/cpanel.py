@@ -110,10 +110,22 @@ DASHBOARD_CACHE = {
     'traffic': [],
     'security_events': [],
     'public_ip': "Unknown",
+    'cpu_model': "Unknown",
     'last_ip_update': 0,
     'last_traffic_update': 0,
     'last_security_update': 0
 }
+
+def get_cpu_model():
+    try:
+        if os.path.exists('/proc/cpuinfo'):
+            with open('/proc/cpuinfo', 'r') as f:
+                for line in f:
+                    if 'model name' in line:
+                        return line.split(':')[1].strip()
+    except: pass
+    import platform
+    return platform.processor() or "Generic Processor"
 
 def get_dashboard_traffic():
     """Heavy function to calculate traffic for all domains."""
@@ -200,6 +212,10 @@ def get_dashboard_security():
 def dashboard_background_worker():
     """Background worker to pre-calculate heavy dashboard stats."""
     import time
+    
+    # One-time fetch for things that don't change
+    DASHBOARD_CACHE['cpu_model'] = get_cpu_model()
+    
     while True:
         try:
             # 1. Update Public IP (every 24h)
@@ -344,7 +360,9 @@ def dashboard():
         'hostname': hostname,
         'ip_address': ip_address,
         'public_ip': public_ip,
+        'processor': DASHBOARD_CACHE.get('cpu_model', 'Unknown'),
         'cpu_cores': psutil.cpu_count(logical=True),
+        'cpu_freq': f"{psutil.cpu_freq().current:.0f} MHz" if psutil.cpu_freq() else "N/A",
         'os': "Linux", # Simplified for speed, can be improved
         'kernel': platform.release(),
         'platform': f"{platform.machine()} {platform.system()}",
