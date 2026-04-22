@@ -201,26 +201,29 @@ def toggle_ftp_user_status(username, enable=True):
 
             if not user_exists:
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-                # DO NOT add user to www-data group! This ensures privacy between users.
-                # The user is the OWNER, so they don't need to be in the group.
+                # Create user with their own private group (default behavior)
                 subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
             else:
-                # Remove from www-data if they were in it, keep in lite_sftp
+                # Ensure they are in lite_sftp and NOT in www-data
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
                 subprocess.run(['usermod', '-d', relative_home, '-G', 'lite_sftp', username], check=True)
+            
+            # THE MAGIC FIX: Add the web server (www-data) to the USER'S group
+            # This allows the web server to access the files, but other users stay out.
+            subprocess.run(['usermod', '-aG', username, 'www-data'], check=True)
             
             if not os.path.exists(directory):
                 os.makedirs(directory, exist_ok=True)
 
-            # Ownership: User owns their folder, group is www-data for web server access
-            # Permission 770: User (rwx), Group/Webserver (rwx), Others (---)
-            subprocess.run(['chown', f'{username}:www-data', directory], check=True)
+            # Ownership: User owns their folder, group is their PRIVATE group
+            # Web server (www-data) is a member of this group.
+            subprocess.run(['chown', f'{username}:{username}', directory], check=True)
             subprocess.run(['chmod', '770', directory], check=True)
             subprocess.run(['chmod', 'g+s', directory], check=True)
 
             # Recursively ensure everything inside is manageable by user and web server
-            # We use 770 for dirs and 660 for files so Laravel/WordPress can write to logs/uploads
-            subprocess.run(f"find {directory} -mindepth 1 -exec chown {username}:www-data {{}} + 2>/dev/null || true", shell=True)
+            # We use try/except or || true to prevent find from crashing the whole process if it hits a minor issue
+            subprocess.run(f"find {directory} -mindepth 1 -exec chown {username}:{username} {{}} + 2>/dev/null || true", shell=True)
             subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod 770 {{}} + 2>/dev/null || true", shell=True)
             subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 660 {{}} + 2>/dev/null || true", shell=True)
             subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod g+s {{}} + 2>/dev/null || true", shell=True)
