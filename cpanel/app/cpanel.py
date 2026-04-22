@@ -129,10 +129,12 @@ def login():
         if check_system_password(username, password):
             # Auto-Whitelist IP in CSF (Temporary Allow for 1 Hour)
             try:
-                user_ip = request.remote_addr
-                # Check if csf command exists
+                # Get real IP even if behind proxy (Nginx/Cloudflare)
+                user_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
+                
+                # Use absolute path to CSF and run it
                 import subprocess
-                subprocess.run(['csf', '-ta', user_ip, '3600', f'cPanel Login: {username}'], capture_output=True)
+                subprocess.run(['/usr/sbin/csf', '-ta', user_ip, '3600', f'cPanel Login: {username}'], capture_output=True)
             except: pass
 
             session['logged_in'] = True
