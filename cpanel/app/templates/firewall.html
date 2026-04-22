@@ -67,6 +67,41 @@
     </div>
 </div>
 
+<!-- CSF Config Key Editor -->
+{% if csf_conf_settings %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-bottom fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-sliders-h me-2 text-primary"></i>CSF Configuration Settings</span>
+        <input type="text" id="confSearch" class="form-control form-control-sm w-auto" placeholder="Search setting…" oninput="filterConf(this.value)">
+    </div>
+    <div class="card-body p-0" style="max-height:500px; overflow-y:auto;">
+        <table class="table table-sm table-hover mb-0 align-middle" id="confTable">
+            <thead class="table-light sticky-top">
+                <tr><th>Setting</th><th>Value</th><th>Description</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for s in csf_conf_settings %}
+                <tr class="conf-row" data-key="{{ s.key|lower }}">
+                    <td class="font-monospace fw-semibold text-nowrap">{{ s.key }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('firewall') }}" class="d-flex gap-1 mb-0">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="save_csf_conf_key">
+                            <input type="hidden" name="conf_key" value="{{ s.key }}">
+                            <input type="text" name="conf_value" value="{{ s.value }}"
+                                   class="form-control form-control-sm font-monospace" style="min-width:80px; max-width:280px;">
+                            <button type="submit" class="btn btn-sm btn-outline-primary px-2" title="Save"><i class="fas fa-check"></i></button>
+                        </form>
+                    </td>
+                    <td class="text-muted small">{{ s.comment }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 <!-- Temporary Entries Table -->
 <!-- 1. Temporary Entries (Orange) -->
 <div class="card shadow-sm border-0 mb-4 overflow-hidden">
@@ -244,41 +279,6 @@
         </div>
     </div>
 </div>
-
-<!-- CSF Config Key Editor -->
-{% if csf_conf_settings %}
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-white border-bottom fw-semibold d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-sliders-h me-2 text-primary"></i>CSF Configuration Settings</span>
-        <input type="text" id="confSearch" class="form-control form-control-sm w-auto" placeholder="Search setting…" oninput="filterConf(this.value)">
-    </div>
-    <div class="card-body p-0" style="max-height:500px; overflow-y:auto;">
-        <table class="table table-sm table-hover mb-0 align-middle" id="confTable">
-            <thead class="table-light sticky-top">
-                <tr><th>Setting</th><th>Value</th><th>Description</th><th></th></tr>
-            </thead>
-            <tbody>
-                {% for s in csf_conf_settings %}
-                <tr class="conf-row" data-key="{{ s.key|lower }}">
-                    <td class="font-monospace fw-semibold text-nowrap">{{ s.key }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('firewall') }}" class="d-flex gap-1 mb-0">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="action" value="save_csf_conf_key">
-                            <input type="hidden" name="conf_key" value="{{ s.key }}">
-                            <input type="text" name="conf_value" value="{{ s.value }}"
-                                   class="form-control form-control-sm font-monospace" style="min-width:80px; max-width:280px;">
-                            <button type="submit" class="btn btn-sm btn-outline-primary px-2" title="Save"><i class="fas fa-check"></i></button>
-                        </form>
-                    </td>
-                    <td class="text-muted small">{{ s.comment }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
 
 {% else %}
 <div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>CSF is not installed on this system.</div>
