@@ -258,27 +258,41 @@ def dashboard():
         msg = m.group(1) if m else line
         return {'time': time_str, 'msg': msg}
 
-    auth_log = '/var/log/auth.log'
-    if not os.path.exists(auth_log): auth_log = '/var/log/secure'
+    auth_logs = [
+        ('/var/log/auth.log', 'sshd'),
+        ('/var/log/secure', 'sshd'),
+        ('/var/log/cpanel_auth.log', 'cpanel_auth')
+    ]
     
-    if os.path.exists(auth_log):
+    all_events = []
+    for log_path, tag in auth_logs:
+        if os.path.exists(log_path):
+            try:
+                res = subprocess.run(['tail', '-n', '100', log_path], capture_output=True, text=True)
+                for line in res.stdout.strip().split('\n'):
+                    if not line: continue
+                    is_match = False
+                    if tag == 'sshd' and any(x in line for x in ['Accepted', 'Failed', 'Invalid']):
+                        is_match = True
+                    elif tag == 'cpanel_auth' and 'Failed login attempt' in line:
+                        is_match = True
+                    
+                    if is_match:
+                        all_events.append(parse_ssh_line(line))
+            except: pass
+
+    # Fallback to journalctl for SSH if no log files worked
+    if not any(e for e in all_events if 'sshd' in e.get('msg', '')):
         try:
-            res = subprocess.run(['tail', '-n', '200', auth_log], capture_output=True, text=True)
-            for line in reversed(res.stdout.strip().split('\n')):
-                if 'sshd' in line and any(x in line for x in ['Accepted', 'Failed', 'Invalid']):
-                    ssh_logins.append(parse_ssh_line(line))
-                    if len(ssh_logins) >= 5: break
+            res = subprocess.run(['journalctl', '_COMM=sshd', '-n', '50', '--no-pager'], capture_output=True, text=True)
+            for line in res.stdout.strip().split('\n'):
+                if any(x in line for x in ['Accepted', 'Failed', 'Invalid']):
+                    all_events.append(parse_ssh_line(line))
         except: pass
 
-    # Fallback to journalctl if log files are empty/inaccessible (common on newer Ubuntu versions)
-    if not ssh_logins:
-        try:
-            res = subprocess.run(['journalctl', '_COMM=sshd', '-n', '100', '--no-pager'], capture_output=True, text=True)
-            for line in reversed(res.stdout.strip().split('\n')):
-                if any(x in line for x in ['Accepted', 'Failed', 'Invalid']):
-                    ssh_logins.append(parse_ssh_line(line))
-                    if len(ssh_logins) >= 5: break
-        except: pass
+    # Sort all events by date (this is tricky because syslog lacks year, but we'll sort by position for now)
+    # Since we use tail, latest are at the end, we'll reverse the final list
+    ssh_logins = sorted(all_events, key=lambda x: x['time'], reverse=True)[:10]
 
     # Last Backup
     last_backup = "Never"

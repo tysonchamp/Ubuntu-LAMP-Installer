@@ -15,6 +15,7 @@ def get_system_logs():
         'Syslog': '/var/log/syslog',
         'MySQL Error': '/var/log/mysql/error.log',
         'Backup Log': '/var/log/lite-cpanel-backup.log',
+        'cPanel Auth': '/var/log/cpanel_auth.log',
         'Mongo Express': '/var/log/mongo-express.log',
         'Letsencrypt': '/var/log/letsencrypt/letsencrypt.log'
     }
