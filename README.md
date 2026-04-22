@@ -146,12 +146,16 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - **System Log Viewer** — tabbed viewer for Apache Error/Access, Nginx Error/Access, Syslog, and MySQL Error logs with auto-scroll and one-click refresh
 
 ### 🔐 Security
-- System-user authentication (PAM-based — uses the server's existing Linux user accounts)
-- CSRF protection on all forms (Flask-WTF)
-- Session-based login with configurable secret key
-- phpMyAdmin SSO via secure time-limited token files (`/var/lib/cpanel_tokens/`)
-- Credential-free panel — database passwords for web apps are stored only inside `wp-config.php`, never in shared password files
-- File Manager path boundary enforcement — all operations validated against forbidden system paths
+- **System-user authentication** — PAM-based login using the server's existing Linux user accounts
+- **Jailed SFTP (Chroot)** — Secure file transfer isolation for virtual users, preventing access to the root filesystem
+- **Private Group Isolation** — Each user operates in a private group, ensuring total data privacy between accounts while maintaining web server compatibility
+- **Automatic Security Hardening** — Global protection for `.env` and sensitive dotfiles, plus automatic disabling of directory indexing (Autoindex) across Nginx and Apache
+- **Framework Optimization** — Automated permission management (770/660) specifically tuned for Laravel, WordPress, and other modern PHP applications
+- **CSRF Protection** on all forms (Flask-WTF)
+- **Session-based login** with configurable secret key
+- **phpMyAdmin SSO** via secure time-limited token files
+- **Credential-free panel** — database passwords for web apps are managed securely, never stored in plaintext shared files
+- **File Manager path boundary enforcement** — all operations validated against forbidden system paths
 
 ---
 

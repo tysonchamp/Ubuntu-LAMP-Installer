@@ -1,4 +1,16 @@
 # Updates:
+
+## 23.04.2026 (Security & Framework Optimization Update)
+
+1. **Jailed SFTP (Chroot)**: Implemented ChrootDirectory for FTP users, restricting them to their home directories and enhancing server security.
+2. **Private Group Isolation**: Refactored FTP user management to assign unique private groups to each user, ensuring total data privacy and preventing cross-account access.
+3. **Global Security Shield**: Added an automated "Security Hardening" feature. This blocks access to all dotfiles (including `.env`) via web requests and disables directory indexing (Autoindex) on both Apache and Nginx.
+4. **Framework Permission Fixes**: Enhanced the File Manager to automatically apply secure 770/660 permissions to web roots and specific framework directories (e.g., `/storage`, `/bootstrap/cache` for Laravel), resolving "Permission denied" errors.
+5. **Performance & Reliability**:
+   - Integrated a background caching worker for the Dashboard to pre-fetch system metrics, reducing load time by up to 90%.
+   - Added automatic service restarts (Apache/Nginx/PHP-FPM) triggered by permission changes to ensure changes take effect immediately.
+   - Fixed "Connection reset by peer" errors in SFTP by resolving path resolution logic.
+
 21.04.2026 (Major UI & Analytics Update)
 
 1. **Slick Modern UI/UX**: Completely redesigned the dashboard and sidebar with a premium midnight-gradient aesthetic, refined typography (Inter), and glassmorphism-inspired cards.
