@@ -68,40 +68,52 @@
 </div>
 
 <!-- Temporary Entries Table -->
-<div class="card shadow-sm border-0 mb-3">
-    <div class="card-header bg-white border-bottom fw-semibold d-flex justify-content-between">
-        <span><i class="fas fa-clock me-2 text-warning"></i>Temporary Allow / Deny Entries</span>
-        <small class="text-muted align-self-center">{{ csf_temp|length }} entr{{ 'y' if csf_temp|length == 1 else 'ies' }}</small>
+<!-- 1. Temporary Entries (Orange) -->
+<div class="card shadow-sm border-0 mb-4 overflow-hidden">
+    <div class="card-header bg-warning text-dark border-bottom fw-bold d-flex justify-content-between align-items-center" style="background-color: #f39c12 !important; color: white !important;">
+        <span><i class="fas fa-clock me-2"></i>Temporary Allow and Deny IP entries</span>
+        <div class="d-flex align-items-center">
+            <small class="me-3 opacity-75">{{ csf_temp|length }} entries</small>
+            <button class="btn btn-xs btn-light text-dark fw-bold py-0" data-bs-toggle="modal" data-bs-target="#tempActionModal" style="font-size: 0.75rem;">Add an entry</button>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0 align-middle">
-                <thead class="table-light">
+            <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                <thead class="bg-light text-muted">
                     <tr>
-                        <th>Type</th><th>IP</th><th>Port(s)</th><th>Direction</th><th>Time Left</th><th>Comment</th><th></th>
+                        <th class="ps-3">Type</th>
+                        <th>IP</th>
+                        <th>Port(s)</th>
+                        <th>Direction</th>
+                        <th>Time to live</th>
+                        <th>Comment</th>
+                        <th class="text-end pe-3">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for e in csf_temp %}
                     <tr>
-                        <td><span class="badge {% if e.type|upper == 'ALLOW' %}bg-success{% else %}bg-danger{% endif %}">{{ e.type }}</span></td>
-                        <td class="font-monospace">{{ e.ip }}</td>
-                        <td>{{ e.ports or '—' }}</td>
-                        <td>{{ e.direction or '—' }}</td>
+                        <td class="ps-3">
+                            <span class="badge {% if e.type|upper == 'ALLOW' %}bg-success{% else %}bg-danger{% endif %}">{{ e.type }}</span>
+                        </td>
+                        <td class="fw-bold font-monospace">{{ e.ip }}</td>
+                        <td>{{ e.ports or '*' }}</td>
+                        <td>{{ e.direction or 'INOUT' }}</td>
                         <td>{{ e.ttl }}</td>
                         <td class="text-muted small">{{ e.comment }}</td>
-                        <td>
+                        <td class="text-end pe-3">
                             <form method="POST" action="{{ url_for('firewall') }}" class="mb-0">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="action" value="remove_temp">
-                                <input type="hidden" name="ip" value="{{ e.ip }}">
-                                <input type="hidden" name="entry_type" value="{{ e.type }}">
-                                <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Remove"><i class="fas fa-trash"></i></button>
+                                <input type="hidden" name="action" value="remove_rule">
+                                <input type="hidden" name="file_type" value="{{ e.type.lower() }}">
+                                <input type="hidden" name="rule_raw" value="{{ e.ip }}">
+                                <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.7rem;">Delete</button>
                             </form>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="7" class="text-center py-3 text-muted">No temporary entries.</td></tr>
+                    <tr><td colspan="7" class="text-center py-4 text-muted">No temporary entries.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -109,7 +121,93 @@
     </div>
 </div>
 
-<!-- File Editor Tabs (allow / deny / ignore / pignore / csf.conf) -->
+<!-- 2. Whitelist (Green) -->
+<div class="card shadow-sm border-0 mb-4 overflow-hidden">
+    <div class="card-header bg-success text-white border-bottom fw-bold d-flex justify-content-between align-items-center" style="background-color: #27ae60 !important;">
+        <span><i class="fas fa-check-circle me-2"></i>Whitelist configuration (csf.allow)</span>
+        <div class="d-flex align-items-center">
+            <small class="me-3 opacity-75">{{ parsed_allow|length }} entries</small>
+            <button class="btn btn-xs btn-light text-success fw-bold py-0" data-bs-toggle="modal" data-bs-target="#allowActionModal" style="font-size: 0.75rem;">Add an entry</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                <thead class="bg-light text-muted">
+                    <tr>
+                        <th class="ps-3">IP or Rule</th>
+                        <th>Comment</th>
+                        <th class="text-end pe-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in parsed_allow %}
+                    <tr>
+                        <td class="ps-3 fw-bold font-monospace">{{ entry.rule }}</td>
+                        <td class="text-muted small">{{ entry.comment }}</td>
+                        <td class="text-end pe-3">
+                            <form method="POST" action="{{ url_for('firewall') }}" class="mb-0" onsubmit="return confirm('Delete this rule from whitelist?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="remove_rule">
+                                <input type="hidden" name="file_type" value="allow">
+                                <input type="hidden" name="rule_raw" value="{{ entry.raw }}">
+                                <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.7rem;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="text-center py-3 text-muted">No whitelisted IPs.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Blacklist (Red) -->
+<div class="card shadow-sm border-0 mb-4 overflow-hidden">
+    <div class="card-header bg-danger text-white border-bottom fw-bold d-flex justify-content-between align-items-center" style="background-color: #c0392b !important;">
+        <span><i class="fas fa-ban me-2"></i>Blacklist configuration (csf.deny)</span>
+        <div class="d-flex align-items-center">
+            <small class="me-3 opacity-75">{{ parsed_deny|length }} entries</small>
+            <button class="btn btn-xs btn-light text-danger fw-bold py-0" data-bs-toggle="modal" data-bs-target="#denyActionModal" style="font-size: 0.75rem;">Add an entry</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                <thead class="bg-light text-muted">
+                    <tr>
+                        <th class="ps-3">IP or Rule</th>
+                        <th>Comment</th>
+                        <th class="text-end pe-3">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in parsed_deny %}
+                    <tr>
+                        <td class="ps-3 fw-bold font-monospace">{{ entry.rule }}</td>
+                        <td class="text-muted small">{{ entry.comment }}</td>
+                        <td class="text-end pe-3">
+                            <form method="POST" action="{{ url_for('firewall') }}" class="mb-0" onsubmit="return confirm('Delete this rule from blacklist?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="remove_rule">
+                                <input type="hidden" name="file_type" value="deny">
+                                <input type="hidden" name="rule_raw" value="{{ entry.raw }}">
+                                <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.7rem;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="text-center py-3 text-muted">No blacklisted IPs.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- File Editor Tabs -->
 <div class="card shadow-sm border-0 mb-3">
     <div class="card-header bg-white border-bottom fw-semibold"><i class="fas fa-file-code me-2 text-secondary"></i>Configuration Files</div>
     <div class="card-body">

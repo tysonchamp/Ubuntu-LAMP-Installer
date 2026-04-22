@@ -68,9 +68,60 @@ def get_csf_file(file_type):
 
     path = files.get(file_type)
     if path and os.path.exists(path):
-        with open(path, 'r') as f:
-            return f.read()
+        try:
+            with open(path, 'r') as f:
+                return f.read()
+        except: pass
     return ""
+
+def get_parsed_csf_file(file_type):
+    """Parses allow/deny files into structured list of IPs/rules."""
+    content = get_csf_file(file_type)
+    entries = []
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        
+        # Format can be: IP, or IP:Port, or advanced rules
+        # Comment is usually after #
+        rule = line
+        comment = ""
+        if '#' in line:
+            rule, comment = line.split('#', 1)
+            rule = rule.strip()
+            comment = comment.strip()
+        
+        entries.append({
+            'rule': rule,
+            'comment': comment,
+            'raw': line
+        })
+    return entries
+
+def remove_from_csf_file(file_type, rule_raw):
+    """Removes a specific line from a CSF file and restarts CSF."""
+    files = {
+        'allow': '/etc/csf/csf.allow',
+        'deny': '/etc/csf/csf.deny'
+    }
+    path = files.get(file_type)
+    if not path or not os.path.exists(path):
+        return False, "File not found"
+    
+    try:
+        with open(path, 'r') as f:
+            lines = f.readlines()
+        
+        with open(path, 'w') as f:
+            for line in lines:
+                if line.strip() != rule_raw.strip():
+                    f.write(line)
+        
+        subprocess.run(['csf', '-r'], capture_output=True)
+        return True, f"Removed rule from {file_type}."
+    except Exception as e:
+        return False, str(e)
 
 def save_csf_file(file_type, content):
     files = {

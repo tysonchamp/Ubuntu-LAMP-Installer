@@ -1266,15 +1266,16 @@ def firewall():
             success, message = save_csf_conf_key(key, value)
             flash(message, 'success' if success else 'danger')
 
-        elif action == 'remove_temp':
-            ip = request.form.get('ip')
-            entry_type = request.form.get('entry_type', 'deny').lower()
-            rm_action = 'unallow' if entry_type == 'allow' else 'undeny'
-            success, message = csf_ip_action(rm_action, ip)
+        elif action == 'remove_rule':
+            file_type = request.form.get('file_type')
+            rule_raw = request.form.get('rule_raw')
+            from csf_mgr import remove_from_csf_file
+            success, message = remove_from_csf_file(file_type, rule_raw)
             flash(message, 'success' if success else 'danger')
 
         return redirect(url_for('firewall'))
 
+    from csf_mgr import get_parsed_csf_file
     context = {
         'csf_installed':    csf_installed,
         'csf_status':       get_csf_status() if csf_installed else None,
@@ -1284,6 +1285,8 @@ def firewall():
         'csf_pignore_file': get_csf_file('pignore') if csf_installed else "",
         'csf_regex_file':   get_csf_file('regex') if csf_installed else "",
         'csf_config_file':  get_csf_file('config') if csf_installed else "",
+        'parsed_allow':     get_parsed_csf_file('allow') if csf_installed else [],
+        'parsed_deny':      get_parsed_csf_file('deny') if csf_installed else [],
         'csf_temp':         get_csf_temp_entries() if csf_installed else [],
         'csf_ports':        get_open_ports()        if csf_installed else {},
         'csf_conf_settings': get_csf_conf_settings() if csf_installed else [],
