@@ -10,28 +10,57 @@ def check_pureftpd_installed():
 
 def get_ftp_users():
     """
-    Returns a list of pure-ftpd virtual users.
+    Returns a list of pure-ftpd virtual users with their status.
     """
     if not check_pureftpd_installed():
         return None
 
     users = []
     try:
-        # pure-pw list format:
-        # username  /path/to/dir
         result = subprocess.run(['pure-pw', 'list'], capture_output=True, text=True, check=True)
         for line in result.stdout.splitlines():
             if line.strip():
                 parts = line.split(maxsplit=1)
                 if len(parts) == 2:
+                    username = parts[0].strip()
+                    directory = parts[1].strip()
+                    
+                    # Check status via show command
+                    status = True
+                    try:
+                        show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
+                        if 'Account expiration date' in show_res.stdout:
+                            # If there's a date in the past, it's disabled
+                            # Usually looks like: Account expiration date : Thu Jan  1 01:00:00 1970
+                            if '1970' in show_res.stdout:
+                                status = False
+                    except: pass
+                    
                     users.append({
-                        'username': parts[0].strip(),
-                        'directory': parts[1].strip()
+                        'username': username,
+                        'directory': directory,
+                        'enabled': status
                     })
     except subprocess.CalledProcessError:
         pass
 
     return users
+
+def toggle_ftp_user_status(username, enable=True):
+    """
+    Enables or disables an FTP user by setting an expiration date.
+    """
+    if not check_pureftpd_installed():
+        return False, "pure-ftpd is not installed."
+
+    try:
+        # -X 0 = No expiration (Enabled)
+        # -X 19700101 = Expired (Disabled)
+        date_val = "0" if enable else "19700101"
+        subprocess.run(['pure-pw', 'usermod', username, '-X', date_val, '-m'], check=True)
+        return True, f"FTP user {username} {'enabled' if enable else 'disabled'} successfully."
+    except Exception as e:
+        return False, str(e)
 
 def create_ftp_user(username, password, directory):
     """
@@ -114,5 +143,58 @@ def change_ftp_password(username, new_password):
         else:
             return False, f"Failed to change password: {stderr}"
 
+    except Exception as e:
+        return False, str(e)
+
+def get_sftp_status():
+    """Checks if SFTP subsystem is enabled in sshd_config."""
+    try:
+        if not os.path.exists('/etc/ssh/sshd_config'):
+            return False
+        with open('/etc/ssh/sshd_config', 'r') as f:
+            for line in f:
+                if 'Subsystem' in line and 'sftp' in line:
+                    return not line.strip().startswith('#')
+        return False
+    except:
+        return False
+
+def toggle_sftp(enable=True):
+    """Enables or disables SFTP subsystem in sshd_config."""
+    try:
+        sshd_path = '/etc/ssh/sshd_config'
+        if not os.path.exists(sshd_path):
+            return False, "SSH config not found."
+            
+        with open(sshd_path, 'r') as f:
+            lines = f.readlines()
+        
+        new_lines = []
+        found = False
+        for line in lines:
+            if 'Subsystem' in line and 'sftp' in line:
+                found = True
+                if enable:
+                    # Remove comment if present
+                    new_lines.append(line.lstrip('# ').strip() + '\n')
+                else:
+                    # Add comment if not present
+                    if not line.strip().startswith('#'):
+                        new_lines.append('# ' + line.strip() + '\n')
+                    else:
+                        new_lines.append(line)
+            else:
+                new_lines.append(line)
+        
+        if not found and enable:
+            # Try to find a good place to add it or just append
+            new_lines.append('\n# Added by Lite-cPanel\nSubsystem sftp /usr/lib/openssh/sftp-server\n')
+            
+        with open(sshd_path, 'w') as f:
+            f.writelines(new_lines)
+            
+        # Restart SSH to apply
+        subprocess.run(['systemctl', 'restart', 'ssh'], check=True)
+        return True, f"SFTP {'enabled' if enable else 'disabled'} successfully."
     except Exception as e:
         return False, str(e)

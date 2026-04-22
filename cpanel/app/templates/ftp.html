@@ -12,6 +12,42 @@
 <div class="row mb-4">
     <div class="col-12">
         <div class="card shadow-sm border-0">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-1"><i class="fas fa-shield-alt text-success me-2"></i> SFTP Service (Port 22)</h5>
+                    <p class="text-muted small mb-0">SFTP is more secure and works better with firewalls. Status: 
+                        {% if sftp_enabled %}
+                        <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div>
+                    <form method="POST" action="{{ url_for('ftp') }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="toggle_sftp">
+                        {% if sftp_enabled %}
+                        <input type="hidden" name="enable" value="false">
+                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Disable SFTP globally? SSH will still work, but SFTP connections will fail.')">
+                            <i class="fas fa-power-off me-1"></i> Disable SFTP
+                        </button>
+                        {% else %}
+                        <input type="hidden" name="enable" value="true">
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-play me-1"></i> Enable SFTP
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Create New FTP User</h5>
             </div>
@@ -55,24 +91,42 @@
                     <table class="table table-hover mb-0">
                         <thead class="bg-light">
                             <tr>
+                                <th>Status</th>
                                 <th>Username</th>
                                 <th>Directory Path</th>
-                                <th>Actions</th>
+                                <th class="text-end pe-3">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for user in users %}
                             <tr>
+                                <td class="align-middle">
+                                    <form method="POST" action="{{ url_for('ftp') }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="toggle_user_status">
+                                        <input type="hidden" name="username" value="{{ user.username }}">
+                                        {% if user.enabled %}
+                                        <input type="hidden" name="enable" value="false">
+                                        <button type="submit" class="btn btn-sm btn-link p-0 text-success" title="Click to Disable">
+                                            <i class="fas fa-toggle-on fa-lg"></i>
+                                        </button>
+                                        {% else %}
+                                        <input type="hidden" name="enable" value="true">
+                                        <button type="submit" class="btn btn-sm btn-link p-0 text-secondary" title="Click to Enable">
+                                            <i class="fas fa-toggle-off fa-lg"></i>
+                                        </button>
+                                        {% endif %}
+                                    </form>
+                                </td>
                                 <td class="align-middle fw-bold">{{ user.username }}</td>
                                 <td class="align-middle font-monospace small text-muted">{{ user.directory }}</td>
-                                <td class="align-middle">
-                                    <button class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#passwordModal{{ loop.index }}"><i class="fas fa-key"></i> Change Password</button>
+                                <td class="align-middle text-end pe-3">
+                                    <button class="btn btn-xs btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#passwordModal{{ loop.index }}" style="font-size: 11px;"><i class="fas fa-key"></i> Pass</button>
                                     <form method="POST" action="{{ url_for('ftp') }}" class="d-inline" onsubmit="return confirm('Delete this FTP user?');">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="username" value="{{ user.username }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Delete</button>
+                                        <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size: 11px;"><i class="fas fa-trash"></i> Del</button>
                                     </form>
 
                                     <!-- Password Modal -->

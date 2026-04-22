@@ -1237,10 +1237,25 @@ def ftp():
             success, message = change_ftp_password(username, new_password)
             flash(message, 'success' if success else 'danger')
 
+        elif action == 'toggle_sftp':
+            from ftp_mgr import toggle_sftp
+            enable = request.form.get('enable') == 'true'
+            success, message = toggle_sftp(enable)
+            flash(message, 'success' if success else 'danger')
+
+        elif action == 'toggle_user_status':
+            from ftp_mgr import toggle_ftp_user_status
+            username = request.form.get('username')
+            enable = request.form.get('enable') == 'true'
+            success, message = toggle_ftp_user_status(username, enable)
+            flash(message, 'success' if success else 'danger')
+
         return redirect(url_for('ftp'))
 
+    from ftp_mgr import get_sftp_status
+    sftp_enabled = get_sftp_status()
     users = get_ftp_users() if ftp_installed else None
-    return render_template('ftp.html', ftp_installed=ftp_installed, users=users)
+    return render_template('ftp.html', ftp_installed=ftp_installed, users=users, sftp_enabled=sftp_enabled)
 
 from csf_mgr import (check_csf_installed, get_csf_status, csf_action, csf_ip_action,
                            get_csf_file, save_csf_file, get_csf_temp_entries,
