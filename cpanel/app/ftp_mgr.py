@@ -28,10 +28,8 @@ def get_ftp_users():
                     # Check status via System User Lock (SFTP Bridge)
                     enabled = True
                     try:
-                        # Check if system user is locked or doesn't exist
                         lock_res = subprocess.run(['passwd', '-S', username], capture_output=True, text=True)
                         if ' L ' in lock_res.stdout or lock_res.returncode != 0:
-                            # 'L' means Locked, returncode != 0 means user doesn't exist
                             enabled = False
                     except: 
                         enabled = False
@@ -45,76 +43,6 @@ def get_ftp_users():
         pass
 
     return users
-
-def toggle_ftp_user_status(username, enable=True):
-    """
-    Enables or disables an FTP user by setting an expiration date.
-    """
-    if not check_pureftpd_installed():
-        return False, "pure-ftpd is not installed."
-
-    try:
-        # -X 0 = No expiration (Enabled)
-        # -X 19700101 = Expired (Disabled)
-        date_val = "0" if enable else "19700101"
-        subprocess.run(['pure-pw', 'usermod', username, '-X', date_val, '-m'], check=True)
-        return True, f"FTP user {username} {'enabled' if enable else 'disabled'} successfully."
-    except Exception as e:
-        return False, str(e)
-
-def toggle_ftp_user_status(username, enable=True):
-    """
-    Enables or disables an FTP user by setting an expiration date 
-    AND manages a matching system user for SFTP access.
-    """
-    if not check_pureftpd_installed():
-        return False, "pure-ftpd is not installed."
-
-    try:
-        # 1. Manage Pure-FTPd (Virtual User)
-        date_val = "0" if enable else "19700101"
-        subprocess.run(['pure-pw', 'usermod', username, '-X', date_val, '-m'], check=True)
-        
-        # 2. Manage System User (SFTP Bridge)
-        # Check if user exists in /etc/passwd
-        user_exists = False
-        try:
-            subprocess.run(['id', username], check=True, capture_output=True)
-            user_exists = True
-        except: pass
-
-        if enable:
-            if not user_exists:
-                # Create system user for SFTP
-                show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
-                import re
-                m = re.search(r'Directory\s*:\s*(.*)', show_res.stdout)
-                # Clean path: remove trailing /./ and /
-                directory = m.group(1).strip() if m else "/var/www"
-                directory = directory.replace('/./', '/').rstrip('/')
-                
-                # Create with no login shell
-                subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', username], check=True)
-                # Set a dummy password initially so it can be unlocked
-                pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
-                pw_proc.communicate(input=f"{username}:SetPasswordInPanel123!\n")
-            
-            # Unlock the account
-            try:
-                subprocess.run(['passwd', '-u', username], check=True)
-            except:
-                # If unlock fails, try setting a password first
-                pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
-                pw_proc.communicate(input=f"{username}:SetPasswordInPanel123!\n")
-                subprocess.run(['passwd', '-u', username], check=True)
-        else:
-            if user_exists:
-                # Lock the account to disable SFTP
-                subprocess.run(['passwd', '-l', username], check=True)
-
-        return True, f"FTP & SFTP access for {username} {'enabled' if enable else 'disabled'} successfully."
-    except Exception as e:
-        return False, str(e)
 
 def create_ftp_user(username, password, directory):
     """
@@ -144,119 +72,118 @@ def create_ftp_user(username, password, directory):
 
         # 2. Create System User (Locked, No Login)
         try:
-            # Delete if exists to ensure clean state
             subprocess.run(['userdel', '-r', username], capture_output=True)
+            subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
+            subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
             
-            # Create user
-            subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', username], check=True)
-            
-            # Set Password
             pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
             pw_proc.communicate(input=f"{username}:{password}\n")
-            
-            # Immediately Lock (Disabled by default)
             subprocess.run(['passwd', '-l', username], check=True)
         except Exception as system_e:
             return True, f"FTP created, but SFTP bridge failed: {str(system_e)}"
 
-        return True, f"FTP user {username} created (Disabled by default). Toggle to Enable."
-
+        return True, f"FTP user {username} created (Disabled). Toggle to Enable."
     except Exception as e:
         return False, str(e)
 
 def delete_ftp_user(username):
-    """
-    Deletes a pure-ftpd virtual user and the matching system user.
-    """
     if not check_pureftpd_installed():
         return False, "pure-ftpd is not installed."
-
     try:
-        # Delete Virtual
         subprocess.run(['pure-pw', 'userdel', username, '-m'], check=True)
-        
-        # Delete System
-        try:
-            subprocess.run(['userdel', username], capture_output=True)
-        except: pass
-        
-        return True, f"FTP/SFTP user {username} deleted successfully."
-    except subprocess.CalledProcessError as e:
-        return False, f"Failed to delete user: {e.stderr}"
+        subprocess.run(['userdel', username], capture_output=True)
+        return True, f"User {username} deleted."
+    except Exception as e:
+        return False, str(e)
 
 def change_ftp_password(username, new_password):
-    """
-    Changes password for both virtual and system user.
-    """
     if not check_pureftpd_installed():
         return False, "pure-ftpd is not installed."
-
     try:
-        # 1. Virtual Password
-        process = subprocess.Popen(
-            ['pure-pw', 'passwd', username, '-m'],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
+        process = subprocess.Popen(['pure-pw', 'passwd', username, '-m'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         process.communicate(input=f"{new_password}\n{new_password}\n")
-
-        # 2. System Password
-        try:
-            pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
-            pw_proc.communicate(input=f"{username}:{new_password}\n")
-        except: pass
-
+        
+        pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+        pw_proc.communicate(input=f"{username}:{new_password}\n")
         return True, f"Password updated for {username}."
-
     except Exception as e:
         return False, str(e)
 
 def get_sftp_status():
-    """Checks if SFTP subsystem is enabled in sshd_config."""
     try:
         if not os.path.exists('/etc/ssh/sshd_config'):
             return False
         with open('/etc/ssh/sshd_config', 'r') as f:
             for line in f:
-                if 'Subsystem' in line and 'sftp' in line:
+                if 'Subsystem' in line and 'sftp' in line and 'internal-sftp' in line:
                     return not line.strip().startswith('#')
         return False
     except:
         return False
 
 def toggle_sftp(enable=True):
-    """Enables or disables SFTP subsystem in sshd_config."""
     try:
         sshd_path = '/etc/ssh/sshd_config'
-        if not os.path.exists(sshd_path):
-            return False, "SSH config not found."
-            
+        subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
         with open(sshd_path, 'r') as f:
             lines = f.readlines()
-        
         new_lines = []
-        found = False
+        found_sub = False
+        in_match = False
         for line in lines:
             if 'Subsystem' in line and 'sftp' in line:
-                found = True
-                if enable:
-                    # Use internal-sftp which is much more robust for nologin users
-                    new_lines.append('Subsystem sftp internal-sftp\n')
-                else:
-                    if not line.strip().startswith('#'):
-                        new_lines.append('# ' + line.strip() + '\n')
-                    else:
-                        new_lines.append(line)
-            else:
-                new_lines.append(line)
-        
-        if not found and enable:
-            new_lines.append('\n# Added by Lite-cPanel\nSubsystem sftp internal-sftp\n')
-            
+                found_sub = True
+                new_lines.append(f"{'' if enable else '# '}Subsystem sftp internal-sftp\n")
+                continue
+            if 'Match Group lite_sftp' in line:
+                in_match = True
+                continue
+            if in_match:
+                if line.startswith('Match') or (line.strip() == '' and not any('Chroot' in next_l for next_l in lines[lines.index(line):lines.index(line)+5])):
+                    in_match = False
+                else: continue
+            new_lines.append(line)
+        if not found_sub and enable:
+            new_lines.append('Subsystem sftp internal-sftp\n')
+        if enable:
+            new_lines.append('\nMatch Group lite_sftp\n    ChrootDirectory %h\n    ForceCommand internal-sftp\n    AllowTcpForwarding no\n')
         with open(sshd_path, 'w') as f:
             f.writelines(new_lines)
-            
-        # Restart SSH to apply
         subprocess.run(['systemctl', 'restart', 'ssh'], check=True)
-        return True, f"SFTP {'enabled' if enable else 'disabled'} (internal) successfully."
+        return True, f"SFTP {'enabled (Jailed)' if enable else 'disabled'}."
+    except Exception as e:
+        return False, str(e)
+
+def toggle_ftp_user_status(username, enable=True):
+    try:
+        date_val = "0" if enable else "19700101"
+        subprocess.run(['pure-pw', 'usermod', username, '-X', date_val, '-m'], check=True)
+        user_exists = False
+        try:
+            subprocess.run(['id', username], check=True, capture_output=True)
+            user_exists = True
+        except: pass
+        if enable:
+            show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
+            import re
+            m = re.search(r'Directory\s*:\s*(.*)', show_res.stdout)
+            directory = m.group(1).strip().replace('/./', '/').rstrip('/') if m else "/var/www"
+            if not user_exists:
+                subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
+                subprocess.run(['useradd', '-d', directory, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+            # Jailing requirements: Root owned parent
+            subprocess.run(['chown', 'root:root', directory], check=True)
+            subprocess.run(['chmod', '755', directory], check=True)
+            try:
+                subprocess.run(['passwd', '-u', username], check=True)
+            except:
+                pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+                pw_proc.communicate(input=f"{username}:SetPasswordInPanel123!\n")
+                subprocess.run(['passwd', '-u', username], check=True)
+        else:
+            if user_exists:
+                subprocess.run(['passwd', '-l', username], check=True)
+        return True, f"User {username} {'enabled (Jailed)' if enable else 'disabled'}."
     except Exception as e:
         return False, str(e)
