@@ -84,13 +84,21 @@ def get_editable_configs():
     """
     configs = []
     potential_configs = [
-        ('/etc/php/8.1/apache2/php.ini', 'PHP 8.1 Apache config'),
-        ('/etc/php/8.1/fpm/php.ini', 'PHP 8.1 FPM config'),
         ('/etc/apache2/apache2.conf', 'Main Apache config'),
         ('/etc/nginx/nginx.conf', 'Main Nginx config'),
         ('/etc/mysql/mariadb.conf.d/50-server.cnf', 'MariaDB Server config'),
         ('/etc/pure-ftpd/pure-ftpd.conf', 'Pure-FTPd config')
     ]
+
+    # Dynamically detect PHP versions and configs (FPM and Apache)
+    php_paths = glob.glob('/etc/php/*/*/php.ini')
+    for path in php_paths:
+        # Path format: /etc/php/8.1/fpm/php.ini or /etc/php/8.1/apache2/php.ini
+        parts = path.split('/')
+        if len(parts) >= 5:
+            version = parts[3]
+            variant = parts[4].upper()
+            potential_configs.append((path, f"PHP {version} {variant} config"))
 
     for path, name in potential_configs:
         if os.path.exists(path):
@@ -125,8 +133,14 @@ def save_config_file(filepath, content):
             subprocess.run(['systemctl', 'reload', 'apache2'])
         elif 'nginx' in filepath:
             subprocess.run(['systemctl', 'reload', 'nginx'])
+        elif 'mysql' in filepath or 'mariadb' in filepath:
+            subprocess.run(['systemctl', 'reload', 'mariadb'])
         elif 'php' in filepath and 'fpm' in filepath:
-            subprocess.run(['systemctl', 'reload', 'php8.1-fpm'])
+            # Extract version from path /etc/php/8.1/fpm/php.ini
+            parts = filepath.split('/')
+            if len(parts) >= 4:
+                version = parts[3]
+                subprocess.run(['systemctl', 'reload', f'php{version}-fpm'])
 
         return True, "File saved successfully and service reloaded."
     except Exception as e:
