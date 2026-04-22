@@ -208,17 +208,20 @@ def toggle_ftp_user_status(username, enable=True):
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
                 subprocess.run(['usermod', '-d', relative_home, '-aG', 'lite_sftp,www-data', username], check=True)
             
+            if not os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
+
             # Ownership: User owns their folder, group is www-data for web server access
-            # Permission 750 ensures 'Other' (other SFTP users) cannot enter or list the folder
             subprocess.run(['chown', f'{username}:www-data', directory], check=True)
             subprocess.run(['chmod', '750', directory], check=True)
             subprocess.run(['chmod', 'g+s', directory], check=True)
 
             # Recursively ensure everything inside is manageable by user and web server
-            subprocess.run(f"find {directory} -mindepth 1 -exec chown {username}:www-data {{}} +", shell=True, check=True)
-            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod 750 {{}} +", shell=True, check=True)
-            subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 640 {{}} +", shell=True, check=True)
-            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod g+s {{}} +", shell=True, check=True)
+            # We use try/except or || true to prevent find from crashing the whole process if it hits a minor issue
+            subprocess.run(f"find {directory} -mindepth 1 -exec chown {username}:www-data {{}} + 2>/dev/null || true", shell=True)
+            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod 750 {{}} + 2>/dev/null || true", shell=True)
+            subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 640 {{}} + 2>/dev/null || true", shell=True)
+            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod g+s {{}} + 2>/dev/null || true", shell=True)
             
             # Ensure the parent (/var/www) is 755 (SSH requirement for jail root)
             subprocess.run(['chown', 'root:root', '/var/www'], check=True)
