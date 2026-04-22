@@ -129,13 +129,15 @@ def login():
         if check_system_password(username, password):
             # Auto-Whitelist IP in CSF (Temporary Allow for 1 Hour)
             try:
-                # Get real IP even if behind proxy (Nginx/Cloudflare)
                 user_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
                 
-                # Use absolute path to CSF and run it
-                import subprocess
-                subprocess.run(['/usr/sbin/csf', '-ta', user_ip, '3600', f'cPanel Login: {username}'], capture_output=True)
-            except: pass
+                # Run CSF and log result for debugging
+                res = subprocess.run(['/usr/sbin/csf', '-ta', user_ip, '3600', f'cPanel Login: {username}'], capture_output=True, text=True)
+                with open('/tmp/csf_debug.log', 'a') as f:
+                    f.write(f"IP: {user_ip} | Exit: {res.returncode} | Out: {res.stdout} | Err: {res.stderr}\n")
+            except Exception as e:
+                with open('/tmp/csf_debug.log', 'a') as f:
+                    f.write(f"Error: {str(e)}\n")
 
             session['logged_in'] = True
             session['username'] = username
@@ -179,7 +181,8 @@ def dashboard():
         'ram_percent': ram.percent,
         'disk_total': round(disk.total / (1024**3), 2),
         'disk_used': round(disk.used / (1024**3), 2),
-        'disk_percent': disk.percent
+        'disk_percent': disk.percent,
+        'user_ip': request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
     }
     
     hostname = platform.node()
