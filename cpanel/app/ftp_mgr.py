@@ -25,21 +25,21 @@ def get_ftp_users():
                     username = parts[0].strip()
                     directory = parts[1].strip()
                     
-                    # Check status via show command
-                    status = True
+                    # Check status via System User Lock (SFTP Bridge)
+                    enabled = True
                     try:
-                        show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
-                        if 'Account expiration date' in show_res.stdout:
-                            # If there's a date in the past, it's disabled
-                            # Usually looks like: Account expiration date : Thu Jan  1 01:00:00 1970
-                            if '1970' in show_res.stdout:
-                                status = False
-                    except: pass
+                        # Check if system user is locked or doesn't exist
+                        lock_res = subprocess.run(['passwd', '-S', username], capture_output=True, text=True)
+                        if ' L ' in lock_res.stdout or lock_res.returncode != 0:
+                            # 'L' means Locked, returncode != 0 means user doesn't exist
+                            enabled = False
+                    except: 
+                        enabled = False
                     
                     users.append({
                         'username': username,
                         'directory': directory,
-                        'enabled': status
+                        'enabled': enabled
                     })
     except subprocess.CalledProcessError:
         pass
