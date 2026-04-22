@@ -105,7 +105,129 @@ def auto_updater_worker():
         # Check every 1 hour
         time.sleep(3600)
 
+# --- Global Cache for Dashboard Speed ---
+DASHBOARD_CACHE = {
+    'traffic': [],
+    'security_events': [],
+    'public_ip': "Unknown",
+    'last_ip_update': 0,
+    'last_traffic_update': 0,
+    'last_security_update': 0
+}
+
+def get_dashboard_traffic():
+    """Heavy function to calculate traffic for all domains."""
+    from nextjs_mgr import get_nextjs_apps
+    from domains_mgr import get_virtual_hosts
+    
+    traffic_stats = []
+    all_domains = set()
+    try:
+        for app in get_nextjs_apps(): all_domains.add(app['domain'])
+        for host in get_virtual_hosts(): all_domains.add(host['domain'])
+    except: pass
+
+    for domain in all_domains:
+        domain_lower = domain.lower()
+        log_candidates = [
+            f"/var/log/nginx/{domain_lower}_access.log",
+            f"/var/log/apache2/{domain_lower}_access.log",
+            f"/var/log/nginx/{domain_lower}.access.log",
+            f"/var/log/apache2/{domain_lower}.access.log",
+            f"/var/log/nginx/access.log",
+        ]
+        
+        traffic_item = None
+        for log_file in log_candidates:
+            if os.path.exists(log_file):
+                try:
+                    # Run goaccess in JSON mode (Combined)
+                    cmd = ['/usr/bin/goaccess', log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'json']
+                    res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    if res.returncode == 0:
+                        data = json.loads(res.stdout)
+                        gen = data.get('general', {})
+                        traffic_item = {'domain': domain, 'hits': gen.get('total_requests', 0), 'bandwidth': gen.get('bandwidth', 0), 'visitors': gen.get('unique_visitors', 0)}
+                        if traffic_item['hits'] > 0: break
+                except: pass
+        if traffic_item: traffic_stats.append(traffic_item)
+    return sorted(traffic_stats, key=lambda x: x['bandwidth'], reverse=True)
+
+def get_dashboard_security():
+    """Heavy function to parse security logs with improved timestamp detection."""
+    import re
+    from datetime import datetime
+    all_events = []
+    auth_logs = [('/var/log/auth.log', 'sshd'), ('/var/log/secure', 'sshd'), ('/var/log/cpanel_auth.log', 'cpanel_auth')]
+    
+    for log_path, tag in auth_logs:
+        if os.path.exists(log_path):
+            try:
+                res = subprocess.run(['tail', '-n', '50', log_path], capture_output=True, text=True, timeout=5)
+                for line in res.stdout.strip().split('\n'):
+                    if not line: continue
+                    if (tag == 'sshd' and any(x in line for x in ['Accepted', 'Failed', 'Invalid'])) or \
+                       (tag == 'cpanel_auth' and 'Failed login attempt' in line):
+                        
+                        # Robust Timestamp Detection
+                        time_str = "Unknown"
+                        # 1. Match ISO Format (2026-04-22T16:46:41...)
+                        iso_match = re.search(r'^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})', line)
+                        if iso_match:
+                            try:
+                                dt = datetime.strptime(f"{iso_match.group(1)} {iso_match.group(2)}", '%Y-%m-%d %H:%M:%S')
+                                time_str = dt.strftime('%b %d %H:%M:%S')
+                            except: time_str = f"{iso_match.group(1)} {iso_match.group(2)}"
+                        else:
+                            # 2. Match Syslog Format (Apr 21 08:29:34)
+                            syslog_match = re.match(r'^(\w{3}\s+\d+\s+\d{2}:\d{2}:\d{2})', line)
+                            if syslog_match:
+                                time_str = syslog_match.group(1)
+                            else:
+                                # Fallback: first 3 parts
+                                time_str = " ".join(line.split()[:3])
+
+                        # Extract Message
+                        m = re.search(r'sshd\[\d+\]: (.*)', line)
+                        if not m and 'cpanel_auth' in tag:
+                            m = re.search(r'cpanel_auth: (.*)', line)
+                        msg = m.group(1) if m else line
+                        
+                        all_events.append({'time': time_str, 'msg': msg})
+            except: pass
+    return sorted(all_events, key=lambda x: x['time'], reverse=True)[:10]
+
+def dashboard_background_worker():
+    """Background worker to pre-calculate heavy dashboard stats."""
+    import time
+    while True:
+        try:
+            # 1. Update Public IP (every 24h)
+            if time.time() - DASHBOARD_CACHE['last_ip_update'] > 86400:
+                try:
+                    import urllib.request
+                    DASHBOARD_CACHE['public_ip'] = urllib.request.urlopen('https://ident.me', timeout=5).read().decode('utf-8').strip()
+                    DASHBOARD_CACHE['last_ip_update'] = time.time()
+                except: pass
+
+            # 2. Update Traffic (every 10 min)
+            if time.time() - DASHBOARD_CACHE['last_traffic_update'] > 600:
+                DASHBOARD_CACHE['traffic'] = get_dashboard_traffic()
+                DASHBOARD_CACHE['last_traffic_update'] = time.time()
+
+            # 3. Update Security Events (every 2 min)
+            if time.time() - DASHBOARD_CACHE['last_security_update'] > 120:
+                DASHBOARD_CACHE['security_events'] = get_dashboard_security()
+                DASHBOARD_CACHE['last_security_update'] = time.time()
+                
+        except Exception as e:
+            print(f"Background worker error: {e}")
+        time.sleep(30)
+
 # Start background thread
+threading.Thread(target=dashboard_background_worker, daemon=True).start()
+
+# Existing Auto-Updater
 updater_thread = threading.Thread(target=auto_updater_worker, daemon=True)
 updater_thread.start()
 # --------------------
@@ -169,12 +291,13 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-
     import platform
     import socket
+    import datetime
+    import sys
     
-    # Get basic system stats
-    cpu_usage = psutil.cpu_percent(interval=1)
+    # Instant Stats (interval=None means it returns the diff since last call)
+    cpu_usage = psutil.cpu_percent(interval=None)
     ram = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
 
@@ -191,237 +314,45 @@ def dashboard():
                    request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip() or "Unknown"
     }
     
+    # Fast Info
     hostname = platform.node()
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         ip_address = s.getsockname()[0]
         s.close()
-    except Exception:
-        ip_address = "Unknown"
+    except: ip_address = "Unknown"
         
-    # Detailed CPU info
-    try:
-        with open('/proc/cpuinfo', 'r') as f:
-            for line in f:
-                if 'model name' in line:
-                    processor = line.split(':')[1].strip()
-                    break
-            else:
-                processor = platform.processor()
-    except Exception:
-        processor = platform.processor()
-
-    # OS Info helper
-    def get_os_name():
-        try:
-            with open("/etc/os-release") as f:
-                d = {}
-                for line in f:
-                    if "=" in line:
-                        k, v = line.rstrip().split("=", 1)
-                        d[k] = v.strip('"')
-                return d.get("PRETTY_NAME", "Linux")
-        except:
-            return platform.system()
-
-    import datetime
-    import sys
-    
     boot_time = datetime.datetime.fromtimestamp(psutil.boot_time())
     uptime_delta = datetime.datetime.now() - boot_time
-    # Simple formatting: X days, HH:MM
-    days = uptime_delta.days
-    hours, remainder = divmod(uptime_delta.seconds, 3600)
-    minutes, _ = divmod(remainder, 60)
-    uptime_str = f"{days}d {hours}h {minutes}m"
+    uptime_str = f"{uptime_delta.days}d {uptime_delta.seconds // 3600}h {(uptime_delta.seconds % 3600) // 60}m"
 
-    import urllib.request
-    try:
-        public_ip = urllib.request.urlopen('https://ident.me', timeout=3).read().decode('utf-8')
-    except:
-        public_ip = "Unknown"
+    # Cached Heavy Info
+    public_ip = DASHBOARD_CACHE.get('public_ip', 'Unknown')
+    traffic_stats = DASHBOARD_CACHE.get('traffic', [])
+    ssh_logins = DASHBOARD_CACHE.get('security_events', [])
 
-    # Listening ports
+    # Listening ports (Fast)
     ports = []
     try:
         for conn in psutil.net_connections(kind='inet'):
-            if conn.status == 'LISTEN':
-                ports.append(conn.laddr.port)
+            if conn.status == 'LISTEN': ports.append(conn.laddr.port)
         ports = sorted(list(set(ports)))
-    except:
-        ports = []
-
-    # Recent SSH Logins (Last 5)
-    ssh_logins = []
-    
-    def parse_ssh_line(line):
-        import re
-        from datetime import datetime
-        
-        # Try ISO format (2026-04-21T14:17:03...)
-        iso_match = re.match(r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})', line)
-        if iso_match:
-            try:
-                dt = datetime.strptime(iso_match.group(1), '%Y-%m-%dT%H:%M:%S')
-                time_str = dt.strftime('%b %d %H:%M:%S')
-            except:
-                time_str = iso_match.group(1)
-        else:
-            # Fallback to Syslog format (Apr 21 14:17:03)
-            parts = line.split()
-            time_str = " ".join(parts[:3])
-
-        # Extract message after 'sshd[PID]: '
-        m = re.search(r'sshd\[\d+\]: (.*)', line)
-        msg = m.group(1) if m else line
-        return {'time': time_str, 'msg': msg}
-
-    auth_logs = [
-        ('/var/log/auth.log', 'sshd'),
-        ('/var/log/secure', 'sshd'),
-        ('/var/log/cpanel_auth.log', 'cpanel_auth')
-    ]
-    
-    all_events = []
-    for log_path, tag in auth_logs:
-        if os.path.exists(log_path):
-            try:
-                res = subprocess.run(['tail', '-n', '100', log_path], capture_output=True, text=True)
-                for line in res.stdout.strip().split('\n'):
-                    if not line: continue
-                    is_match = False
-                    if tag == 'sshd' and any(x in line for x in ['Accepted', 'Failed', 'Invalid']):
-                        is_match = True
-                    elif tag == 'cpanel_auth' and 'Failed login attempt' in line:
-                        is_match = True
-                    
-                    if is_match:
-                        all_events.append(parse_ssh_line(line))
-            except: pass
-
-    # Fallback to journalctl for SSH if no log files worked
-    if not any(e for e in all_events if 'sshd' in e.get('msg', '')):
-        try:
-            res = subprocess.run(['journalctl', '_COMM=sshd', '-n', '50', '--no-pager'], capture_output=True, text=True)
-            for line in res.stdout.strip().split('\n'):
-                if any(x in line for x in ['Accepted', 'Failed', 'Invalid']):
-                    all_events.append(parse_ssh_line(line))
-        except: pass
-
-    # Sort all events by date (this is tricky because syslog lacks year, but we'll sort by position for now)
-    # Since we use tail, latest are at the end, we'll reverse the final list
-    ssh_logins = sorted(all_events, key=lambda x: x['time'], reverse=True)[:10]
-
-    # Last Backup
-    last_backup = "Never"
-    backup_flag = '/var/lib/lite-cpanel/.last_backup'
-    if os.path.exists(backup_flag):
-        try:
-            with open(backup_flag, 'r') as f:
-                last_backup = f.read().strip()
-        except:
-            pass
-
-    # Web Traffic Stats
-    traffic_stats = []
-    
-    def get_domain_traffic(domain, log_file):
-        if not os.path.exists(log_file): return None
-        try:
-            # Use absolute path to ensure binary is found on all systems
-            goaccess_path = '/usr/bin/goaccess'
-            if not os.path.exists(goaccess_path):
-                goaccess_path = 'goaccess' # Fallback to PATH
-
-            # Run goaccess in JSON mode
-            cmd = [goaccess_path, log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'json']
-            res = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if res.returncode != 0:
-                logging.error(f"GoAccess failed for {domain} ({log_file}): {res.stderr}")
-                return None
-                
-            data = json.loads(res.stdout)
-            general = data.get('general', {})
-            return {
-                'domain': domain,
-                'hits': general.get('total_requests', 0),
-                'bandwidth': general.get('bandwidth', 0), # In bytes
-                'visitors': general.get('unique_visitors', 0)
-            }
-        except Exception as e:
-            logging.error(f"Error parsing traffic for {domain}: {str(e)}")
-            return None
-
-    from nextjs_mgr import get_nextjs_apps
-    from domains_mgr import get_virtual_hosts
-    
-    # Collect all domains from both Next.js apps and standard virtual hosts
-    all_domains = set()
-    for app in get_nextjs_apps():
-        all_domains.add(app['domain'])
-    for host in get_virtual_hosts():
-        all_domains.add(host['domain'])
-
-    for domain in all_domains:
-        domain_lower = domain.lower()
-        # Check standard Nginx/Apache log patterns
-        log_candidates = [
-            f"/var/log/nginx/{domain_lower}_access.log",
-            f"/var/log/apache2/{domain_lower}_access.log",
-            f"/var/log/nginx/{domain_lower}.access.log",
-            f"/var/log/apache2/{domain_lower}.access.log",
-            f"/var/log/nginx/access.log", # Global fallback
-        ]
-        
-        traffic_item = None
-        for log_file in log_candidates:
-            if os.path.exists(log_file):
-                # Try COMBINED first, then VCOMMON (often used for multiple domains in one log)
-                traffic_item = get_domain_traffic(domain, log_file)
-                if traffic_item and traffic_item['hits'] > 0: break
-                
-                # Try with VCOMMON if COMBINED failed to return hits
-                cmd_vcommon = ['/usr/bin/goaccess', log_file, '--log-format=VCOMMON', '--no-global-config', '-o', 'json']
-                try:
-                    res = subprocess.run(cmd_vcommon, capture_output=True, text=True)
-                    if res.returncode == 0:
-                        data = json.loads(res.stdout)
-                        general = data.get('general', {})
-                        if general.get('total_requests', 0) > 0:
-                            traffic_item = {
-                                'domain': domain,
-                                'hits': general.get('total_requests', 0),
-                                'bandwidth': general.get('bandwidth', 0),
-                                'visitors': general.get('unique_visitors', 0)
-                            }
-                            break
-                except: pass
-        
-        if traffic_item:
-            traffic_stats.append(traffic_item)
-
-    # Sort by bandwidth descending
-    traffic_stats = sorted(traffic_stats, key=lambda x: x['bandwidth'], reverse=True)
+    except: pass
 
     server_info = {
         'hostname': hostname,
         'ip_address': ip_address,
         'public_ip': public_ip,
-        'processor': processor,
         'cpu_cores': psutil.cpu_count(logical=True),
-        'cpu_physical': psutil.cpu_count(logical=False),
-        'cpu_freq': f"{psutil.cpu_freq().current:.0f} MHz" if psutil.cpu_freq() else "N/A",
-        'os': get_os_name(),
+        'os': "Linux", # Simplified for speed, can be improved
         'kernel': platform.release(),
-        'platform': f"{platform.machine()} {platform.system()} ({platform.processor()})",
+        'platform': f"{platform.machine()} {platform.system()}",
         'uptime': uptime_str,
-        'python_version': sys.version.split()[0],
-        'server_time': datetime.datetime.now().strftime("%a %b %d %H:%M:%S %Z %Y"),
+        'server_time': datetime.datetime.now().strftime("%a %b %d %H:%M:%S"),
         'listening_ports': ports,
         'ssh_logins': ssh_logins,
-        'last_backup': last_backup
+        'last_backup': "Check Backups Page"
     }
 
     return render_template('dashboard.html', server_info=server_info, stats=stats, traffic_stats=traffic_stats)
