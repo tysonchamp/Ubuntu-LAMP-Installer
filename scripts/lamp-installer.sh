@@ -111,6 +111,7 @@ EOF
     # Enable Apache modules
     a2enmod rewrite
     a2enmod ssl
+    a2dismod autoindex -f
     
     # Save passwords
     cat > "$PASSWORDS_FILE" <<EOF

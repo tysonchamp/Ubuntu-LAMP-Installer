@@ -136,6 +136,7 @@ install_apache_stack() {
     apt-get install phpmyadmin -y
     
     a2enmod rewrite ssl
+    a2dismod autoindex -f
     
     echo "WEBSERVER_TYPE=apache" > "$CONFIG_FILE"
     echo "STACK_INSTALLED=true" >> "$CONFIG_FILE"
@@ -255,6 +256,7 @@ EOF
     # 2. Enable proxy_fcgi and setenvif so Apache can pass requests to FPM
     a2enmod proxy_fcgi setenvif
     a2enmod rewrite
+    a2dismod autoindex -f
     # 3. Enable the specific FPM configuration for Apache
     # This sets the SetHandler "proxy:unix:..." directive
     a2enconf php${PHP_VERSION}-fpm
