@@ -238,15 +238,15 @@ def create_ftp_user(username, password, directory):
             subprocess.run(['chown', '-R', 'www-data:www-data', directory], check=True)
 
         # 1. Create Virtual User (Step 1: Add to text file)
-        # We explicitly specify the passwd file path and avoid -m to do it manually in the next step
         passwd_file = '/etc/pure-ftpd/pureftpd.passwd'
+        # Using numeric UIDs (33 for www-data) for better compatibility
         res = run_system_command(
-            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-X', '19700101', '-f', passwd_file],
+            ['pure-pw', 'useradd', username, '-u', '33', '-g', '33', '-d', directory, '-f', passwd_file],
             input_str=f"{password}\n{password}\n"
         )
 
         if res.returncode != 0:
-            return False, f"Failed to create Virtual User: {res.stderr}"
+            return False, f"Failed to create Virtual User: {res.stderr or res.stdout}"
 
         # Step 2: Manually commit the changes to the binary database
         mkdb_res = run_system_command(['pure-pw', 'mkdb', '-f', passwd_file])
