@@ -56,9 +56,15 @@ def get_user_directory(username):
     try:
         user_info = pwd.getpwnam(username)
         rel_home = user_info.pw_dir
-        # If it's a relative path (common for our jailed SFTP setup), prepend /var/www
-        if not rel_home.startswith('/var/www'):
-            return os.path.join('/var/www', rel_home.lstrip('/'))
+        if rel_home.startswith('/var/www'):
+            return rel_home
+        
+        # Only prepend /var/www if it's a relative-style path (e.g. /demoftp) 
+        # and the resulting directory exists.
+        full_path = os.path.join('/var/www', rel_home.lstrip('/'))
+        if os.path.exists(full_path) and rel_home.count('/') <= 1:
+            return full_path
+            
         return rel_home
     except: pass
 
@@ -150,64 +156,32 @@ def get_ftp_users():
 
     # 3. Source: System group 'lite_sftp' (merge)
     try:
+        # Use getent to get ALL members (secondary)
+        res = subprocess.run(['getent', 'group', 'lite_sftp'], capture_output=True, text=True)
+        if res.returncode == 0 and res.stdout.strip():
+            parts = res.stdout.strip().split(':')
+            if len(parts) >= 4 and parts[3]:
+                for u in parts[3].split(','):
+                    u_name = u.strip()
+                    if u_name and u_name not in users_map:
+                        users_map[u_name] = get_user_directory(u_name)
+        
+        # Also check for users with lite_sftp as their PRIMARY group
         try:
             group_info = grp.getgrnam('lite_sftp')
-            sftp_users = group_info.gr_mem
-        except KeyError:
-            sftp_users = []
-
-        for username in sftp_users:
-            if username not in users_map:
-                directory = get_user_directory(username)
-                if directory:
-                    users_map[username] = directory
+            target_gid = group_info.gr_gid
+            # Add secondary members from gr_mem as well
+            for u in group_info.gr_mem:
+                if u not in users_map:
+                    users_map[u] = get_user_directory(u)
+            
+            # Check for primary group members
+            for u in pwd.getpwall():
+                if u.pw_gid == target_gid and u.pw_name not in users_map:
+                    users_map[u.pw_name] = get_user_directory(u.pw_name)
+        except: pass
     except Exception as e:
         logging.debug(f"Error scanning lite_sftp group: {str(e)}")
-
-    # 4. Source: Thorough system user scan for 'lite_sftp' group members
-    try:
-        # getpwall() is more reliable than grp.getgrnam().gr_mem for all types of group membership
-        all_users = pwd.getpwall()
-        for u in all_users:
-            if u.pw_name not in users_map:
-                # Exclude obvious system users unless they are in our group
-                if u.pw_uid < 1000 and not u.pw_name.startswith('demo'):
-                    # Still check them if they might be ours (e.g. demoftp)
-                    if u.pw_shell != '/usr/sbin/nologin':
-                        continue
-                
-                try:
-                    # Check group membership via groups command (catches primary and secondary)
-                    # We check for the exact group name to avoid partial matches
-                    res = subprocess.run(['id', '-Gn', u.pw_name], capture_output=True, text=True)
-                    if 'lite_sftp' in res.stdout.split():
-                        users_map[u.pw_name] = get_user_directory(u.pw_name)
-                except: pass
-    except Exception as e:
-        logging.debug(f"Thorough scan failed: {str(e)}")
-
-    # 5. Source: Final 'Force' Fallback
-    # Look for any user with a home directory starting with /var/www (or relative to it)
-    # and using the nologin shell. This is the ultimate catch-all.
-    try:
-        all_u = pwd.getpwall()
-        for u in all_u:
-            if u.pw_name not in users_map and u.pw_name not in ['www-data', 'root']:
-                # Our users either have a home in /var/www/... or a relative home like /test
-                is_our_user = False
-                if u.pw_dir.startswith('/var/www'):
-                    is_our_user = True
-                elif not u.pw_dir.startswith('/') and len(u.pw_dir) > 1:
-                    is_our_user = True
-                elif u.pw_dir.count('/') == 1 and len(u.pw_dir) > 1:
-                    # e.g. /demoftp
-                    is_our_user = True
-                
-                if is_our_user and u.pw_shell == '/usr/sbin/nologin':
-                    directory = get_user_directory(u.pw_name)
-                    if directory and directory.startswith('/var/www'):
-                        users_map[u.pw_name] = directory
-    except: pass
 
     # Convert map to list and add status
     users = []
