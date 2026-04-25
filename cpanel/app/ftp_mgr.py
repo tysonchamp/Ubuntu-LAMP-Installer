@@ -88,38 +88,38 @@ def ensure_system_user(username, directory, password=None):
     Ensures a system user exists with the correct directory and group.
     """
     try:
-        subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
+        run_system_command(['groupadd', '-f', 'lite_sftp'])
         
         # Determine relative home for jail
         relative_home = directory.replace('/var/www', '')
         if not relative_home: relative_home = "/"
         
-        # 1. Try to update existing user
-        # We use capture_output=True to handle the check manually
-        res = subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], capture_output=True, text=True)
-        
-        if res.returncode == 6: # Status 6 means User Not Found
-            # 2. Try to create the user
-            res2 = subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], capture_output=True, text=True)
-            if res2.returncode != 0 and res2.returncode != 9: # 9 means User Already Exists (race condition)
-                raise Exception(f"useradd failed (status {res2.returncode}): {res2.stderr}")
-        elif res.returncode != 0:
-            # Some other error occurred with usermod
-            raise Exception(f"usermod failed (status {res.returncode}): {res.stderr}")
+        # Try to find if user exists
+        user_exists = False
+        try:
+            pwd.getpwnam(username)
+            user_exists = True
+        except KeyError:
+            user_exists = False
 
+        if user_exists:
+            # Update existing
+            run_system_command(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username])
+        else:
+            # Create new
+            res = run_system_command(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username])
+            if res.returncode != 0 and "already exists" not in (res.stderr or ""):
+                raise Exception(f"useradd failed (status {res.returncode}): {res.stderr}")
+        
         if password:
-            try:
-                pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
-                pw_proc.communicate(input=f"{username}:{password}\n")
-                # Locking is non-fatal; we want the user to be created even if lock fails
-                subprocess.run(['passwd', '-l', username], capture_output=True)
-            except Exception as e:
-                logging.error(f"Password setting for {username} had issues: {str(e)}")
+            run_system_command(['chpasswd'], input_str=f"{username}:{password}\n")
+            # For security, we lock it unless SFTP is explicitly enabled by the user later
+            run_system_command(['passwd', '-l', username])
             
         return True
     except Exception as e:
-        logging.error(f"Failed to ensure system user {username}: {str(e)}")
-        raise
+        logging.error(f"Error in ensure_system_user: {str(e)}")
+        raise e
 
 def get_ftp_users():
     """
@@ -203,15 +203,20 @@ def get_ftp_users():
         clean_dir = directory.replace('/./', '/').rstrip('/')
         if not clean_dir:
             clean_dir = "/"
-        
-        enabled = True
+        # SFTP Status check
+        enabled = False
         try:
-            lock_res = subprocess.run(['passwd', '-S', username], capture_output=True, text=True)
-            if ' L ' in lock_res.stdout or lock_res.returncode != 0:
-                enabled = False
-        except: 
-            enabled = False
-        
+            # Check if in lite_sftp group and NOT locked
+            res = run_system_command(['id', '-Gn', username])
+            if 'lite_sftp' in res.stdout.split():
+                # Check if locked
+                pw_res = run_system_command(['passwd', '-S', username])
+                # 'P' means usable password, 'L' means locked. 
+                # We want anything that isn't 'L' and isn't a locked status.
+                if ' P ' in pw_res.stdout or ' L ' not in pw_res.stdout:
+                    enabled = True
+        except: pass
+
         users.append({
             'username': username,
             'directory': clean_dir,
