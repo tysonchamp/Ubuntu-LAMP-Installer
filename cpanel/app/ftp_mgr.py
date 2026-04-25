@@ -1,5 +1,6 @@
 import subprocess
 import os
+import logging
 
 def check_pureftpd_installed():
     try:
@@ -11,36 +12,85 @@ def check_pureftpd_installed():
 def get_ftp_users():
     """
     Returns a list of pure-ftpd virtual users with their status.
+    Uses pure-pw list with fallback to direct file parsing.
     """
     if not check_pureftpd_installed():
         return None
 
-    users = []
+    users_map = {} # Use dict to avoid duplicates between command and file fallback
+
+    # Method 1: Use pure-pw list
     try:
-        result = subprocess.run(['pure-pw', 'list'], capture_output=True, text=True, check=True)
-        for line in result.stdout.splitlines():
-            if line.strip():
-                parts = line.split(maxsplit=1)
-                if len(parts) == 2:
-                    username = parts[0].strip()
-                    directory = parts[1].strip()
-                    
-                    # Check status via System User Lock (SFTP Bridge)
-                    enabled = True
-                    try:
-                        lock_res = subprocess.run(['passwd', '-S', username], capture_output=True, text=True)
-                        if ' L ' in lock_res.stdout or lock_res.returncode != 0:
-                            enabled = False
-                    except: 
-                        enabled = False
-                    
-                    users.append({
-                        'username': username,
-                        'directory': directory,
-                        'enabled': enabled
-                    })
-    except subprocess.CalledProcessError:
-        pass
+        result = subprocess.run(['pure-pw', 'list'], capture_output=True, text=True, check=False)
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if not line.strip():
+                    continue
+                
+                # Handle different formats
+                if ':' in line and not any(line.startswith(p) for p in ['/', './']):
+                    # Likely raw passwd format or colon-delimited list
+                    parts = line.split(':')
+                    if len(parts) >= 6: # Raw passwd format: user:pass:uid:gid:gecos:dir:...
+                        username = parts[0].strip()
+                        directory = parts[5].strip()
+                        users_map[username] = directory
+                    elif len(parts) == 2: # Simple user:dir format
+                        username = parts[0].strip()
+                        directory = parts[1].strip()
+                        users_map[username] = directory
+                else:
+                    # Standard space-separated format: user   dir
+                    parts = line.split(maxsplit=1)
+                    if len(parts) == 2:
+                        username = parts[0].strip()
+                        directory = parts[1].strip()
+                        users_map[username] = directory
+        else:
+            logging.error(f"pure-pw list failed with exit code {result.returncode}: {result.stderr}")
+    except Exception as e:
+        logging.error(f"Error running pure-pw list: {str(e)}")
+
+    # Method 2: Fallback to direct file parsing if users_map is still empty
+    if not users_map:
+        passwd_files = ['/etc/pure-ftpd/pureftpd.passwd', '/etc/pureftpd.passwd']
+        for pf in passwd_files:
+            if os.path.exists(pf):
+                try:
+                    with open(pf, 'r') as f:
+                        for line in f:
+                            if line.strip() and ':' in line:
+                                parts = line.split(':')
+                                if len(parts) >= 6:
+                                    username = parts[0].strip()
+                                    directory = parts[5].strip()
+                                    users_map[username] = directory
+                    if users_map: break # Stop if we found users
+                except Exception as e:
+                    logging.error(f"Error reading {pf}: {str(e)}")
+
+    # Convert map to list and add status
+    users = []
+    for username, directory in users_map.items():
+        # Normalize directory: remove trailing /./ and /
+        clean_dir = directory.replace('/./', '/').rstrip('/')
+        if not clean_dir: clean_dir = "/"
+        
+        enabled = True
+        try:
+            # Check system user status (SFTP bridge)
+            # Use -S to check status. 'L' means locked.
+            lock_res = subprocess.run(['passwd', '-S', username], capture_output=True, text=True)
+            if ' L ' in lock_res.stdout or lock_res.returncode != 0:
+                enabled = False
+        except: 
+            enabled = False
+        
+        users.append({
+            'username': username,
+            'directory': clean_dir,
+            'enabled': enabled
+        })
 
     return users
 
