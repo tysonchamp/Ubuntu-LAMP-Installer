@@ -107,9 +107,16 @@ def ensure_system_user(username, directory, password=None):
             run_system_command(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username])
         else:
             # Create new
+            # -N tells useradd NOT to create a group with the same name as the user
+            # We then try to use the username as the group if it exists, or let it use default
             res = run_system_command(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username])
-            if res.returncode != 0 and "already exists" not in (res.stderr or ""):
-                raise Exception(f"useradd failed (status {res.returncode}): {res.stderr}")
+            if res.returncode != 0:
+                # If it failed because the GROUP already exists, try with -g to use that group
+                if "group" in (res.stderr or "") and "exists" in (res.stderr or ""):
+                    res = run_system_command(['useradd', '-g', username, '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username])
+                
+                if res.returncode != 0 and "already exists" not in (res.stderr or ""):
+                    raise Exception(f"useradd failed (status {res.returncode}): {res.stderr}")
         
         if password:
             run_system_command(['chpasswd'], input_str=f"{username}:{password}\n")
