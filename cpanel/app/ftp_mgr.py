@@ -3,6 +3,7 @@ import os
 import logging
 import grp
 import pwd
+import re
 
 def check_pureftpd_installed():
     try:
@@ -10,6 +11,58 @@ def check_pureftpd_installed():
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
+
+def get_user_directory(username):
+    """
+    Robustly retrieves the home directory for an FTP/SFTP user from multiple sources.
+    """
+    # 1. Try pure-pw show
+    if check_pureftpd_installed():
+        try:
+            show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
+            if show_res.returncode == 0:
+                # Flexible regex for different versions of pure-pw
+                m = re.search(r'(?:Directory|Home directory|Relative home directory)\s*:\s*(.*)', show_res.stdout)
+                if m:
+                    return m.group(1).strip().replace('/./', '/').rstrip('/')
+        except: pass
+
+    # 2. Try pure-pw list
+    if check_pureftpd_installed():
+        try:
+            result = subprocess.run(['pure-pw', 'list'], capture_output=True, text=True)
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if line.strip().startswith(f"{username} "):
+                        parts = line.split(maxsplit=1)
+                        if len(parts) == 2:
+                            return parts[1].strip().replace('/./', '/').rstrip('/')
+        except: pass
+
+    # 3. Try direct passwd file parsing
+    passwd_files = ['/etc/pure-ftpd/pureftpd.passwd', '/etc/pureftpd.passwd']
+    for pf in passwd_files:
+        if os.path.exists(pf):
+            try:
+                with open(pf, 'r') as f:
+                    for line in f:
+                        if line.startswith(f"{username}:"):
+                            parts = line.split(':')
+                            if len(parts) >= 6:
+                                return parts[5].strip().replace('/./', '/').rstrip('/')
+            except: pass
+
+    # 4. Try system user home directory (for SFTP users)
+    try:
+        user_info = pwd.getpwnam(username)
+        rel_home = user_info.pw_dir
+        # If it's a relative path (common for our jailed SFTP setup), prepend /var/www
+        if not rel_home.startswith('/var/www'):
+            return os.path.join('/var/www', rel_home.lstrip('/'))
+        return rel_home
+    except: pass
+
+    return "/var/www"
 
 def get_ftp_users():
     """
@@ -52,14 +105,12 @@ def get_ftp_users():
                             if len(parts) >= 6:
                                 username = parts[0].strip()
                                 directory = parts[5].strip()
-                                # Don't overwrite if already found via pure-pw list
                                 if username not in users_map:
                                     users_map[username] = directory
             except Exception as e:
                 logging.debug(f"Error reading {pf}: {str(e)}")
 
     # 3. Source: System group 'lite_sftp' (merge)
-    # This catches users created for SFTP that might be missing from Pure-FTPd
     try:
         try:
             group_info = grp.getgrnam('lite_sftp')
@@ -69,14 +120,7 @@ def get_ftp_users():
 
         for username in sftp_users:
             if username not in users_map:
-                try:
-                    user_info = pwd.getpwnam(username)
-                    # For jailed SFTP users, the home in /etc/passwd is relative to /var/www
-                    rel_home = user_info.pw_dir
-                    full_path = os.path.join('/var/www', rel_home.lstrip('/'))
-                    users_map[username] = full_path
-                except Exception:
-                    pass
+                users_map[username] = get_user_directory(username)
     except Exception as e:
         logging.debug(f"Error scanning lite_sftp group: {str(e)}")
 
@@ -90,8 +134,6 @@ def get_ftp_users():
         
         enabled = True
         try:
-            # Check system user status (SFTP bridge)
-            # Use -S to check status. 'L' means locked.
             lock_res = subprocess.run(['passwd', '-S', username], capture_output=True, text=True)
             if ' L ' in lock_res.stdout or lock_res.returncode != 0:
                 enabled = False
@@ -104,7 +146,6 @@ def get_ftp_users():
             'enabled': enabled
         })
 
-    # Sort by username
     users.sort(key=lambda x: x['username'])
     return users
 
@@ -136,15 +177,27 @@ def create_ftp_user(username, password, directory):
 
         # 2. Create System User (Locked, No Login)
         try:
-            subprocess.run(['userdel', '-r', username], capture_output=True)
             subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
+            
+            # Check if user already exists
+            user_exists = False
+            try:
+                subprocess.run(['id', username], check=True, capture_output=True)
+                user_exists = True
+            except: pass
             
             # Use relative home for jailing
             relative_home = directory.replace('/var/www', '')
             if not relative_home: relative_home = "/"
             
-            subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+            if user_exists:
+                # Update existing user to match requirements
+                subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+            else:
+                # Create new user
+                subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
             
+            # Set password and lock account for SFTP Bridge
             pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
             pw_proc.communicate(input=f"{username}:{password}\n")
             subprocess.run(['passwd', '-l', username], check=True)
@@ -262,17 +315,14 @@ def toggle_ftp_user_status(username, enable=True):
             user_exists = True
         except: pass
         if enable:
-            # Get directory from Pure-FTPd
-            show_res = subprocess.run(['pure-pw', 'show', username], capture_output=True, text=True)
-            import re
-            m = re.search(r'Directory\s*:\s*(.*)', show_res.stdout)
-            directory = m.group(1).strip().replace('/./', '/').rstrip('/') if m else "/var/www"
+            # Robustly get the directory
+            directory = get_user_directory(username)
             
             # For the system user (SFTP), the home directory in /etc/passwd must be RELATIVE to the jail root (/var/www)
             # So if directory is /var/www/srtgroceries, the home should be /srtgroceries
             relative_home = directory.replace('/var/www', '')
             if not relative_home: relative_home = "/"
-
+            
             if not user_exists:
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
                 # Create user with their own private group (default behavior)
@@ -280,7 +330,7 @@ def toggle_ftp_user_status(username, enable=True):
             else:
                 # Ensure they are in lite_sftp and NOT in www-data
                 subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-                subprocess.run(['usermod', '-d', relative_home, '-G', 'lite_sftp', username], check=True)
+                subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
             
             # THE MAGIC FIX: Add the web server (www-data) to the USER'S group
             # This allows the web server to access the files, but other users stay out.
