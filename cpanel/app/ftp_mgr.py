@@ -159,8 +159,13 @@ def delete_ftp_user(username):
     if not check_pureftpd_installed():
         return False, "pure-ftpd is not installed."
     try:
-        subprocess.run(['pure-pw', 'userdel', username, '-m'], check=True)
+        # 1. Try to delete from Pure-FTPd
+        # We don't use check=True because the user might not exist in Pure-FTPd virtual database
+        subprocess.run(['pure-pw', 'userdel', username, '-m'], capture_output=True)
+        
+        # 2. Try to delete the system user (SFTP Bridge)
         subprocess.run(['userdel', username], capture_output=True)
+        
         return True, f"User {username} deleted."
     except Exception as e:
         return False, str(e)
@@ -169,12 +174,17 @@ def change_ftp_password(username, new_password):
     if not check_pureftpd_installed():
         return False, "pure-ftpd is not installed."
     try:
+        # 1. Try to update Pure-FTPd password
         process = subprocess.Popen(['pure-pw', 'passwd', username, '-m'],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         process.communicate(input=f"{new_password}\n{new_password}\n")
         
-        pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
-        pw_proc.communicate(input=f"{username}:{new_password}\n")
+        # 2. Try to update system password (SFTP Bridge)
+        try:
+            pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+            pw_proc.communicate(input=f"{username}:{new_password}\n")
+        except: pass
+        
         return True, f"Password updated for {username}."
     except Exception as e:
         return False, str(e)
