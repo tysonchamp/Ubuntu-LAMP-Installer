@@ -89,9 +89,13 @@ def ensure_system_user(username, directory, password=None):
             raise Exception(f"usermod failed (status {res.returncode}): {res.stderr}")
 
         if password:
-            pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
-            pw_proc.communicate(input=f"{username}:{password}\n")
-            subprocess.run(['passwd', '-l', username], check=True)
+            try:
+                pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+                pw_proc.communicate(input=f"{username}:{password}\n")
+                # Locking is non-fatal; we want the user to be created even if lock fails
+                subprocess.run(['passwd', '-l', username], capture_output=True)
+            except Exception as e:
+                logging.error(f"Password setting for {username} had issues: {str(e)}")
             
         return True
     except Exception as e:
@@ -154,9 +158,28 @@ def get_ftp_users():
 
         for username in sftp_users:
             if username not in users_map:
-                users_map[username] = get_user_directory(username)
+                directory = get_user_directory(username)
+                if directory:
+                    users_map[username] = directory
     except Exception as e:
         logging.debug(f"Error scanning lite_sftp group: {str(e)}")
+
+    # 4. Source: Any user created by this panel (fallback)
+    # If the user is in /etc/passwd and has a home dir starting with /var/www, 
+    # but for some reason is not in the group or pure-pw, show them anyway.
+    try:
+        all_system_users = pwd.getpwall()
+        for u in all_system_users:
+            if u.pw_name not in users_map:
+                # Check if it looks like one of our users
+                if u.pw_dir.startswith('/var/www') or os.path.exists(os.path.join('/var/www', u.pw_dir.lstrip('/'))):
+                    # Only include if they have a non-standard shell or are in our target group
+                    # (Prevent showing root, www-data, etc.)
+                    if u.pw_shell == '/usr/sbin/nologin' or u.pw_uid >= 1000:
+                        dir_path = get_user_directory(u.pw_name)
+                        if dir_path and dir_path != "/var/www":
+                            users_map[u.pw_name] = dir_path
+    except: pass
 
     # Convert map to list and add status
     users = []
