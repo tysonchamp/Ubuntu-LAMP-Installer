@@ -368,65 +368,64 @@ def toggle_sftp(enable=True):
 def toggle_ftp_user_status(username, enable=True):
     try:
         date_val = "0" if enable else "19700101"
-        subprocess.run(['pure-pw', 'usermod', username, '-X', date_val, '-m'], check=True)
+        run_system_command(['pure-pw', 'usermod', username, '-X', date_val, '-m'])
         user_exists = False
         try:
-            subprocess.run(['id', username], check=True, capture_output=True)
+            pwd.getpwnam(username)
             user_exists = True
-        except: pass
+        except KeyError:
+            user_exists = False
         if enable:
             # Robustly get the directory
             directory = get_user_directory(username)
             ensure_system_user(username, directory)
             
             # THE MAGIC FIX: Add the web server (www-data) to the USER'S group
-            # This allows the web server to access the files, but other users stay out.
-            subprocess.run(['usermod', '-aG', username, 'www-data'], check=True)
+            run_system_command(['usermod', '-aG', username, 'www-data'])
             
             if not os.path.exists(directory):
                 os.makedirs(directory, exist_ok=True)
 
             # Ownership: User owns their folder, group is their PRIVATE group
-            # Web server (www-data) is a member of this group.
-            subprocess.run(['chown', f'{username}:{username}', directory], check=True)
-            subprocess.run(['chmod', '770', directory], check=True)
-            subprocess.run(['chmod', 'g+s', directory], check=True)
+            run_system_command(['chown', f'{username}:{username}', directory])
+            run_system_command(['chmod', '770', directory])
+            run_system_command(['chmod', 'g+s', directory])
 
             # Recursively ensure everything inside is manageable by user and web server
-            # We use try/except or || true to prevent find from crashing the whole process if it hits a minor issue
-            subprocess.run(f"find {directory} -mindepth 1 -exec chown {username}:{username} {{}} + 2>/dev/null || true", shell=True)
-            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod 770 {{}} + 2>/dev/null || true", shell=True)
-            subprocess.run(f"find {directory} -mindepth 1 -type f -exec chmod 660 {{}} + 2>/dev/null || true", shell=True)
-            subprocess.run(f"find {directory} -mindepth 1 -type d -exec chmod g+s {{}} + 2>/dev/null || true", shell=True)
+            run_system_command(['find', directory, '-mindepth', '1', '-exec', 'chown', f'{username}:{username}', '{}', '+'])
+            run_system_command(['find', directory, '-mindepth', '1', '-type', 'd', '-exec', 'chmod', '770', '{}', '+'])
+            run_system_command(['find', directory, '-mindepth', '1', '-type', 'f', '-exec', 'chmod', '660', '{}', '+'])
+            run_system_command(['find', directory, '-mindepth', '1', '-type', 'd', '-exec', 'chmod', 'g+s', '{}', '+'])
             
             # Ensure the parent (/var/www) is 755 (SSH requirement for jail root)
-            subprocess.run(['chown', 'root:root', '/var/www'], check=True)
-            subprocess.run(['chmod', '755', '/var/www'], check=True)
+            run_system_command(['chown', 'root:root', '/var/www'])
+            run_system_command(['chmod', '755', '/var/www'])
 
             try:
-                subprocess.run(['systemctl', 'restart', 'apache2'], check=True)
+                run_system_command(['systemctl', 'restart', 'apache2'])
             except: pass
             
             try:
-                subprocess.run(['systemctl', 'restart', 'nginx'], check=True)
+                run_system_command(['systemctl', 'restart', 'nginx'])
             except: pass
             
-            # Restart PHP-FPM to pick up new group memberships
+            # Restart PHP-FPM
             try:
                 php_versions = subprocess.run("ls /var/run/php/php*-fpm.sock 2>/dev/null | cut -d- -f1 | rev | cut -d/ -f1 | rev", shell=True, capture_output=True, text=True).stdout.splitlines()
                 for v in php_versions:
-                    subprocess.run(['systemctl', 'restart', f'{v}-fpm'], check=True)
+                    run_system_command(['systemctl', 'restart', f'{v}-fpm'])
             except: pass
             
             try:
-                subprocess.run(['passwd', '-u', username], check=True)
+                run_system_command(['passwd', '-u', username])
             except:
-                pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
-                pw_proc.communicate(input=f"{username}:SetPasswordInPanel123!\n")
-                subprocess.run(['passwd', '-u', username], check=True)
+                run_system_command(['chpasswd'], input_str=f"{username}:SetPasswordInPanel123!\n")
+                run_system_command(['passwd', '-u', username])
         else:
             if user_exists:
-                subprocess.run(['passwd', '-l', username], check=True)
+                run_system_command(['passwd', '-l', username])
+                run_system_command(['gpasswd', '-d', username, 'lite_sftp'])
+                run_system_command(['gpasswd', '-d', 'www-data', username])
         return True, f"User {username} {'enabled (Jailed)' if enable else 'disabled'}."
     except Exception as e:
         return False, str(e)
