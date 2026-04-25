@@ -75,29 +75,18 @@ def ensure_system_user(username, directory, password=None):
         relative_home = directory.replace('/var/www', '')
         if not relative_home: relative_home = "/"
         
-        user_exists = False
-        try:
-            pwd.getpwnam(username)
-            user_exists = True
-        except KeyError:
-            # Fallback check via id command
-            try:
-                subprocess.run(['id', username], check=True, capture_output=True)
-                user_exists = True
-            except:
-                user_exists = False
-            
-        if user_exists:
-            subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
-        else:
-            # Try useradd, but if it fails with status 9, fallback to usermod
-            try:
-                subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
-            except subprocess.CalledProcessError as e:
-                if e.returncode == 9:
-                    subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
-                else:
-                    raise
+        # 1. Try to update existing user
+        # We use capture_output=True to handle the check manually
+        res = subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], capture_output=True, text=True)
+        
+        if res.returncode == 6: # Status 6 means User Not Found
+            # 2. Try to create the user
+            res2 = subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], capture_output=True, text=True)
+            if res2.returncode != 0 and res2.returncode != 9: # 9 means User Already Exists (race condition)
+                raise Exception(f"useradd failed (status {res2.returncode}): {res2.stderr}")
+        elif res.returncode != 0:
+            # Some other error occurred with usermod
+            raise Exception(f"usermod failed (status {res.returncode}): {res.stderr}")
 
         if password:
             pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
