@@ -64,6 +64,51 @@ def get_user_directory(username):
 
     return "/var/www"
 
+def ensure_system_user(username, directory, password=None):
+    """
+    Ensures a system user exists with the correct directory and group.
+    """
+    try:
+        subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
+        
+        # Determine relative home for jail
+        relative_home = directory.replace('/var/www', '')
+        if not relative_home: relative_home = "/"
+        
+        user_exists = False
+        try:
+            pwd.getpwnam(username)
+            user_exists = True
+        except KeyError:
+            # Fallback check via id command
+            try:
+                subprocess.run(['id', username], check=True, capture_output=True)
+                user_exists = True
+            except:
+                user_exists = False
+            
+        if user_exists:
+            subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+        else:
+            # Try useradd, but if it fails with status 9, fallback to usermod
+            try:
+                subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+            except subprocess.CalledProcessError as e:
+                if e.returncode == 9:
+                    subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+                else:
+                    raise
+
+        if password:
+            pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
+            pw_proc.communicate(input=f"{username}:{password}\n")
+            subprocess.run(['passwd', '-l', username], check=True)
+            
+        return True
+    except Exception as e:
+        logging.error(f"Failed to ensure system user {username}: {str(e)}")
+        raise
+
 def get_ftp_users():
     """
     Returns a list of pure-ftpd virtual users with their status.
@@ -177,33 +222,10 @@ def create_ftp_user(username, password, directory):
 
         # 2. Create System User (Locked, No Login)
         try:
-            subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-            
-            # Check if user already exists
-            user_exists = False
-            try:
-                subprocess.run(['id', username], check=True, capture_output=True)
-                user_exists = True
-            except: pass
-            
-            # Use relative home for jailing
-            relative_home = directory.replace('/var/www', '')
-            if not relative_home: relative_home = "/"
-            
-            if user_exists:
-                # Update existing user to match requirements
-                subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
-            else:
-                # Create new user
-                subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
-            
-            # Set password and lock account for SFTP Bridge
-            pw_proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE, text=True)
-            pw_proc.communicate(input=f"{username}:{password}\n")
-            subprocess.run(['passwd', '-l', username], check=True)
+            ensure_system_user(username, directory, password)
         except Exception as system_e:
             return True, f"FTP created, but SFTP bridge failed: {str(system_e)}"
-
+        
         return True, f"FTP user {username} created (Disabled). Toggle to Enable."
     except Exception as e:
         return False, str(e)
@@ -317,20 +339,7 @@ def toggle_ftp_user_status(username, enable=True):
         if enable:
             # Robustly get the directory
             directory = get_user_directory(username)
-            
-            # For the system user (SFTP), the home directory in /etc/passwd must be RELATIVE to the jail root (/var/www)
-            # So if directory is /var/www/srtgroceries, the home should be /srtgroceries
-            relative_home = directory.replace('/var/www', '')
-            if not relative_home: relative_home = "/"
-            
-            if not user_exists:
-                subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-                # Create user with their own private group (default behavior)
-                subprocess.run(['useradd', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
-            else:
-                # Ensure they are in lite_sftp and NOT in www-data
-                subprocess.run(['groupadd', '-f', 'lite_sftp'], check=True)
-                subprocess.run(['usermod', '-d', relative_home, '-s', '/usr/sbin/nologin', '-G', 'lite_sftp', username], check=True)
+            ensure_system_user(username, directory)
             
             # THE MAGIC FIX: Add the web server (www-data) to the USER'S group
             # This allows the web server to access the files, but other users stay out.
