@@ -5,11 +5,24 @@ import grp
 import pwd
 import re
 
+def run_system_command(args, input_str=None, check=False):
+    """
+    Runs a command with sudo if not already root.
+    """
+    cmd = args
+    if os.getuid() != 0:
+        cmd = ['sudo', '-n'] + args
+    
+    if input_str:
+        return subprocess.run(cmd, input=input_str, capture_output=True, text=True, check=check)
+    else:
+        return subprocess.run(cmd, capture_output=True, text=True, check=check)
+
 def check_pureftpd_installed():
     try:
-        subprocess.run(['pure-pw', '--help'], capture_output=True, check=True)
+        run_system_command(['pure-pw', '--help'], check=True)
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except:
         return False
 
 def get_user_directory(username):
@@ -225,20 +238,18 @@ def create_ftp_user(username, password, directory):
             subprocess.run(['chown', '-R', 'www-data:www-data', directory], check=True)
 
         # 1. Create Virtual User (Disabled via -X 19700101)
-        # We explicitly specify the passwd file path to be safe
-        process = subprocess.Popen(
-            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-X', '19700101', '-m', '-f', '/etc/pure-ftpd/pureftpd.passwd'],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        res = run_system_command(
+            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-X', '19700101', '-m'],
+            input_str=f"{password}\n{password}\n"
         )
-        stdout, stderr = process.communicate(input=f"{password}\n{password}\n")
 
-        if process.returncode != 0:
-            return False, f"Failed to create Virtual User: {stderr}"
+        if res.returncode != 0:
+            return False, f"Failed to create Virtual User: {res.stderr}"
 
         # VERIFICATION: Immediately check if Pure-FTPd sees the user
-        verify_res = subprocess.run(['pure-pw', 'show', username, '-f', '/etc/pure-ftpd/pureftpd.passwd'], capture_output=True, text=True)
+        verify_res = run_system_command(['pure-pw', 'show', username])
         if verify_res.returncode != 0:
-            return False, f"Pure-pw reported success, but verification failed: {verify_res.stderr}. Please ensure the web server has permission to write to /etc/pure-ftpd/pureftpd.passwd"
+            return False, f"Pure-pw reported success, but verification failed: {verify_res.stderr}. This usually means the web server does not have permission to write to /etc/pure-ftpd/ (Try running the panel as root or configuring sudo)."
 
         # 2. Create System User (Locked, No Login)
         try:
