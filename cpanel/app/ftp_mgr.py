@@ -225,14 +225,20 @@ def create_ftp_user(username, password, directory):
             subprocess.run(['chown', '-R', 'www-data:www-data', directory], check=True)
 
         # 1. Create Virtual User (Disabled via -X 19700101)
+        # We explicitly specify the passwd file path to be safe
         process = subprocess.Popen(
-            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-X', '19700101', '-m'],
+            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-X', '19700101', '-m', '-f', '/etc/pure-ftpd/pureftpd.passwd'],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
         stdout, stderr = process.communicate(input=f"{password}\n{password}\n")
 
         if process.returncode != 0:
             return False, f"Failed to create Virtual User: {stderr}"
+
+        # VERIFICATION: Immediately check if Pure-FTPd sees the user
+        verify_res = subprocess.run(['pure-pw', 'show', username, '-f', '/etc/pure-ftpd/pureftpd.passwd'], capture_output=True, text=True)
+        if verify_res.returncode != 0:
+            return False, f"Pure-pw reported success, but verification failed: {verify_res.stderr}. Please ensure the web server has permission to write to /etc/pure-ftpd/pureftpd.passwd"
 
         # 2. Create System User (Locked, No Login)
         try:
