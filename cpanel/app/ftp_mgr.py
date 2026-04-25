@@ -164,18 +164,27 @@ def get_ftp_users():
     except Exception as e:
         logging.debug(f"Error scanning lite_sftp group: {str(e)}")
 
-    # 4. Source: getent group lite_sftp (reliable group membership)
+    # 4. Source: Thorough system user scan for 'lite_sftp' group members
     try:
-        res = subprocess.run(['getent', 'group', 'lite_sftp'], capture_output=True, text=True)
-        if res.returncode == 0 and res.stdout.strip():
-            # Format: lite_sftp:x:GID:user1,user2,...
-            parts = res.stdout.strip().split(':')
-            if len(parts) >= 4 and parts[3]:
-                members = parts[3].split(',')
-                for username in members:
-                    if username.strip() and username.strip() not in users_map:
-                        users_map[username.strip()] = get_user_directory(username.strip())
-    except: pass
+        # getpwall() is more reliable than grp.getgrnam().gr_mem for all types of group membership
+        all_users = pwd.getpwall()
+        for u in all_users:
+            if u.pw_name not in users_map:
+                # Exclude obvious system users unless they are in our group
+                if u.pw_uid < 1000 and not u.pw_name.startswith('demo'):
+                    # Still check them if they might be ours (e.g. demoftp)
+                    if u.pw_shell != '/usr/sbin/nologin':
+                        continue
+                
+                try:
+                    # Check group membership via groups command (catches primary and secondary)
+                    # We check for the exact group name to avoid partial matches
+                    res = subprocess.run(['id', '-Gn', u.pw_name], capture_output=True, text=True)
+                    if 'lite_sftp' in res.stdout.split():
+                        users_map[u.pw_name] = get_user_directory(u.pw_name)
+                except: pass
+    except Exception as e:
+        logging.debug(f"Thorough scan failed: {str(e)}")
 
     # Convert map to list and add status
     users = []
