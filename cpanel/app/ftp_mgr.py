@@ -237,19 +237,26 @@ def create_ftp_user(username, password, directory):
             os.makedirs(directory, exist_ok=True)
             subprocess.run(['chown', '-R', 'www-data:www-data', directory], check=True)
 
-        # 1. Create Virtual User (Disabled via -X 19700101)
+        # 1. Create Virtual User (Step 1: Add to text file)
+        # We explicitly specify the passwd file path and avoid -m to do it manually in the next step
+        passwd_file = '/etc/pure-ftpd/pureftpd.passwd'
         res = run_system_command(
-            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-X', '19700101', '-m'],
+            ['pure-pw', 'useradd', username, '-u', 'www-data', '-g', 'www-data', '-d', directory, '-X', '19700101', '-f', passwd_file],
             input_str=f"{password}\n{password}\n"
         )
 
         if res.returncode != 0:
             return False, f"Failed to create Virtual User: {res.stderr}"
 
+        # Step 2: Manually commit the changes to the binary database
+        mkdb_res = run_system_command(['pure-pw', 'mkdb', '-f', passwd_file])
+        if mkdb_res.returncode != 0:
+             return False, f"User added to text file, but failed to update binary database: {mkdb_res.stderr}"
+
         # VERIFICATION: Immediately check if Pure-FTPd sees the user
-        verify_res = run_system_command(['pure-pw', 'show', username])
+        verify_res = run_system_command(['pure-pw', 'show', username, '-f', passwd_file])
         if verify_res.returncode != 0:
-            return False, f"Pure-pw reported success, but verification failed: {verify_res.stderr}. This usually means the web server does not have permission to write to /etc/pure-ftpd/ (Try running the panel as root or configuring sudo)."
+            return False, f"Pure-pw reported success, but verification failed: {verify_res.stderr}. This usually means the web server does not have permission to write to {passwd_file}."
 
         # 2. Create System User (Locked, No Login)
         try:
