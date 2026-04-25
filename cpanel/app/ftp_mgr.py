@@ -1,6 +1,8 @@
 import subprocess
 import os
 import logging
+import grp
+import pwd
 
 def check_pureftpd_installed():
     try:
@@ -12,69 +14,79 @@ def check_pureftpd_installed():
 def get_ftp_users():
     """
     Returns a list of pure-ftpd virtual users with their status.
-    Uses pure-pw list with fallback to direct file parsing.
+    Merges results from pure-pw list, direct file parsing, and system group.
     """
-    if not check_pureftpd_installed():
-        return None
+    users_map = {} # username -> directory
 
-    users_map = {} # Use dict to avoid duplicates between command and file fallback
+    # 1. Source: pure-pw list
+    if check_pureftpd_installed():
+        try:
+            result = subprocess.run(['pure-pw', 'list'], capture_output=True, text=True, check=False)
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if not line.strip():
+                        continue
+                    # Handle both space and colon separators
+                    if ':' in line and not any(line.startswith(p) for p in ['/', './']):
+                        parts = line.split(':')
+                        if len(parts) >= 6:
+                            users_map[parts[0].strip()] = parts[5].strip()
+                        elif len(parts) == 2:
+                            users_map[parts[0].strip()] = parts[1].strip()
+                    else:
+                        parts = line.split(maxsplit=1)
+                        if len(parts) == 2:
+                            users_map[parts[0].strip()] = parts[1].strip()
+        except Exception as e:
+            logging.debug(f"pure-pw list failed: {str(e)}")
 
-    # Method 1: Use pure-pw list
-    try:
-        result = subprocess.run(['pure-pw', 'list'], capture_output=True, text=True, check=False)
-        if result.returncode == 0:
-            for line in result.stdout.splitlines():
-                if not line.strip():
-                    continue
-                
-                # Handle different formats
-                if ':' in line and not any(line.startswith(p) for p in ['/', './']):
-                    # Likely raw passwd format or colon-delimited list
-                    parts = line.split(':')
-                    if len(parts) >= 6: # Raw passwd format: user:pass:uid:gid:gecos:dir:...
-                        username = parts[0].strip()
-                        directory = parts[5].strip()
-                        users_map[username] = directory
-                    elif len(parts) == 2: # Simple user:dir format
-                        username = parts[0].strip()
-                        directory = parts[1].strip()
-                        users_map[username] = directory
-                else:
-                    # Standard space-separated format: user   dir
-                    parts = line.split(maxsplit=1)
-                    if len(parts) == 2:
-                        username = parts[0].strip()
-                        directory = parts[1].strip()
-                        users_map[username] = directory
-        else:
-            logging.error(f"pure-pw list failed with exit code {result.returncode}: {result.stderr}")
-    except Exception as e:
-        logging.error(f"Error running pure-pw list: {str(e)}")
-
-    # Method 2: Fallback to direct file parsing if users_map is still empty
-    if not users_map:
-        passwd_files = ['/etc/pure-ftpd/pureftpd.passwd', '/etc/pureftpd.passwd']
-        for pf in passwd_files:
-            if os.path.exists(pf):
-                try:
-                    with open(pf, 'r') as f:
-                        for line in f:
-                            if line.strip() and ':' in line:
-                                parts = line.split(':')
-                                if len(parts) >= 6:
-                                    username = parts[0].strip()
-                                    directory = parts[5].strip()
+    # 2. Source: Direct file parsing (merge)
+    passwd_files = ['/etc/pure-ftpd/pureftpd.passwd', '/etc/pureftpd.passwd']
+    for pf in passwd_files:
+        if os.path.exists(pf):
+            try:
+                with open(pf, 'r') as f:
+                    for line in f:
+                        if line.strip() and ':' in line:
+                            parts = line.split(':')
+                            if len(parts) >= 6:
+                                username = parts[0].strip()
+                                directory = parts[5].strip()
+                                # Don't overwrite if already found via pure-pw list
+                                if username not in users_map:
                                     users_map[username] = directory
-                    if users_map: break # Stop if we found users
-                except Exception as e:
-                    logging.error(f"Error reading {pf}: {str(e)}")
+            except Exception as e:
+                logging.debug(f"Error reading {pf}: {str(e)}")
+
+    # 3. Source: System group 'lite_sftp' (merge)
+    # This catches users created for SFTP that might be missing from Pure-FTPd
+    try:
+        try:
+            group_info = grp.getgrnam('lite_sftp')
+            sftp_users = group_info.gr_mem
+        except KeyError:
+            sftp_users = []
+
+        for username in sftp_users:
+            if username not in users_map:
+                try:
+                    user_info = pwd.getpwnam(username)
+                    # For jailed SFTP users, the home in /etc/passwd is relative to /var/www
+                    rel_home = user_info.pw_dir
+                    full_path = os.path.join('/var/www', rel_home.lstrip('/'))
+                    users_map[username] = full_path
+                except Exception:
+                    pass
+    except Exception as e:
+        logging.debug(f"Error scanning lite_sftp group: {str(e)}")
 
     # Convert map to list and add status
     users = []
     for username, directory in users_map.items():
         # Normalize directory: remove trailing /./ and /
         clean_dir = directory.replace('/./', '/').rstrip('/')
-        if not clean_dir: clean_dir = "/"
+        if not clean_dir:
+            clean_dir = "/"
         
         enabled = True
         try:
@@ -92,6 +104,8 @@ def get_ftp_users():
             'enabled': enabled
         })
 
+    # Sort by username
+    users.sort(key=lambda x: x['username'])
     return users
 
 def create_ftp_user(username, password, directory):
