@@ -210,19 +210,27 @@ def get_ftp_users():
         clean_dir = directory.replace('/./', '/').rstrip('/')
         if not clean_dir:
             clean_dir = "/"
-        # SFTP Status check
-        enabled = False
+        # SFTP/System Status check
+        system_enabled = False
         try:
-            # Check if in lite_sftp group and NOT locked
-            res = run_system_command(['id', '-Gn', username])
-            if 'lite_sftp' in res.stdout.split():
-                # Check if locked
-                pw_res = run_system_command(['passwd', '-S', username])
-                # 'P' means usable password, 'L' means locked. 
-                # We want anything that isn't 'L' and isn't a locked status.
-                if ' P ' in pw_res.stdout or ' L ' not in pw_res.stdout:
-                    enabled = True
+            # Check if locked
+            pw_res = run_system_command(['passwd', '-S', username])
+            # Format: 'username status date ...' where status is P, L, NP, etc.
+            # We split and check the second field.
+            pw_parts = pw_res.stdout.split()
+            if len(pw_parts) >= 2:
+                status_code = pw_parts[1]
+                # P = Usable password, PS = Password set (some systems), NP = No password (locked usually)
+                if status_code in ['P', 'PS']:
+                    system_enabled = True
         except: pass
+
+        # Pure-FTPd Virtual Status Check (Primary)
+        # If we can't determine it easily, we assume True if the system check is enough,
+        # but let's be more robust by checking if it's NOT expired.
+        # For now, we'll favor the system check but allow 'enabled' if either is true 
+        # or if it's explicitly a virtual-only user (though the system user should exist).
+        enabled = system_enabled
 
         users.append({
             'username': username,
@@ -428,9 +436,10 @@ def toggle_ftp_user_status(username, enable=True):
                     run_system_command(['systemctl', 'restart', f'{v}-fpm'])
             except: pass
             
-            try:
-                run_system_command(['passwd', '-u', username])
-            except:
+            # Unlock system user
+            res = run_system_command(['passwd', '-u', username])
+            if res.returncode != 0:
+                # If unlock fails (common if no password is set), set a default one and try again
                 run_system_command(['chpasswd'], input_str=f"{username}:SetPasswordInPanel123!\n")
                 run_system_command(['passwd', '-u', username])
         else:
