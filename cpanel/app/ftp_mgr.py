@@ -164,21 +164,17 @@ def get_ftp_users():
     except Exception as e:
         logging.debug(f"Error scanning lite_sftp group: {str(e)}")
 
-    # 4. Source: Any user created by this panel (fallback)
-    # If the user is in /etc/passwd and has a home dir starting with /var/www, 
-    # but for some reason is not in the group or pure-pw, show them anyway.
+    # 4. Source: getent group lite_sftp (reliable group membership)
     try:
-        all_system_users = pwd.getpwall()
-        for u in all_system_users:
-            if u.pw_name not in users_map:
-                # Check if it looks like one of our users
-                if u.pw_dir.startswith('/var/www') or os.path.exists(os.path.join('/var/www', u.pw_dir.lstrip('/'))):
-                    # Only include if they have a non-standard shell or are in our target group
-                    # (Prevent showing root, www-data, etc.)
-                    if u.pw_shell == '/usr/sbin/nologin' or u.pw_uid >= 1000:
-                        dir_path = get_user_directory(u.pw_name)
-                        if dir_path and dir_path != "/var/www":
-                            users_map[u.pw_name] = dir_path
+        res = subprocess.run(['getent', 'group', 'lite_sftp'], capture_output=True, text=True)
+        if res.returncode == 0 and res.stdout.strip():
+            # Format: lite_sftp:x:GID:user1,user2,...
+            parts = res.stdout.strip().split(':')
+            if len(parts) >= 4 and parts[3]:
+                members = parts[3].split(',')
+                for username in members:
+                    if username.strip() and username.strip() not in users_map:
+                        users_map[username.strip()] = get_user_directory(username.strip())
     except: pass
 
     # Convert map to list and add status
