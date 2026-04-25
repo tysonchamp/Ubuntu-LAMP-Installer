@@ -186,6 +186,29 @@ def get_ftp_users():
     except Exception as e:
         logging.debug(f"Thorough scan failed: {str(e)}")
 
+    # 5. Source: Final 'Force' Fallback
+    # Look for any user with a home directory starting with /var/www (or relative to it)
+    # and using the nologin shell. This is the ultimate catch-all.
+    try:
+        all_u = pwd.getpwall()
+        for u in all_u:
+            if u.pw_name not in users_map and u.pw_name not in ['www-data', 'root']:
+                # Our users either have a home in /var/www/... or a relative home like /test
+                is_our_user = False
+                if u.pw_dir.startswith('/var/www'):
+                    is_our_user = True
+                elif not u.pw_dir.startswith('/') and len(u.pw_dir) > 1:
+                    is_our_user = True
+                elif u.pw_dir.count('/') == 1 and len(u.pw_dir) > 1:
+                    # e.g. /demoftp
+                    is_our_user = True
+                
+                if is_our_user and u.pw_shell == '/usr/sbin/nologin':
+                    directory = get_user_directory(u.pw_name)
+                    if directory and directory.startswith('/var/www'):
+                        users_map[u.pw_name] = directory
+    except: pass
+
     # Convert map to list and add status
     users = []
     for username, directory in users_map.items():
