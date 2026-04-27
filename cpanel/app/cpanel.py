@@ -437,12 +437,19 @@ def traffic_report(domain):
     start_date = request.args.get('start')
     end_date = request.args.get('end')
     
-    nginx_log = f"/var/log/nginx/{domain}_access.log"
-    apache_log = f"/var/log/apache2/{domain}_access.log"
-    log_file = nginx_log if os.path.exists(nginx_log) else (apache_log if os.path.exists(apache_log) else None)
+    domain_lower = domain.lower()
+    log_candidates = [
+        f"/var/log/nginx/{domain_lower}_access.log",
+        f"/var/log/apache2/{domain_lower}_access.log",
+        f"/var/log/nginx/{domain_lower}.access.log",
+        f"/var/log/apache2/{domain_lower}.access.log",
+        f"/var/log/nginx/{domain}_access.log",
+        f"/var/log/apache2/{domain}_access.log"
+    ]
+    log_file = next((p for p in log_candidates if os.path.exists(p)), None)
     
     if not log_file:
-        return "Log file not found for this domain.", 404
+        return f"Log file not found for {domain}.", 404
         
     try:
         goaccess_path = '/usr/bin/goaccess'
@@ -455,17 +462,20 @@ def traffic_report(domain):
                 try:
                     s_dt = datetime.datetime.strptime(start_date, '%Y-%m-%d')
                     e_dt = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+                    
+                    # Manual English month names to avoid locale issues
+                    months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                     patterns = []
                     curr = s_dt
                     while curr <= e_dt:
-                        patterns.append(curr.strftime('%d/%b/%Y'))
+                        patterns.append(f"{curr.day:02d}/{months[curr.month]}/{curr.year}")
                         curr += datetime.timedelta(days=1)
                     
                     if not patterns: return None, "Invalid date range"
                     
                     regex = "|".join(patterns)
-                    # Use grep to filter and pipe to goaccess
-                    grep_cmd = ['grep', '-E', regex, source_file]
+                    # Use grep -i to be case-insensitive (e.g. matching Apr vs APR)
+                    grep_cmd = ['grep', '-iE', regex, source_file]
                     go_cmd = [goaccess_path, '-', f'--log-format={log_fmt}', '--no-global-config', '-o', 'html']
                     
                     p1 = subprocess.Popen(grep_cmd, stdout=subprocess.PIPE)
