@@ -446,9 +446,9 @@ def traffic_report(domain):
         f"/var/log/nginx/{domain}_access.log",
         f"/var/log/apache2/{domain}_access.log"
     ]
-    log_file = next((p for p in log_candidates if os.path.exists(p)), None)
+    source_file = next((p for p in log_candidates if os.path.exists(p)), None)
     
-    if not log_file:
+    if not source_file:
         return f"Log file not found for {domain}.", 404
         
     try:
@@ -459,11 +459,11 @@ def traffic_report(domain):
         def get_report(source_file, log_fmt):
             if start_date and end_date:
                 import datetime
+                import glob
                 try:
                     s_dt = datetime.datetime.strptime(start_date, '%Y-%m-%d')
                     e_dt = datetime.datetime.strptime(end_date, '%Y-%m-%d')
                     
-                    # Manual English month names to avoid locale issues
                     months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                     patterns = []
                     curr = s_dt
@@ -473,14 +473,26 @@ def traffic_report(domain):
                     
                     if not patterns: return None, "Invalid date range"
                     
-                    regex = "|".join(patterns)
-                    # Use grep -i to be case-insensitive (e.g. matching Apr vs APR)
-                    grep_cmd = ['grep', '-iE', regex, source_file]
+                    regex_pattern = "|".join(patterns)
+                    
+                    # Include rotated logs (e.g. .log.1, .log.2)
+                    # We use glob to find all related log files
+                    log_files = glob.glob(f"{source_file}*")
+                    # Filter out compressed files for standard grep, or use zgrep if needed.
+                    # For now, we'll stick to non-compressed files to avoid binary issues.
+                    log_files = [f for f in log_files if not f.endswith('.gz')]
+                    
+                    # -h suppresses filename prefix, -i is case-insensitive, -E is extended regex
+                    grep_cmd = ['grep', '-hiE', regex_pattern] + log_files
                     go_cmd = [goaccess_path, '-', f'--log-format={log_fmt}', '--no-global-config', '-o', 'html']
                     
-                    p1 = subprocess.Popen(grep_cmd, stdout=subprocess.PIPE)
-                    res = subprocess.run(go_cmd, stdin=p1.stdout, capture_output=True)
-                    p1.stdout.close()
+                    p1 = subprocess.Popen(grep_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    grep_output, grep_err = p1.communicate()
+                    
+                    if not grep_output:
+                        return None, f"No logs found for the period {start_date} to {end_date} in {len(log_files)} files searched."
+
+                    res = subprocess.run(go_cmd, input=grep_output, capture_output=True)
                     return res, None
                 except Exception as e:
                     return None, str(e)
