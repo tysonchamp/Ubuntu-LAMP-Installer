@@ -434,6 +434,9 @@ def traffic_monitor():
 @app.route('/traffic/report/<domain>')
 @login_required
 def traffic_report(domain):
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    
     nginx_log = f"/var/log/nginx/{domain}_access.log"
     apache_log = f"/var/log/apache2/{domain}_access.log"
     log_file = nginx_log if os.path.exists(nginx_log) else (apache_log if os.path.exists(apache_log) else None)
@@ -445,22 +448,51 @@ def traffic_report(domain):
         goaccess_path = '/usr/bin/goaccess'
         if not os.path.exists(goaccess_path): goaccess_path = 'goaccess'
         
-        # Try generating with COMBINED first
-        cmd = [goaccess_path, log_file, '--log-format=COMBINED', '--no-global-config', '-o', 'html']
-        res = subprocess.run(cmd, capture_output=True) # Binary mode to avoid codec errors
-        
-        if res.returncode != 0:
+        # Prepare the GoAccess command
+        def get_report(source_file, log_fmt):
+            if start_date and end_date:
+                import datetime
+                try:
+                    s_dt = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+                    e_dt = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+                    patterns = []
+                    curr = s_dt
+                    while curr <= e_dt:
+                        patterns.append(curr.strftime('%d/%b/%Y'))
+                        curr += datetime.timedelta(days=1)
+                    
+                    if not patterns: return None, "Invalid date range"
+                    
+                    regex = "|".join(patterns)
+                    # Use grep to filter and pipe to goaccess
+                    grep_cmd = ['grep', '-E', regex, source_file]
+                    go_cmd = [goaccess_path, '-', f'--log-format={log_fmt}', '--no-global-config', '-o', 'html']
+                    
+                    p1 = subprocess.Popen(grep_cmd, stdout=subprocess.PIPE)
+                    res = subprocess.run(go_cmd, stdin=p1.stdout, capture_output=True)
+                    p1.stdout.close()
+                    return res, None
+                except Exception as e:
+                    return None, str(e)
+            else:
+                go_cmd = [goaccess_path, source_file, f'--log-format={log_fmt}', '--no-global-config', '-o', 'html']
+                res = subprocess.run(go_cmd, capture_output=True)
+                return res, None
+
+        # Try COMBINED first
+        res, err = get_report(log_file, 'COMBINED')
+        if res and res.returncode != 0:
             # Fallback to VCOMMON
-            cmd = [goaccess_path, log_file, '--log-format=VCOMMON', '--no-global-config', '-o', 'html']
-            res = subprocess.run(cmd, capture_output=True)
-            
-        if res.returncode == 0:
+            res, err = get_report(log_file, 'VCOMMON')
+
+        if res and res.returncode == 0:
             from flask import make_response
             response = make_response(res.stdout)
             response.headers['Content-Type'] = 'text/html'
             return response
         else:
-            return f"GoAccess Error: {res.stderr.decode('utf-8', errors='ignore')}", 500
+            error_msg = err if err else (res.stderr.decode('utf-8', errors='ignore') if res else "Unknown error")
+            return f"GoAccess Error: {error_msg}", 500
     except Exception as e:
         return f"System Error: {str(e)}", 500
 
