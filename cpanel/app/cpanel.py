@@ -475,15 +475,12 @@ def traffic_report(domain):
                     
                     regex_pattern = "|".join(patterns)
                     
-                    # Include rotated logs (e.g. .log.1, .log.2)
-                    # We use glob to find all related log files
+                    # Include rotated logs (e.g. .log.1, .log.2.gz)
                     log_files = glob.glob(f"{source_file}*")
-                    # Filter out compressed files for standard grep, or use zgrep if needed.
-                    # For now, we'll stick to non-compressed files to avoid binary issues.
-                    log_files = [f for f in log_files if not f.endswith('.gz')]
                     
+                    # Use zgrep to transparently handle both compressed (.gz) and uncompressed logs
                     # -h suppresses filename prefix, -i is case-insensitive, -E is extended regex
-                    grep_cmd = ['grep', '-hiE', regex_pattern] + log_files
+                    grep_cmd = ['zgrep', '-hiE', regex_pattern] + log_files
                     go_cmd = [goaccess_path, '-', f'--log-format={log_fmt}', '--no-global-config', '-o', 'html']
                     
                     p1 = subprocess.Popen(grep_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
