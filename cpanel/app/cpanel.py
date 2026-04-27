@@ -473,23 +473,46 @@ def traffic_report(domain):
                     
                     if not patterns: return None, "Invalid date range"
                     
-                    regex_pattern = "|".join(patterns)
-                    
                     # Include rotated logs (e.g. .log.1, .log.2.gz)
-                    log_files = glob.glob(f"{source_file}*")
+                    all_logs = glob.glob(f"{source_file}*")
+                    log_files = []
                     
-                    # Use zgrep to transparently handle both compressed (.gz) and uncompressed logs
-                    # -h suppresses filename prefix, -i is case-insensitive, -E is extended regex
-                    grep_cmd = ['zgrep', '-hiE', regex_pattern] + log_files
+                    # Optimization 1: Intelligent File Selection
+                    # Only search logs modified on or after start_date.
+                    # Subtract 1 day (86400s) to be safe with timezone differences or early-morning rotations
+                    start_ts = s_dt.timestamp() - 86400
+                    for f in all_logs:
+                        try:
+                            if os.path.getmtime(f) >= start_ts:
+                                log_files.append(f)
+                        except OSError:
+                            pass
+                            
+                    if not log_files:
+                        return None, f"No logs modified on or after {start_date}."
+
+                    # Optimization 2: Optimized Grep
+                    # -h suppresses filename prefix, -i is case-insensitive
+                    if s_dt == e_dt:
+                        grep_cmd = ['zgrep', '-hi', patterns[0]] + log_files
+                    else:
+                        regex_pattern = "|".join(patterns)
+                        grep_cmd = ['zgrep', '-hiE', regex_pattern] + log_files
+                        
                     go_cmd = [goaccess_path, '-', f'--log-format={log_fmt}', '--no-global-config', '-o', 'html']
                     
-                    p1 = subprocess.Popen(grep_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    grep_output, grep_err = p1.communicate()
+                    # Optimization 3: Direct Piping (Stream instead of memory buffer)
+                    p1 = subprocess.Popen(grep_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                    res = subprocess.run(go_cmd, stdin=p1.stdout, capture_output=True)
+                    p1.stdout.close()
+                    p1.wait()
                     
-                    if not grep_output:
-                        return None, f"No logs found for the period {start_date} to {end_date} in {len(log_files)} files searched."
-
-                    res = subprocess.run(go_cmd, input=grep_output, capture_output=True)
+                    if res.returncode != 0:
+                        err_out = res.stderr.decode('utf-8', errors='ignore')
+                        # If grep found nothing, goaccess fails with empty input
+                        if "Parsed 0 lines" in err_out or "No input" in err_out or p1.returncode != 0:
+                            return None, f"No traffic data found for the period {start_date} to {end_date}."
+                            
                     return res, None
                 except Exception as e:
                     return None, str(e)
