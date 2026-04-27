@@ -502,10 +502,10 @@ def traffic_report(domain):
                 return res, None
 
         # Try COMBINED first
-        res, err = get_report(log_file, 'COMBINED')
+        res, err = get_report(source_file, 'COMBINED')
         if res and res.returncode != 0:
             # Fallback to VCOMMON
-            res, err = get_report(log_file, 'VCOMMON')
+            res, err = get_report(source_file, 'VCOMMON')
 
         if res and res.returncode == 0:
             from flask import make_response
