@@ -37,24 +37,61 @@ def csf_action(action):
             return False, f"Failed to {action} CSF: {e.stderr.decode()}"
     return False, "Invalid action"
 
-def csf_ip_action(action, ip):
+def csf_ip_action(action, ip, comment=""):
     if not check_csf_installed():
         return False, "CSF not installed"
 
-    cmds = {
-        'allow': ['csf', '-a', ip],
-        'deny': ['csf', '-d', ip],
-        'unallow': ['csf', '-ar', ip],
-        'undeny': ['csf', '-dr', ip]
-    }
+    cmd = ['csf']
+    if action == 'allow':
+        cmd.append('-a')
+    elif action == 'deny':
+        cmd.append('-d')
+    elif action == 'unallow':
+        cmd.append('-ar')
+    elif action == 'undeny':
+        cmd.append('-dr')
+    else:
+        return False, "Invalid IP action"
 
-    if action in cmds:
-        try:
-            result = subprocess.run(cmds[action], check=True, capture_output=True, text=True)
-            return True, result.stdout
-        except subprocess.CalledProcessError as e:
-            return False, f"Action failed: {e.stderr}"
-    return False, "Invalid IP action"
+    cmd.append(ip)
+    
+    if comment and action in ['allow', 'deny']:
+        cmd.append(comment)
+
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        return True, result.stdout
+    except subprocess.CalledProcessError as e:
+        return False, f"Action failed: {e.stderr}"
+
+def csf_temp_ip_action(type_, ip, ttl, ports="", direction="", comment=""):
+    if not check_csf_installed():
+        return False, "CSF not installed"
+    
+    cmd = ['csf']
+    if type_ == 'allow':
+        cmd.append('-ta')
+    elif type_ == 'deny':
+        cmd.append('-td')
+    else:
+        return False, "Invalid temp IP action"
+        
+    cmd.append(ip)
+    cmd.append(str(ttl))
+    
+    if ports:
+        cmd.extend(['-p', ports])
+    if direction:
+        cmd.extend(['-d', direction])
+        
+    if comment:
+        cmd.append(comment)
+        
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        return True, result.stdout
+    except subprocess.CalledProcessError as e:
+        return False, f"Action failed: {e.stderr}"
 
 def get_csf_file(file_type):
     files = {

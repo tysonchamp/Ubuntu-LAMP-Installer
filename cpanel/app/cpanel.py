@@ -1299,7 +1299,7 @@ def ftp():
     users = get_ftp_users() if ftp_installed else None
     return render_template('ftp.html', ftp_installed=ftp_installed, users=users, sftp_enabled=sftp_enabled)
 
-from csf_mgr import (check_csf_installed, get_csf_status, csf_action, csf_ip_action,
+from csf_mgr import (check_csf_installed, get_csf_status, csf_action, csf_ip_action, csf_temp_ip_action,
                            get_csf_file, save_csf_file, get_csf_temp_entries,
                            get_open_ports, get_csf_conf_settings, save_csf_conf_key)
 from modsec_mgr import (check_modsec_installed, get_modsec_status, set_modsec_status,
@@ -1321,8 +1321,20 @@ def firewall():
 
         elif action in ['allow_ip', 'deny_ip', 'unallow_ip', 'undeny_ip']:
             ip = request.form.get('ip')
+            comment = request.form.get('comment', '')
             action_type = action.split('_')[0]
-            success, message = csf_ip_action(action_type, ip)
+            success, message = csf_ip_action(action_type, ip, comment)
+            flash(message, 'success' if success else 'danger')
+
+        elif action == 'temp_ip':
+            ip = request.form.get('ip')
+            type_ = request.form.get('type')
+            ttl = request.form.get('ttl')
+            ports = request.form.get('ports', '')
+            direction = request.form.get('direction', '')
+            comment = request.form.get('comment', '')
+            
+            success, message = csf_temp_ip_action(type_, ip, ttl, ports, direction, comment)
             flash(message, 'success' if success else 'danger')
 
         elif action == 'save_csf_file':
