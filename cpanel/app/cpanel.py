@@ -1305,7 +1305,8 @@ def ftp():
     from ftp_mgr import get_sftp_status
     sftp_enabled = get_sftp_status()
     users = get_ftp_users() if ftp_installed else None
-    return render_template('ftp.html', ftp_installed=ftp_installed, users=users, sftp_enabled=sftp_enabled)
+    domains = get_virtual_hosts()
+    return render_template('ftp.html', ftp_installed=ftp_installed, users=users, sftp_enabled=sftp_enabled, domains=domains)
 
 from csf_mgr import (check_csf_installed, get_csf_status, csf_action, csf_ip_action, csf_temp_ip_action,
                            get_csf_file, save_csf_file, get_csf_temp_entries,
