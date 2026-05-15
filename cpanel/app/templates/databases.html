@@ -29,7 +29,7 @@
                         <label class="form-label fw-semibold">User Password</label>
                         <div class="input-group">
                             <input type="text" class="form-control" name="db_pass" id="dbPassword" required placeholder="••••••••">
-                            <button type="button" class="btn btn-outline-secondary" onclick="generateDbPassword()" title="Generate Password">
+                            <button type="button" class="btn btn-outline-secondary" onclick="generatePassword('dbPassword')" title="Generate Password">
                                 <i class="fas fa-random"></i>
                             </button>
                         </div>
@@ -163,7 +163,7 @@
                         <div class="input-group">
                             <input type="text" class="form-control" name="new_password" id="cpw_new_password" required
                                    placeholder="Enter new password" autocomplete="new-password">
-                            <button type="button" class="btn btn-outline-secondary" onclick="generateChangePassword()" title="Generate Password">
+                            <button type="button" class="btn btn-outline-secondary" onclick="generatePassword('cpw_new_password')" title="Generate Password">
                                 <i class="fas fa-random"></i>
                             </button>
                         </div>
@@ -293,22 +293,13 @@ function applyHostSelection() {
     return true;
 }
 
-function generateDbPassword() {
+function generatePassword(targetId) {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
     let password = "";
     for (let i = 0; i < 16; i++) {
         password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    document.getElementById('dbPassword').value = password;
-}
-
-function generateChangePassword() {
-    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-    let password = "";
-    for (let i = 0; i < 16; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    document.getElementById('cpw_new_password').value = password;
+    document.getElementById(targetId).value = password;
 }
 </script>
 {% endblock %}
