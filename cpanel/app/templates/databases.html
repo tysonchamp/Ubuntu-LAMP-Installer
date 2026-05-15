@@ -27,7 +27,12 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">User Password</label>
-                        <input type="password" class="form-control" name="db_pass" required placeholder="••••••••">
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="db_pass" id="dbPassword" required placeholder="••••••••">
+                            <button type="button" class="btn btn-outline-secondary" onclick="generateDbPassword()" title="Generate Password">
+                                <i class="fas fa-random"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-primary">
@@ -281,6 +286,15 @@ function applyHostSelection() {
         selected.value = ip;
     }
     return true;
+}
+
+function generateDbPassword() {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+    let password = "";
+    for (let i = 0; i < 16; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('dbPassword').value = password;
 }
 </script>
 {% endblock %}
