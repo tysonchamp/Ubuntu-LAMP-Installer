@@ -105,6 +105,14 @@
                                             <button type="submit" class="btn btn-sm btn-outline-primary" title="Generate SSL"><i class="fas fa-shield-alt"></i></button>
                                             {% endif %}
                                         </form>
+
+                                        <!-- Delete Action -->
+                                        <form method="POST" action="{{ url_for('domains') }}" class="mb-0" onsubmit="return confirm('Are you sure you want to delete this domain and its document root? This action cannot be undone.');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="domain" value="{{ vhost.domain }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Domain"><i class="fas fa-trash"></i></button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>

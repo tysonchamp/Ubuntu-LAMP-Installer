@@ -676,7 +676,7 @@ def api_service_restart():
     else:
         return jsonify({'success': False, 'message': f'Crash/Timeout: {res.stderr}'})
 
-from domains_mgr import get_virtual_hosts, add_virtual_host, toggle_virtual_host, get_port80_webserver
+from domains_mgr import get_virtual_hosts, add_virtual_host, toggle_virtual_host, get_port80_webserver, delete_virtual_host
 
 @app.route('/domains', methods=['GET', 'POST'])
 @login_required
@@ -705,6 +705,14 @@ def domains():
             enable = enable_str.lower() == 'true'
 
             success, message = toggle_virtual_host(domain, enable)
+            if success:
+                flash(message, 'success')
+            else:
+                flash(message, 'danger')
+
+        elif action == 'delete':
+            domain = request.form.get('domain')
+            success, message = delete_virtual_host(domain)
             if success:
                 flash(message, 'success')
             else:

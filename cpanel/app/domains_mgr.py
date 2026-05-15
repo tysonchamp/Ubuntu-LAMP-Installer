@@ -131,6 +131,66 @@ def toggle_virtual_host(domain, enable):
     else:
         return False, "Configuration not found for any web server."
 
+def delete_virtual_host(domain):
+    """
+    Deletes the virtual host configuration files, disables it, and removes the document root.
+    """
+    import shutil
+    successes = []
+    errors = []
+
+    # Nginx
+    nginx_avail = f'/etc/nginx/sites-available/{domain}'
+    nginx_enabled = f'/etc/nginx/sites-enabled/{domain}'
+    if os.path.exists(nginx_enabled):
+        try:
+            os.remove(nginx_enabled)
+        except Exception as e:
+            errors.append(f"Nginx disable: {str(e)}")
+    if os.path.exists(nginx_avail):
+        try:
+            os.remove(nginx_avail)
+            successes.append("Nginx config removed")
+        except Exception as e:
+            errors.append(f"Nginx config remove: {str(e)}")
+
+    # Apache
+    apache_avail = f'/etc/apache2/sites-available/{domain}.conf'
+    apache_enabled = f'/etc/apache2/sites-enabled/{domain}.conf'
+    if os.path.exists(apache_enabled):
+        try:
+            subprocess.run(['a2dissite', f"{domain}.conf"], check=False, capture_output=True)
+        except Exception as e:
+            errors.append(f"Apache disable: {str(e)}")
+    if os.path.exists(apache_avail):
+        try:
+            os.remove(apache_avail)
+            successes.append("Apache config removed")
+        except Exception as e:
+            errors.append(f"Apache config remove: {str(e)}")
+
+    # Reload services if any configs were removed
+    if successes:
+        subprocess.run(['systemctl', 'reload', 'nginx'], check=False)
+        subprocess.run(['systemctl', 'reload', 'apache2'], check=False)
+
+    # Remove Document Root
+    doc_root = f'/var/www/{domain}'
+    if os.path.exists(doc_root):
+        try:
+            shutil.rmtree(doc_root)
+            successes.append("Document root removed")
+        except Exception as e:
+            errors.append(f"Doc root remove: {str(e)}")
+
+    if errors:
+        return False, f"Deleted with errors: {', '.join(errors)}"
+    elif successes:
+        return True, f"Domain {domain} deleted successfully."
+    else:
+        return False, "Configuration not found to delete."
+
+
 def get_port80_webserver(domain):
     """
     Checks the configuration files for a domain to see which webserver is serving port 80.
