@@ -14,7 +14,6 @@ if os.getuid() == 0:
 # Explicitly prioritize the user's working Node/PM2 path
 # Fallback to general detection if version changes
 paths = [
-    "/root/.nvm/versions/node/v24.15.0/bin",
     "/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"
 ]
 
@@ -22,9 +21,8 @@ import glob
 nvm_node_paths = glob.glob(os.path.expanduser("~/.nvm/versions/node/*/bin"))
 if nvm_node_paths:
     nvm_node_paths.sort(reverse=True)
-    for p in nvm_node_paths:
-        if p not in paths:
-            paths.append(p)
+    # Prepend sorted NVM paths so the highest version is first
+    paths = nvm_node_paths + paths
 
 os.environ["PATH"] = ":".join(paths) + ":" + os.environ.get("PATH", "")
 
@@ -1187,7 +1185,7 @@ def phpmyadmin_login():
 
 from nextjs_mgr import get_nextjs_apps
 from process_mgr import (is_pm2_installed, list_processes, 
-                         manage_process, start_nextjs_app, get_process_logs, run_npm_command)
+                         manage_process, start_nextjs_app, get_process_logs, run_npm_command, install_pm2)
 
 @app.route('/processes', methods=['GET', 'POST'])
 @login_required
@@ -1197,8 +1195,11 @@ def process_manager():
     
     if request.method == 'POST':
         action = request.form.get('action')
-        
-        if action == 'add_app':
+        if action == 'install_pm2':
+            success, msg = install_pm2()
+            flash(msg, 'success' if success else 'danger')
+
+        elif action == 'add_app':
             name = request.form.get('name')
             path = request.form.get('path')
             port = request.form.get('port') or None

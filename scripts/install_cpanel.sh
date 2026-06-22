@@ -104,7 +104,7 @@ install_nodejs() {
         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
     fi
     
-    \\. "$NVM_DIR/nvm.sh"
+    . "$NVM_DIR/nvm.sh"
     
     # Ensure Node 24 is installed
     if [[ ! "$(node -v 2>/dev/null)" == v24* ]]; then

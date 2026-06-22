@@ -4,15 +4,24 @@ import os
 import shutil
 import subprocess
 
-PM2_BIN = "/root/.nvm/versions/node/v24.15.0/bin/pm2"
 PM2_HOME = "/root/.pm2"
 
 def is_pm2_installed():
     """Checks if PM2 is available in the system path."""
-    return os.path.exists(PM2_BIN) or shutil.which('pm2') is not None
+    return shutil.which('pm2') is not None
+
+def install_pm2():
+    """Installs PM2 globally via npm using NVM."""
+    try:
+        bash_cmd = 'source /root/.nvm/nvm.sh && npm install pm2 -g'
+        subprocess.run(['bash', '-c', bash_cmd], check=True, capture_output=True, text=True)
+        return True, "PM2 installed successfully."
+    except subprocess.CalledProcessError as e:
+        return False, f"Error installing PM2: {e.stderr.strip()}"
 
 def get_pm2_cmd():
-    return PM2_BIN if os.path.exists(PM2_BIN) else 'pm2'
+    pm2_path = shutil.which('pm2')
+    return pm2_path if pm2_path else 'pm2'
 
 def list_processes():
     """Returns a list of running PM2 processes in JSON format."""
