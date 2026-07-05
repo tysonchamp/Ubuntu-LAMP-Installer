@@ -47,8 +47,14 @@ def _run_redis_cli(command):
     if password:
         cmd.extend(['-a', password])
     cmd.extend(command)
-    # Suppress the warning about using password on command line interface
-    return subprocess.run(cmd, capture_output=True, text=True, stderr=subprocess.DEVNULL)
+    try:
+        # Suppress the warning about using password on command line interface
+        return subprocess.run(cmd, capture_output=True, text=True, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        class DummyRes:
+            returncode = 1
+            stdout = ""
+        return DummyRes()
 
 def _get_current_password():
     """Reads the current requirepass from redis.conf if it exists."""
