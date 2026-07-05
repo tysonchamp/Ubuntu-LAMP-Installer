@@ -44,7 +44,7 @@
                 </div>
             </div>
             <div class="card-body">
-                {% if status == 'active' and info %}
+                {% if status == 'active' and info is not none %}
                 <ul class="list-group list-group-flush mb-4">
                     <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                         <span class="text-muted">Redis Version</span>
@@ -110,6 +110,68 @@
                     <input type="hidden" name="action" value="flush">
                     <button type="submit" class="btn btn-outline-danger w-100"{% if status != 'active' %} disabled{% endif %}><i class="fas fa-trash-alt me-2"></i> Flush All Databases</button>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Redis Commander Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-tools me-2 text-info"></i> Redis Commander <small class="text-muted">(Web Admin UI)</small></h5>
+                <div class="d-flex gap-2 align-items-center">
+                    {% if rc_status == 'active' %}
+                        <span class="badge bg-success"><i class="fas fa-circle me-1"></i> Running</span>
+                    {% elif rc_status == 'inactive' or rc_status == 'failed' %}
+                        <span class="badge bg-danger"><i class="fas fa-circle me-1"></i> Stopped</span>
+                    {% else %}
+                        <span class="badge bg-secondary"><i class="fas fa-circle me-1"></i> Not Installed</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                {% if rc_status == 'not_installed' %}
+                    <p class="text-muted mb-3">Redis Commander is a web-based Redis admin interface. Install it to browse, edit, and manage your Redis data visually.</p>
+                    <form method="POST" action="{{ url_for('redis_route') }}" id="installRcForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="install_commander">
+                        <button type="submit" class="btn btn-info text-white" id="installRcBtn">
+                            <i class="fas fa-download me-2"></i> Install Redis Commander
+                        </button>
+                    </form>
+                    <script>
+                        document.getElementById('installRcForm').addEventListener('submit', function() {
+                            var btn = document.getElementById('installRcBtn');
+                            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Installing via npm... Please wait';
+                            btn.disabled = true;
+                        });
+                    </script>
+                {% elif rc_status == 'active' %}
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>URL:</strong> <a href="#" onclick="window.open('http://' + window.location.hostname + ':8081', '_blank')" class="text-decoration-none">http://Server-IP:8081</a></p>
+                        </div>
+                        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                            <a href="#" onclick="window.open('http://' + window.location.hostname + ':8081', '_blank')" class="btn btn-success me-2">
+                                <i class="fas fa-external-link-alt me-1"></i> Open Redis Commander
+                            </a>
+                            <form method="POST" action="{{ url_for('api_service_restart') }}" class="d-inline rc-restart-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="service_id" value="redis-commander">
+                                <button type="button" class="btn btn-outline-warning rc-restart-btn"><i class="fas fa-sync me-1"></i> Restart</button>
+                            </form>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-3">Redis Commander is installed but not running.</p>
+                    <form method="POST" action="{{ url_for('api_service_restart') }}" class="d-inline rc-restart-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="service_id" value="redis-commander">
+                        <button type="button" class="btn btn-warning rc-restart-btn"><i class="fas fa-play me-1"></i> Start Redis Commander</button>
+                    </form>
+                {% endif %}
             </div>
         </div>
     </div>

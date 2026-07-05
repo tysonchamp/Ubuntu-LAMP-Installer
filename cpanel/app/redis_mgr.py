@@ -140,3 +140,73 @@ def flush_redis_db():
         return True, "All databases flushed successfully."
     else:
         return False, f"Failed to flush databases. Check password."
+
+def check_redis_commander_installed():
+    """Checks if redis-commander is installed globally."""
+    return os.path.exists('/usr/lib/systemd/system/redis-commander.service') or os.path.exists('/etc/systemd/system/redis-commander.service')
+
+def install_redis_commander():
+    """Installs Redis Commander via npm and creates a systemd service."""
+    install_script = """#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+# Install Node.js if not present
+if ! command -v npm &> /dev/null; then
+    apt-get update
+    apt-get install -y npm nodejs
+fi
+npm install -g redis-commander
+
+cat > /etc/systemd/system/redis-commander.service << 'EOF'
+[Unit]
+Description=Redis Commander Web UI
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/redis-commander --redis-host 127.0.0.1
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable redis-commander
+systemctl start redis-commander
+"""
+    try:
+        script_path = '/tmp/install_redis_commander.sh'
+        with open(script_path, 'w') as f:
+            f.write(install_script)
+        os.chmod(script_path, 0o755)
+        
+        log_file = open('/var/log/lite-cpanel-redis-commander-install.log', 'w')
+        subprocess.Popen(['bash', script_path], stdout=log_file, stderr=subprocess.STDOUT)
+        return True, "Redis Commander installation started in the background. It will be available on port 8081 shortly."
+    except Exception as e:
+        return False, f"Failed to start installation: {e}"
+
+def get_redis_commander_status():
+    """Returns 'active', 'inactive', 'failed', or 'not_installed'."""
+    if not check_redis_commander_installed():
+        return 'not_installed'
+    try:
+        r = subprocess.run(['systemctl', 'is-active', 'redis-commander'], capture_output=True, text=True)
+        status = r.stdout.strip()
+        if status in ['active', 'inactive', 'failed']:
+            return status
+    except Exception:
+        pass
+    return 'inactive'
+
+def restart_redis_commander():
+    """Restarts the redis-commander service."""
+    try:
+        res = subprocess.run(['systemctl', 'restart', 'redis-commander'], capture_output=True, text=True)
+        if res.returncode == 0:
+            return True, "Redis Commander restarted successfully."
+        else:
+            return False, f"Failed to restart: {res.stderr}"
+    except Exception as e:
+        return False, f"Error: {e}"

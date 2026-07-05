@@ -602,16 +602,22 @@ def api_services():
         {'id': 'mongod', 'name': 'MongoDB'},
         {'id': 'redis-server', 'name': 'Redis'},
         {'id': 'mongo-express', 'name': 'Mongo Express'},
+        {'id': 'redis-commander', 'name': 'Redis Commander'},
         {'id': 'csf', 'name': 'CSF Firewall'},
         {'id': 'cpanel', 'name': 'cPanel Platform'},
     ]
 
     from mongodb_mgr import get_mongo_express_status
+    from redis_mgr import get_redis_commander_status
     for srv in services:
         sys_id = srv['id']
         if sys_id == 'mongo-express':
             me = get_mongo_express_status()
             srv['status'] = 'active' if me == 'active' else ('not_installed' if me == 'not_installed' else 'inactive')
+            continue
+        if sys_id == 'redis-commander':
+            rc = get_redis_commander_status()
+            srv['status'] = 'active' if rc == 'active' else ('not_installed' if rc == 'not_installed' else 'inactive')
             continue
         chk = subprocess.run(['systemctl', 'is-active', sys_id], capture_output=True, text=True)
         status = chk.stdout.strip()
@@ -654,6 +660,11 @@ def api_service_restart():
     if service_id == 'mongo-express':
         from mongodb_mgr import restart_mongo_express
         ok, msg = restart_mongo_express()
+        return jsonify({'success': ok, 'message': msg})
+
+    if service_id == 'redis-commander':
+        from redis_mgr import restart_redis_commander
+        ok, msg = restart_redis_commander()
         return jsonify({'success': ok, 'message': msg})
 
     if service_id == 'modsec':
@@ -1176,7 +1187,9 @@ def mongodb_route():
     return render_template('mongodb.html', is_installed=is_installed, db_details=db_details,
                            me_status=me_status, me_creds=me_creds)
 from redis_mgr import (check_redis_installed, install_redis, get_redis_status,
-                       get_redis_info, set_redis_password, flush_redis_db)
+                       get_redis_info, set_redis_password, flush_redis_db,
+                       check_redis_commander_installed, install_redis_commander,
+                       get_redis_commander_status, restart_redis_commander)
 
 @app.route('/redis', methods=['GET', 'POST'])
 @login_required
@@ -1188,6 +1201,16 @@ def redis_route():
         
         if action == 'install':
             success, msg = install_redis()
+            flash(msg, 'success' if success else 'danger')
+            return redirect(url_for('redis_route'))
+            
+        if action == 'install_commander':
+            success, msg = install_redis_commander()
+            flash(msg, 'success' if success else 'danger')
+            return redirect(url_for('redis_route'))
+            
+        if action == 'restart_commander':
+            success, msg = restart_redis_commander()
             flash(msg, 'success' if success else 'danger')
             return redirect(url_for('redis_route'))
             
@@ -1209,7 +1232,9 @@ def redis_route():
     status = get_redis_status() if is_installed else 'not_installed'
     info = get_redis_info() if status == 'active' else None
     
-    return render_template('redis.html', is_installed=is_installed, status=status, info=info)
+    rc_status = get_redis_commander_status()
+    
+    return render_template('redis.html', is_installed=is_installed, status=status, info=info, rc_status=rc_status)
 
 
 @app.route('/phpmyadmin-login')
