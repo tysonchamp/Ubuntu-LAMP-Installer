@@ -191,7 +191,7 @@ systemctl restart redis-commander
         
         log_file = open('/var/log/lite-cpanel-redis-commander-install.log', 'w')
         subprocess.Popen(['bash', script_path], stdout=log_file, stderr=subprocess.STDOUT)
-        return True, "Redis Commander installation started in the background. It will be available on port 8081 shortly."
+        return True, "Redis Commander installation started in the background. It will be available on port 8082 shortly."
     except Exception as e:
         return False, f"Failed to start installation: {e}"
 
