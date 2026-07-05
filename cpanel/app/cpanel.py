@@ -5,6 +5,7 @@ import json
 from urllib.parse import quote
 
 import glob
+import subprocess
 
 # Ensure consistent environment for PM2 and other system tools
 if os.getuid() == 0:
@@ -38,7 +39,6 @@ except Exception:
 import psutil
 
 import psutil
-import subprocess
 from auth import check_system_password, login_required
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
