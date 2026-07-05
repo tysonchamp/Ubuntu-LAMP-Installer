@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block header_title %}Redis Management{% endblock %}
+
+{% block content %}
+{% if not is_installed %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 border-start border-warning border-4">
+            <div class="card-body">
+                <h4 class="card-title text-warning"><i class="fas fa-exclamation-triangle me-2"></i> Redis is not installed</h4>
+                <p class="card-text">Redis is an optional in-memory data structure store, used as a database, cache, and message broker, and is currently not installed on this system.</p>
+                
+                <form method="POST" action="{{ url_for('redis_route') }}" id="installRedisForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="install">
+                    <button type="submit" class="btn btn-primary" id="installRedisBtn">
+                        <i class="fas fa-download me-2"></i> Install Redis Now
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.getElementById('installRedisForm').addEventListener('submit', function() {
+        var btn = document.getElementById('installRedisBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Installing... Please wait';
+        btn.disabled = true;
+    });
+</script>
+{% else %}
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4 mb-lg-0">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-server me-2 text-primary"></i> Server Status</h5>
+                <div class="d-flex gap-2 align-items-center">
+                    {% if status == 'active' %}
+                        <span class="badge bg-success"><i class="fas fa-circle me-1"></i> Running</span>
+                    {% elif status == 'inactive' or status == 'failed' %}
+                        <span class="badge bg-danger"><i class="fas fa-circle me-1"></i> Stopped</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                {% if status == 'active' and info %}
+                <ul class="list-group list-group-flush mb-4">
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Redis Version</span>
+                        <span class="fw-bold">{{ info.get('redis_version', 'Unknown') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Uptime (days)</span>
+                        <span class="fw-bold">{{ info.get('uptime_in_days', '0') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Connected Clients</span>
+                        <span class="fw-bold">{{ info.get('connected_clients', '0') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Memory Used</span>
+                        <span class="fw-bold">{{ info.get('used_memory_human', '0B') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Peak Memory</span>
+                        <span class="fw-bold">{{ info.get('used_memory_peak_human', '0B') }}</span>
+                    </li>
+                </ul>
+                <form method="POST" action="{{ url_for('api_service_restart') }}" id="restartRedisForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="service_id" value="redis-server">
+                    <button type="button" class="btn btn-outline-primary w-100" onclick="restartRedis()"><i class="fas fa-sync-alt me-2"></i> Restart Redis Server</button>
+                </form>
+                {% else %}
+                <p class="text-muted">Redis server is currently not running.</p>
+                <form method="POST" action="{{ url_for('api_service_restart') }}" id="restartRedisForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="service_id" value="redis-server">
+                    <button type="button" class="btn btn-primary w-100" onclick="restartRedis()"><i class="fas fa-play me-2"></i> Start Redis Server</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0"><i class="fas fa-cogs me-2 text-danger"></i> Management</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Set Password (requirepass)</h6>
+                <form method="POST" action="{{ url_for('redis_route') }}" class="mb-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="set_password">
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" name="new_password" placeholder="Leave blank to remove password">
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                    <small class="text-muted">Applying a new password will automatically restart the Redis server.</small>
+                </form>
+                
+                <hr class="my-4">
+                
+                <h6 class="fw-bold mb-3 text-danger">Danger Zone</h6>
+                <p class="text-muted small">Flushing the database will clear all cached data and keys stored in the Redis instance.</p>
+                <form method="POST" action="{{ url_for('redis_route') }}" onsubmit="return confirm('WARNING: This will permanently delete ALL data in Redis. Are you sure?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="flush">
+                    <button type="submit" class="btn btn-outline-danger w-100"{% if status != 'active' %} disabled{% endif %}><i class="fas fa-trash-alt me-2"></i> Flush All Databases</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function restartRedis() {
+        const form = document.getElementById('restartRedisForm');
+        const formData = new FormData(form);
+        const btn = form.querySelector('button');
+        const originalHtml = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processing...';
+        btn.disabled = true;
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred.');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

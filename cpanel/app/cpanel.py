@@ -600,6 +600,7 @@ def api_services():
         {'id': php_fpm_id, 'name': 'PHP-FPM'}, 
         {'id': 'mariadb', 'name': 'MySQL / MariaDB'},
         {'id': 'mongod', 'name': 'MongoDB'},
+        {'id': 'redis-server', 'name': 'Redis'},
         {'id': 'mongo-express', 'name': 'Mongo Express'},
         {'id': 'csf', 'name': 'CSF Firewall'},
         {'id': 'cpanel', 'name': 'cPanel Platform'},
@@ -665,7 +666,7 @@ def api_service_restart():
         subprocess.Popen(['bash', '-c', 'sleep 1 && systemctl restart cpanel.service'])
         return jsonify({'success': True, 'message': 'Process initiated in background...'})
 
-    if service_id not in ['apache2', 'nginx', 'mariadb', 'mysql', 'csf'] and not service_id.startswith('php'):
+    if service_id not in ['apache2', 'nginx', 'mariadb', 'mysql', 'csf', 'redis-server'] and not service_id.startswith('php'):
         return jsonify({'success': False, 'message': 'Forbidden infrastructure target.'})
 
     res = subprocess.run(['systemctl', 'restart', service_id], capture_output=True, text=True)
@@ -1174,6 +1175,42 @@ def mongodb_route():
     me_creds = get_mongo_express_credentials() if me_status == 'active' else {}
     return render_template('mongodb.html', is_installed=is_installed, db_details=db_details,
                            me_status=me_status, me_creds=me_creds)
+from redis_mgr import (check_redis_installed, install_redis, get_redis_status,
+                       get_redis_info, set_redis_password, flush_redis_db)
+
+@app.route('/redis', methods=['GET', 'POST'])
+@login_required
+def redis_route():
+    is_installed = check_redis_installed()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'install':
+            success, msg = install_redis()
+            flash(msg, 'success' if success else 'danger')
+            return redirect(url_for('redis_route'))
+            
+        if not is_installed:
+            flash("Redis is not installed.", "danger")
+            return redirect(url_for('redis_route'))
+            
+        if action == 'set_password':
+            new_pass = request.form.get('new_password')
+            success, msg = set_redis_password(new_pass)
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action == 'flush':
+            success, msg = flush_redis_db()
+            flash(msg, 'success' if success else 'danger')
+            
+        return redirect(url_for('redis_route'))
+        
+    status = get_redis_status() if is_installed else 'not_installed'
+    info = get_redis_info() if status == 'active' else None
+    
+    return render_template('redis.html', is_installed=is_installed, status=status, info=info)
+
 
 @app.route('/phpmyadmin-login')
 @login_required
