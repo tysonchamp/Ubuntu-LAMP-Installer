@@ -1189,7 +1189,8 @@ def mongodb_route():
 from redis_mgr import (check_redis_installed, install_redis, get_redis_status,
                        get_redis_info, set_redis_password, flush_redis_db,
                        check_redis_commander_installed, install_redis_commander,
-                       get_redis_commander_status, restart_redis_commander)
+                       get_redis_commander_status, restart_redis_commander,
+                       get_redis_commander_credentials)
 
 @app.route('/redis', methods=['GET', 'POST'])
 @login_required
@@ -1233,8 +1234,9 @@ def redis_route():
     info = get_redis_info() if status == 'active' else None
     
     rc_status = get_redis_commander_status()
+    rc_creds = get_redis_commander_credentials() if rc_status == 'active' else {}
     
-    return render_template('redis.html', is_installed=is_installed, status=status, info=info, rc_status=rc_status)
+    return render_template('redis.html', is_installed=is_installed, status=status, info=info, rc_status=rc_status, rc_creds=rc_creds)
 
 
 @app.route('/phpmyadmin-login')

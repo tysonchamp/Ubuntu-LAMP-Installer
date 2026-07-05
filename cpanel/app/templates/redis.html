@@ -152,12 +152,23 @@
                     <div class="row align-items-center">
                         <div class="col-md-6">
                             <p class="mb-1"><strong>URL:</strong> <a href="#" onclick="window.open('http://' + window.location.hostname + ':8081', '_blank')" class="text-decoration-none">http://Server-IP:8081</a></p>
+                            {% if rc_creds %}
+                            <div class="bg-light p-2 rounded mt-2 border">
+                                <small class="d-block"><strong>Username:</strong> {{ rc_creds.username }}</small>
+                                <small class="d-block"><strong>Password:</strong> <span class="user-select-all">{{ rc_creds.password }}</span></small>
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 text-md-end mt-3 mt-md-0">
-                            <a href="#" onclick="window.open('http://' + window.location.hostname + ':8081', '_blank')" class="btn btn-success me-2">
+                            <a href="#" onclick="window.open('http://' + window.location.hostname + ':8081', '_blank')" class="btn btn-success me-2 mb-2">
                                 <i class="fas fa-external-link-alt me-1"></i> Open Redis Commander
                             </a>
-                            <form method="POST" action="{{ url_for('api_service_restart') }}" class="d-inline rc-restart-form">
+                            <form method="POST" action="{{ url_for('redis_route') }}" class="d-inline mb-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="install_commander">
+                                <button type="submit" class="btn btn-outline-info me-2"><i class="fas fa-key me-1"></i> Reset Auth</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('api_service_restart') }}" class="d-inline rc-restart-form mb-2">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="service_id" value="redis-commander">
                                 <button type="button" class="btn btn-outline-warning rc-restart-btn"><i class="fas fa-sync me-1"></i> Restart</button>

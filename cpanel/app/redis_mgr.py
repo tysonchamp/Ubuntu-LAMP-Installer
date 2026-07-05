@@ -145,11 +145,19 @@ def check_redis_commander_installed():
     """Checks if redis-commander is installed globally."""
     return os.path.exists('/usr/lib/systemd/system/redis-commander.service') or os.path.exists('/etc/systemd/system/redis-commander.service')
 
+import secrets
+_RC_CREDS_FILE = '/var/lib/lite-cpanel/.redis_commander_creds'
+
 def install_redis_commander():
-    """Installs Redis Commander via npm and creates a systemd service."""
-    install_script = """#!/bin/bash
+    """Installs Redis Commander via npm and creates a systemd service with auth."""
+    # Generate random credentials
+    os.makedirs('/var/lib/lite-cpanel', exist_ok=True)
+    admin_pass = secrets.token_urlsafe(16)
+    with open(_RC_CREDS_FILE, 'w') as f:
+        f.write(f"admin:{admin_pass}\n")
+        
+    install_script = f"""#!/bin/bash
 export DEBIAN_FRONTEND=noninteractive
-# Install Node.js if not present
 if ! command -v npm &> /dev/null; then
     apt-get update
     apt-get install -y npm nodejs
@@ -164,7 +172,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/local/bin/redis-commander --redis-host 127.0.0.1
+ExecStart=/usr/local/bin/redis-commander --redis-host 127.0.0.1 --http-auth-username admin --http-auth-password {admin_pass}
 Restart=on-failure
 
 [Install]
@@ -173,7 +181,7 @@ EOF
 
 systemctl daemon-reload
 systemctl enable redis-commander
-systemctl start redis-commander
+systemctl restart redis-commander
 """
     try:
         script_path = '/tmp/install_redis_commander.sh'
@@ -186,6 +194,20 @@ systemctl start redis-commander
         return True, "Redis Commander installation started in the background. It will be available on port 8081 shortly."
     except Exception as e:
         return False, f"Failed to start installation: {e}"
+
+def get_redis_commander_credentials():
+    """Returns a dict with username and password if set, else {}"""
+    if not os.path.exists(_RC_CREDS_FILE):
+        return {}
+    try:
+        with open(_RC_CREDS_FILE, 'r') as f:
+            content = f.read().strip()
+            if ':' in content:
+                u, p = content.split(':', 1)
+                return {'username': u, 'password': p}
+    except Exception:
+        pass
+    return {}
 
 def get_redis_commander_status():
     """Returns 'active', 'inactive', 'failed', or 'not_installed'."""
