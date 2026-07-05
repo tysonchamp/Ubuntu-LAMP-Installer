@@ -152,7 +152,7 @@ def install_redis_commander():
     """Installs Redis Commander via npm and creates a systemd service with auth."""
     # Generate random credentials
     os.makedirs('/var/lib/lite-cpanel', exist_ok=True)
-    admin_pass = secrets.token_urlsafe(16)
+    admin_pass = secrets.token_hex(16)
     with open(_RC_CREDS_FILE, 'w') as f:
         f.write(f"admin:{admin_pass}\n")
         
