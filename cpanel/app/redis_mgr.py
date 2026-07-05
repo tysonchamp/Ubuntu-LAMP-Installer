@@ -172,7 +172,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/local/bin/redis-commander --redis-host 127.0.0.1 --http-auth-username admin --http-auth-password {admin_pass}
+ExecStart=/usr/local/bin/redis-commander --redis-host 127.0.0.1 --port 8082 --http-auth-username admin --http-auth-password {admin_pass}
 Restart=on-failure
 
 [Install]
