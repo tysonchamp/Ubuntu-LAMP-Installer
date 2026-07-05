@@ -1185,7 +1185,7 @@ def phpmyadmin_login():
 
 from nextjs_mgr import get_nextjs_apps
 from process_mgr import (is_pm2_installed, list_processes, 
-                         manage_process, start_nextjs_app, get_process_logs, run_npm_command, install_pm2)
+                         manage_process, start_nextjs_app, get_process_logs, run_npm_command, install_pm2, setup_pm2_startup)
 
 @app.route('/processes', methods=['GET', 'POST'])
 @login_required
@@ -1197,6 +1197,10 @@ def process_manager():
         action = request.form.get('action')
         if action == 'install_pm2':
             success, msg = install_pm2()
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action == 'setup_startup':
+            success, msg = setup_pm2_startup()
             flash(msg, 'success' if success else 'danger')
 
         elif action == 'add_app':

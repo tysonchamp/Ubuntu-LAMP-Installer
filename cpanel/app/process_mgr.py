@@ -10,11 +10,49 @@ def is_pm2_installed():
     """Checks if PM2 is available in the system path."""
     return shutil.which('pm2') is not None
 
+def setup_pm2_startup():
+    """Configures PM2 to start on system boot."""
+    if not is_pm2_installed():
+        return False, "PM2 is not installed."
+        
+    try:
+        env = os.environ.copy()
+        env["PM2_HOME"] = PM2_HOME
+        pm2_cmd = get_pm2_cmd()
+        
+        # Run pm2 startup to generate the command
+        result = subprocess.run([pm2_cmd, 'startup'], capture_output=True, text=True, env=env)
+        
+        startup_cmd = None
+        for line in result.stdout.split('\n'):
+            if 'env PATH=' in line:
+                startup_cmd = line.strip()
+                if startup_cmd.startswith('sudo '):
+                    startup_cmd = startup_cmd[5:]
+                break
+                
+        if startup_cmd:
+            subprocess.run(startup_cmd, shell=True, check=True, env=env, capture_output=True)
+            subprocess.run([pm2_cmd, 'save'], check=True, env=env, capture_output=True)
+            return True, "PM2 startup configured successfully."
+        elif "already" in result.stdout.lower() or "configured" in result.stdout.lower():
+            subprocess.run([pm2_cmd, 'save'], check=True, env=env, capture_output=True)
+            return True, "PM2 startup is already configured."
+        else:
+            # Fallback to direct invocation if parsing fails
+            subprocess.run([pm2_cmd, 'startup', 'systemd', '-u', 'root', '--hp', '/root'], check=True, env=env, capture_output=True)
+            subprocess.run([pm2_cmd, 'save'], check=True, env=env, capture_output=True)
+            return True, "PM2 startup configured via fallback."
+            
+    except Exception as e:
+        return False, f"Error configuring PM2 startup: {str(e)}"
+
 def install_pm2():
     """Installs PM2 globally via npm using NVM."""
     try:
         bash_cmd = 'source /root/.nvm/nvm.sh && npm install pm2 -g'
         subprocess.run(['bash', '-c', bash_cmd], check=True, capture_output=True, text=True)
+        setup_pm2_startup()
         return True, "PM2 installed successfully."
     except subprocess.CalledProcessError as e:
         return False, f"Error installing PM2: {e.stderr.strip()}"
@@ -114,7 +152,7 @@ def get_process_logs(name, lines=100):
     """Fetches the latest logs for a specific process."""
     try:
         # pm2 logs --lines N --nostream name
-        result = subprocess.run(['pm2', 'logs', name, '--lines', str(lines), '--nostream'], 
+        result = subprocess.run([get_pm2_cmd(), 'logs', name, '--lines', str(lines), '--nostream'], 
                                 capture_output=True, text=True, check=True)
         return result.stdout
     except Exception as e:
