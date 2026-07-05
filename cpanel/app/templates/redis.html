@@ -176,11 +176,16 @@
                         </div>
                     </div>
                 {% else %}
-                    <p class="text-muted mb-3">Redis Commander is installed but not running.</p>
-                    <form method="POST" action="{{ url_for('api_service_restart') }}" class="d-inline rc-restart-form">
+                    <p class="text-muted mb-3">Redis Commander is installed but not running. If it's failing to start, try resetting the authentication.</p>
+                    <form method="POST" action="{{ url_for('api_service_restart') }}" class="d-inline rc-restart-form mb-2">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="service_id" value="redis-commander">
-                        <button type="button" class="btn btn-warning rc-restart-btn"><i class="fas fa-play me-1"></i> Start Redis Commander</button>
+                        <button type="button" class="btn btn-warning rc-restart-btn me-2"><i class="fas fa-play me-1"></i> Start Redis Commander</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('redis_route') }}" class="d-inline mb-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="install_commander">
+                        <button type="submit" class="btn btn-outline-info"><i class="fas fa-key me-1"></i> Reset Auth</button>
                     </form>
                 {% endif %}
             </div>
