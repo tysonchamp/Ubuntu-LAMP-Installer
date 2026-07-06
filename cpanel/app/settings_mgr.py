@@ -43,7 +43,7 @@ def get_system_logs():
         logs[name] = log_path
 
     results = {}
-    core_log_names = ['Apache Error', 'Apache Access', 'Nginx Error', 'Nginx Access', 'Syslog', 'MySQL Error', 'Backup Log', 'Mongo Express', 'Letsencrypt']
+    core_log_names = ['Apache Error', 'Apache Access', 'Nginx Error', 'Nginx Access', 'Syslog', 'MySQL Error', 'Backup Log', 'Mongo Express', 'Letsencrypt', 'Redis Commander Install', 'Redis Commander', 'Cpanel Log']
 
     for name, path in logs.items():
         actual_path = path
