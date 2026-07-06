@@ -17,7 +17,10 @@ def get_system_logs():
         'Backup Log': '/var/log/lite-cpanel-backup.log',
         'cPanel Auth': '/var/log/cpanel_auth.log',
         'Mongo Express': '/var/log/mongo-express.log',
-        'Letsencrypt': '/var/log/letsencrypt/letsencrypt.log'
+        'Letsencrypt': '/var/log/letsencrypt/letsencrypt.log',
+        'Redis Commander Install': '/var/log/lite-cpanel-redis-commander-install.log',
+        'Redis Commander': '/var/log/redis-commander.log',
+        'Cpanel Log': '/var/log/cpanel.log'
     }
 
     # Alternative paths for some services
@@ -88,7 +91,8 @@ def get_editable_configs():
         ('/etc/apache2/apache2.conf', 'Main Apache config'),
         ('/etc/nginx/nginx.conf', 'Main Nginx config'),
         ('/etc/mysql/mariadb.conf.d/50-server.cnf', 'MariaDB Server config'),
-        ('/etc/pure-ftpd/pure-ftpd.conf', 'Pure-FTPd config')
+        ('/etc/pure-ftpd/pure-ftpd.conf', 'Pure-FTPd config'),
+        ('/etc/redis/redis.conf', 'Redis Server config')
     ]
 
     # Dynamically detect PHP versions and configs (FPM and Apache)
@@ -142,6 +146,8 @@ def save_config_file(filepath, content):
             if len(parts) >= 4:
                 version = parts[3]
                 subprocess.run(['systemctl', 'reload', f'php{version}-fpm'])
+        elif 'redis' in filepath:
+            subprocess.run(['systemctl', 'restart', 'redis-server'])
 
         return True, "File saved successfully and service reloaded."
     except Exception as e:
