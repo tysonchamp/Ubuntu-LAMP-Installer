@@ -123,6 +123,10 @@ def set_redis_password(new_password):
         # Restart the server to apply changes
         subprocess.run(['systemctl', 'restart', 'redis-server'], check=True)
         
+        # If Redis Commander is installed, rebuild it so it uses the new password
+        if check_redis_commander_installed():
+            install_redis_commander(reset_auth=False)
+        
         if new_password:
             return True, "Redis password set successfully."
         else:
@@ -148,13 +152,20 @@ def check_redis_commander_installed():
 import secrets
 _RC_CREDS_FILE = '/var/lib/lite-cpanel/.redis_commander_creds'
 
-def install_redis_commander():
+def install_redis_commander(reset_auth=True):
     """Installs Redis Commander via npm and creates a systemd service with auth."""
-    # Generate random credentials
     os.makedirs('/var/lib/lite-cpanel', exist_ok=True)
-    admin_pass = secrets.token_hex(16)
-    with open(_RC_CREDS_FILE, 'w') as f:
-        f.write(f"admin:{admin_pass}\n")
+    
+    creds = get_redis_commander_credentials()
+    if reset_auth or not creds:
+        admin_pass = secrets.token_hex(16)
+        with open(_RC_CREDS_FILE, 'w') as f:
+            f.write(f"admin:{admin_pass}\n")
+    else:
+        admin_pass = creds.get('password', secrets.token_hex(16))
+        
+    db_pass = _get_current_password()
+    db_pass_arg = f'--redis-password "{db_pass}"' if db_pass else ''
         
     install_script = f"""#!/bin/bash
 export DEBIAN_FRONTEND=noninteractive
@@ -172,7 +183,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/local/bin/redis-commander --redis-host 127.0.0.1 --port 8082 --http-auth-username admin --http-auth-password {admin_pass}
+ExecStart=/usr/local/bin/redis-commander --redis-host 127.0.0.1 --port 8082 {db_pass_arg} --http-auth-username admin --http-auth-password {admin_pass}
 Restart=on-failure
 
 [Install]
