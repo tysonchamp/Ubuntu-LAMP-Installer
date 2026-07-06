@@ -66,6 +66,13 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - Change database user passwords from the panel
 - **Mongo Express** — install, start, restart, and access the web-based MongoDB admin UI (`/mongo-express`) with auto-generated credentials and Apache reverse proxy
 
+### 🗄️ Redis Manager
+- **One-click installer** — installs Redis directly from the official repository
+- Create Redis databases with a dedicated user and strong password
+- Drop databases and automatically clean up associated users
+- Change database user passwords from the panel
+- **Redis Commander** — install, start, restart, and access the web-based Redis admin UI with auto-generated credentials
+
 ### 📂 File Manager
 - Browse the full server filesystem from the browser with breadcrumb navigation
 - Upload files (multiple at once) and download any file

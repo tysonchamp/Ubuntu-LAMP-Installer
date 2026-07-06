@@ -1,5 +1,11 @@
 # Updates:
 
+## 06.07.2026 (pm2 bug fixes and Redis DB Management)
+
+1. **PM2 Resurrection**: Added support for automatic PM2 resurrection on system boot to ensure Node.js applications persist across system restarts.
+2. **Redis DB Management**: Added support for Redis DB Management.
+3. **Redis Commander**: Added support for Redis Commander.
+
 ## 23.04.2026 (Security & Framework Optimization Update)
 
 1. **Jailed SFTP (Chroot)**: Implemented ChrootDirectory for FTP users, restricting them to their home directories and enhancing server security.
