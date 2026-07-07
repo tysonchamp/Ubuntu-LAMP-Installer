@@ -51,13 +51,13 @@ def get_virtual_hosts():
             grouped_vhosts[domain]['has_ssl'] = True
 
     # Next.js App Filtering
-    # Remove any domains that contain the '# NEXTJS_APP' marker in any of their configs.
+    # Remove any domains that contain the '# NEXTJS_APP' & # DOCKER_APP marker in any of their configs.
     domains_to_remove = []
     for domain, data in grouped_vhosts.items():
         for server, path in data['config_paths'].items():
             try:
                 with open(path, 'r') as f:
-                    if '# NEXTJS_APP' in f.read():
+                    if '# NEXTJS_APP' in f.read() or '# DOCKER_APP' in f.read():
                         domains_to_remove.append(domain)
                         break
             except Exception:
