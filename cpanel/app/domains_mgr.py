@@ -57,10 +57,8 @@ def get_virtual_hosts():
         for server, path in data['config_paths'].items():
             try:
                 with open(path, 'r') as f:
-                    if '# NEXTJS_APP' in f.read():
-                        domains_to_remove.append(domain)
-                        break
-                    if '# DOCKER_APP' in f.read():
+                    content = f.read()
+                    if '# NEXTJS_APP' in content or '# DOCKER_APP' in content:
                         domains_to_remove.append(domain)
                         break
             except Exception:
