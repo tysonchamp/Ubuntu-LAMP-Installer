@@ -870,6 +870,99 @@ def nextjs():
     nextjs_apps = get_nextjs_apps()
     return render_template('nextjs.html', nextjs_apps=nextjs_apps)
 
+from docker_mgr import (is_docker_installed, list_containers, manage_container, run_container,
+                       get_docker_apps, add_docker_app, toggle_docker_app, delete_docker_app)
+
+@app.route('/docker', methods=['GET', 'POST'])
+@login_required
+def docker_route():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action in ['start', 'stop', 'restart', 'rm']:
+            container_id = request.form.get('container_id')
+            success, msg = manage_container(action, container_id)
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action == 'run':
+            image = request.form.get('image')
+            name = request.form.get('name')
+            port_mapping = request.form.get('port_mapping')
+            env_vars = request.form.get('env_vars')
+            success, msg = run_container(image, name, port_mapping, env_vars)
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action == 'proxy_add':
+            domain = request.form.get('domain')
+            port = request.form.get('port')
+            
+            v, e = validate_input(domain, 'domain')
+            if not v:
+                flash(f"Validation failed: {e}", "danger")
+                return redirect(url_for('docker_route'))
+                
+            if not port or not port.isdigit():
+                flash("Invalid port number.", "danger")
+                return redirect(url_for('docker_route'))
+                
+            success, msg = add_docker_app(domain, port)
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action == 'proxy_toggle':
+            domain = request.form.get('domain')
+            enable_str = request.form.get('enable')
+            enable = enable_str.lower() == 'true'
+            success, msg = toggle_docker_app(domain, enable)
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action == 'proxy_delete':
+            domain = request.form.get('domain')
+            success, msg = delete_docker_app(domain)
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action == 'ssl_generate':
+            domain = request.form.get('domain')
+            servers = request.form.get('servers', '')
+            import subprocess
+            try:
+                detected = get_port80_webserver(domain)
+                if detected == 'nginx':
+                    plugin = '--nginx'
+                elif detected == 'apache':
+                    plugin = '--apache'
+                else:
+                    plugin = '--nginx' if 'Nginx' in servers and 'Apache' not in servers else '--apache'
+                
+                domain_args = ['-d', domain]
+                if check_dns_resolution(f"www.{domain}"):
+                    domain_args.extend(['-d', f'www.{domain}'])
+                
+                cmd = ['certbot', plugin] + domain_args + ['--non-interactive', '--agree-tos', '-m', f'admin@{domain}']
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    flash(f"SSL Certificate generated successfully for {domain}!", 'success')
+                else:
+                    flash(f"SSL Generation failed: {result.stderr}", 'danger')
+            except Exception as e:
+                flash(f"Error during SSL setup: {str(e)}", 'danger')
+                
+        elif action == 'ssl_renew':
+            import subprocess
+            try:
+                result = subprocess.run(['certbot', 'renew', '--non-interactive'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    flash("Certificates renewed successfully. " + result.stdout, 'success')
+                else:
+                    flash(f"Renewal issue: {result.stderr}", 'danger')
+            except Exception as e:
+                flash(f"Error during renewal: {str(e)}", 'danger')
+
+        return redirect(url_for('docker_route'))
+
+    containers = list_containers()
+    docker_apps = get_docker_apps()
+    return render_template('docker.html', containers=containers, docker_apps=docker_apps)
+
 @app.route('/terminal')
 @login_required
 def terminal():
