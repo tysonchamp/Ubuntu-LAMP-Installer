@@ -871,7 +871,7 @@ def nextjs():
     return render_template('nextjs.html', nextjs_apps=nextjs_apps)
 
 from docker_mgr import (is_docker_installed, list_containers, manage_container, run_container,
-                       get_docker_apps, add_docker_app, toggle_docker_app, delete_docker_app)
+                       get_docker_apps, add_docker_app, toggle_docker_app, delete_docker_app, run_docker_compose)
 
 @app.route('/docker', methods=['GET', 'POST'])
 @login_required
@@ -918,6 +918,11 @@ def docker_route():
         elif action == 'proxy_delete':
             domain = request.form.get('domain')
             success, msg = delete_docker_app(domain)
+            flash(msg, 'success' if success else 'danger')
+            
+        elif action == 'proxy_compose_up':
+            domain = request.form.get('domain')
+            success, msg = run_docker_compose(domain)
             flash(msg, 'success' if success else 'danger')
             
         elif action == 'ssl_generate':

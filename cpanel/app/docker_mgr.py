@@ -231,7 +231,11 @@ def create_hybrid_proxy(domain, port):
     create_nginx_proxy(domain, port, is_hybrid=True)
 
 def add_docker_app(domain, port):
-    """Creates a reverse proxy for a Docker app on the specified port."""
+    """Creates a reverse proxy for a Docker app on the specified port and sets up a document root."""
+    doc_root = f'/var/www/{domain}'
+    if not os.path.exists(doc_root):
+        os.makedirs(doc_root, exist_ok=True)
+
     webserver = get_webserver_type()
     
     if webserver == 'none':
@@ -321,6 +325,35 @@ def delete_docker_app(domain):
     if errors:
         return False, f"Errors deleting Docker app: {', '.join(errors)}"
     elif deleted:
+        doc_root = f'/var/www/{domain}'
+        if os.path.exists(doc_root):
+            shutil.rmtree(doc_root, ignore_errors=True)
         return True, f"Docker proxy for {domain} deleted successfully from: {', '.join(deleted)}."
     else:
         return False, "Configuration not found for any web server."
+
+def run_docker_compose(domain):
+    """
+    Checks for a docker-compose.yml in the domain's document root
+    and runs docker compose up -d --build in the background.
+    """
+    doc_root = f'/var/www/{domain}'
+    
+    if not os.path.exists(doc_root):
+        return False, f"Document root {doc_root} does not exist."
+        
+    yml_path = os.path.join(doc_root, 'docker-compose.yml')
+    yaml_path = os.path.join(doc_root, 'docker-compose.yaml')
+    
+    if not os.path.exists(yml_path) and not os.path.exists(yaml_path):
+        return False, "No docker-compose.yml or docker-compose.yaml found in the document root."
+        
+    log_file = f'/var/log/docker_compose_{domain}.log'
+    
+    try:
+        # We use a shell command to allow redirection easily and start in background
+        cmd = f"cd {doc_root} && (docker compose up -d --build > {log_file} 2>&1 &)"
+        subprocess.Popen(cmd, shell=True)
+        return True, f"Docker compose build started in background. Logs are written to {log_file}"
+    except Exception as e:
+        return False, f"Failed to run docker compose: {str(e)}"

@@ -234,6 +234,14 @@
                                                 {% endif %}
                                             </form>
                                             
+                                            <!-- Compose Up Action -->
+                                            <form method="POST" action="{{ url_for('docker_route') }}" class="mb-0">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="action" value="proxy_compose_up">
+                                                <input type="hidden" name="domain" value="{{ app.domain }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Build & Run (Compose)"><i class="fas fa-magic"></i></button>
+                                            </form>
+                                            
                                             <!-- Delete Action -->
                                             <form method="POST" action="{{ url_for('docker_route') }}" class="mb-0" onsubmit="return confirm('Are you sure you want to delete this Docker proxy configuration?');">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
