@@ -1,5 +1,13 @@
 # Updates:
 
+## 08.7.2026 (Docker Container Manager)
+
+1. **Docker Container Management**: Added a new dedicated Docker UI to seamlessly list, start, stop, restart, remove, and run containers with custom configurations directly from the panel.
+2. **Docker Domain Proxying**: Implemented the ability to map domain names to internal Docker container ports using automated Nginx and Apache reverse proxy configurations.
+3. **Automated Document Roots**: Creating a Docker proxy now automatically provisions a document root (`/var/www/{domain}`) for users to upload and manage configuration files.
+4. **Docker Compose Integration**: Added a one-click "Build & Run" feature that detects a `docker-compose.yml` in the document root and executes a background build, automatically piping logs to `/var/log/docker_compose_{domain}.log`.
+5. **Domain Manager Bug Fix**: Fixed an issue in `domains_mgr.py` where Docker Proxy apps were not being correctly filtered out of the standard Domain list due to a file reading bug.
+
 ## 06.07.2026 (pm2 bug fixes and Redis DB Management)
 
 1. **PM2 Resurrection**: Added support for automatic PM2 resurrection on system boot to ensure Node.js applications persist across system restarts.

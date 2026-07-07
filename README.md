@@ -73,6 +73,8 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - Change database user passwords from the panel
 - **Redis Commander** — install, start, restart, and access the web-based Redis admin UI with auto-generated credentials
 
+
+
 ### 📂 File Manager
 - Browse the full server filesystem from the browser with breadcrumb navigation
 - Upload files (multiple at once) and download any file
@@ -111,6 +113,14 @@ It bundles a full automated LAMP/LEMP stack installer alongside a browser-based 
 - **Integrated Log Viewer** — View stdout/stderr logs in a beautiful modal for instant debugging
 - **One-Click Startup** — Quickly launch Next.js apps on custom ports with automatic persistence
 - **NVM Awareness** — Automatically detects and supports Node.js versions installed via NVM
+
+### 🐳 Docker Manager
+- **Container Controls** — List, start, stop, restart, and remove Docker containers directly from the UI
+- **Run New Containers** — Easily launch new containers with custom images, names, port mappings, and environment variables
+- **Domain Proxying** — Instantly map domain names to internal Docker container ports via automated Nginx/Apache reverse proxy configs
+- **Automated Document Roots** — Automatically provisions a document root (`/var/www/{domain}`) when creating a Docker domain proxy for storing configuration files
+- **Docker Compose Integration** — Upload a `docker-compose.yml` to the document root and trigger a background build & run (`docker compose up -d --build`) directly from the panel with one click
+- **Logs Tracking** — Background compose builds pipe their output seamlessly to `/var/log/docker_compose_{domain}.log`
 
 ### 🌐 Domain & SSL Manager
 - **Smart SSL Generation** — Automatically detects which webserver (Apache/Nginx) is serving port 80 to choose the correct Certbot plugin
@@ -273,6 +283,7 @@ Lite-cPanel/
 │       ├── backup_mgr.py       # Automated Backup Manager (Local, FTP, S3)
 │       ├── cron_mgr.py         # Cron job scheduling
 │       ├── database_mgr.py     # MySQL management
+│       ├── docker_mgr.py       # Docker & Docker Compose container management
 │       ├── domains_mgr.py      # Virtual host management
 │       ├── filemanager_mgr.py  # File Manager (browse, edit, upload, compress, extract)
 │       ├── ftp_mgr.py          # Pure-FTPd user management
@@ -299,6 +310,7 @@ Lite-cPanel/
 │           ├── modsecurity.html
 │           ├── wordpress.html
 │           ├── nextjs.html
+│           ├── docker.html
 │           ├── terminal.html
 │           ├── cron.html
 │           ├── backups.html
@@ -330,7 +342,7 @@ Please follow [Conventional Commits](https://www.conventionalcommits.org/) for c
 - [x] Automated backups (scheduled tar/mysqldump with remote upload)
 - [ ] Multi-user support with role-based access control
 - [x] Let's Encrypt auto-renewal via cron
-- [ ] Docker containerization support
+- [x] Docker containerization support
 - [x] Web-based terminal (xterm.js integration)
 - [x] MongoDB & Mongo Express management
 - [x] File Manager with compress/extract support
