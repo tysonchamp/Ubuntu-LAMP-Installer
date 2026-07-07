@@ -12,7 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python" />
   <img src="https://img.shields.io/badge/Flask-2.x-lightgrey?logo=flask" />
-  <img src="https://img.shields.io/badge/Ubuntu-20.04%2B-orange?logo=ubuntu" />
+  <img src="https://img.shields.io/badge/Ubuntu-24.04%2B-orange?logo=ubuntu" />
   <img src="https://img.shields.io/badge/License-GPL--3.0-green" />
   <img src="https://img.shields.io/badge/Status-Active-brightgreen" />
 </p>
