@@ -31,6 +31,10 @@
 
 It bundles a full automated LAMP/LEMP stack installer alongside a browser-based management interface — all in a single deployable unit.
 
+## Looking for cPanel to manage shared hosting?
+
+[github.com/tysonchamp/Lite-cPanel-Shared](https://github.com/tysonchamp/Lite-cPanel-Shared)
+
 ---
 
 ## Features
